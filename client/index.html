@@ -2,9 +2,18 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+  <!-- Anticaché: fuerza a que el navegador revalide el HTML shell en cada
+       carga. Los assets JS/CSS que genera Vite ya llevan un hash en el
+       nombre de archivo (p. ej. main-a1b2c3.js), así que cambian de URL
+       solos en cada build y no necesitan esta cabecera — el problema real
+       de caché suele ser este index.html quedándose desactualizado. -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>MMO Espacial — Prototipo</title>
   <style>
-    html, body { margin: 0; background: #05050a; overflow: hidden; }
+    html, body { margin: 0; background: #05050a; overflow: hidden; touch-action: none; }
+    canvas { touch-action: none; }
     #ui {
       position: fixed; top: 10px; left: 10px; color: #cfe8ff;
       font-family: monospace; font-size: 14px; z-index: 10;

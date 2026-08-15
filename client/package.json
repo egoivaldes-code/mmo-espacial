@@ -1,0 +1,16 @@
+{
+  "name": "mmo-espacial-client",
+  "version": "0.1.0",
+  "description": "Cliente Phaser del prototipo - Fase 0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "colyseus.js": "^0.15.20",
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

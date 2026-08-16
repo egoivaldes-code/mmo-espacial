@@ -1,0 +1,39 @@
+[
+  {
+    "version": "v0.0.5",
+    "highlights": [
+      "La Naveteca ahora es un editor: cambia el nombre, las estadísticas, el sprite o el sonido de cualquier nave.",
+      "Los cambios se pueden exportar y aplicar al juego real."
+    ]
+  },
+  {
+    "version": "v0.0.4",
+    "highlights": [
+      "Primeras naves reales en el juego, con sonido de motor.",
+      "Nueva herramienta Naveteca para explorar el catálogo de 41 naves."
+    ]
+  },
+  {
+    "version": "v0.0.3",
+    "highlights": [
+      "Movimiento mucho más fluido jugando varios a la vez.",
+      "Nueva pantalla para crear o elegir personaje (hasta 5).",
+      "Indicador de ping y reconexión automática si se corta la conexión.",
+      "Límite visible del mundo jugable."
+    ]
+  },
+  {
+    "version": "v0.0.2",
+    "highlights": [
+      "Control táctil completo: joystick donde tocas la pantalla y botón de minar.",
+      "Menú de opciones con botón para cerrar el juego.",
+      "Arreglado un fallo que impedía ver moverse a las naves."
+    ]
+  },
+  {
+    "version": "v0.0.1",
+    "highlights": [
+      "Primera versión jugable: mueve tu nave, mina asteroides y juega con otros en tiempo real."
+    ]
+  }
+]

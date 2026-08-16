@@ -13,6 +13,57 @@ client/   → Phaser + colyseus.js. Se conecta a la room, dibuja naves y
             asteroides, envía input de teclado.
 ```
 
+## Textos de la interfaz (i18n) y patch notes
+
+- `client/public/i18n/{lang}.json` — todos los textos de la interfaz
+  (HTML y Phaser). Añadir un idioma: crear el JSON correspondiente y
+  sumarlo a `AVAILABLE_LANGUAGES` en `client/src/main.js`.
+- `client/public/patchnotes/{lang}.json` — resumen curado para jugador,
+  por versión, que se muestra en la pantalla de inicio del juego. Es
+  distinto del `CHANGELOG.md` de la raíz del repo (ese es técnico, para
+  desarrollo — ya no se muestra dentro del juego).
+
+## Cómo se aplican los cambios (flujo de parches)
+
+El desarrollo va por parches en `.zip`, no por PRs manuales. El propio
+repo tiene un workflow que los aplica solo:
+
+**`.github/workflows/apply-patch.yml`** — se dispara automáticamente al
+subir un archivo `spacemmo_*.zip` (o `patches/*.zip`) a la raíz de
+`main`. Descomprime el zip, crea los archivos nuevos, sobreescribe por
+completo los que ya existan, borra el zip, hace commit y push. Si el
+cambio toca `client/`, dispara también `deploy-pages.yml` (necesario
+porque los pushes hechos con el token automático de Actions no disparan
+otros workflows por su cuenta — GitHub lo bloquea a propósito para evitar
+bucles).
+
+**Flujo de trabajo:**
+1. Se genera un `spacemmo_vX.Y.Z.zip` con los archivos del parche, en sus
+   rutas reales dentro del repo (p. ej. `client/src/main.js`,
+   `server/rooms/ChunkRoom.js`).
+2. El zip incluye un `README.md` en la raíz — son instrucciones para
+   humanos, el workflow lo ignora y nunca lo copia sobre el `README.md`
+   real del repo.
+3. Se sube ese único zip a la raíz de `main` (arrastrando el archivo
+   desde el móvil o el ordenador, sin necesidad de git ni terminal).
+4. El workflow hace el resto solo. Se puede ver el resultado en la
+   pestaña *Actions*.
+
+**Metadatos opcionales dentro del zip** (no se copian al repo, el
+workflow los lee y actúa según lo que digan):
+- `DELETE.txt` — una ruta por línea, de archivos/carpetas a borrar del
+  repo (útil para retirar código obsoleto de un parche anterior).
+- `PATCH.json` — control fino: `{"commit_message": "...", "delete": [...], "ignore": [...], "copy_readme": false}`.
+
+**Convención para que el mensaje de commit se deduzca solo:** el primer
+encabezado del `README.md` del zip debe seguir el formato
+`# spacemmo_vX.Y.Z.zip — Título breve` — el workflow saca la versión del
+nombre del propio zip y el título de ese encabezado.
+
+**Requisito de configuración (una sola vez):** en *Settings → Actions →
+General → Workflow permissions* del repo tiene que estar activado "Read
+and write permissions", si no el workflow no podrá hacer `git push`.
+
 ## Cómo desplegarlo (Render + GitHub Pages)
 
 GitHub Pages solo sirve contenido estático — no puede correr el servidor

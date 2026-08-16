@@ -1,0 +1,39 @@
+[
+  {
+    "version": "v0.0.5",
+    "highlights": [
+      "The Ship Codex is now an editor: change any ship's name, stats, sprite, or sound.",
+      "Changes can be exported and applied to the live game."
+    ]
+  },
+  {
+    "version": "v0.0.4",
+    "highlights": [
+      "First real ships in the game, with engine sound.",
+      "New Ship Codex tool to browse the 41-ship catalog."
+    ]
+  },
+  {
+    "version": "v0.0.3",
+    "highlights": [
+      "Much smoother movement with multiple players at once.",
+      "New character creation/selection screen (up to 5).",
+      "Ping indicator and automatic reconnect if the connection drops.",
+      "Visible border for the playable world."
+    ]
+  },
+  {
+    "version": "v0.0.2",
+    "highlights": [
+      "Full touch controls: a joystick appears wherever you tap, plus a mining button.",
+      "Options menu with a button to close the game.",
+      "Fixed a bug that stopped ships from visibly moving."
+    ]
+  },
+  {
+    "version": "v0.0.1",
+    "highlights": [
+      "First playable version: fly your ship, mine asteroids, and play with others in real time."
+    ]
+  }
+]

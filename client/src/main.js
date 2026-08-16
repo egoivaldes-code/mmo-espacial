@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.0.5";
+const GAME_VERSION = "v0.0.6";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -32,11 +32,6 @@ const CHARACTERS_STORAGE_KEY = "spacemmo_characters";
 const STARTING_SHIP_ID = "shuttle_01";
 
 // Misma clave de localStorage que usa client/public/naveteca/index.html.
-// Es el mecanismo de "guardado" de la naveteca: como GitHub Pages es
-// hosting estático y no puede escribir en el repo, las ediciones desde
-// la naveteca se guardan en el navegador y el juego las lee de aquí para
-// que se noten al instante en la misma máquina — para que las vea todo
-// el mundo hace falta exportar el parche desde la naveteca y desplegarlo.
 const SHIP_OVERRIDES_KEY = "spacemmo_ship_overrides";
 
 function getLocalShipOverride(shipId) {
@@ -50,20 +45,89 @@ function getLocalShipOverride(shipId) {
   }
 }
 
+// Zoom de la cámara — límites razonables para no perder el contexto del
+// mundo ni acercarse tanto que se pixele el sprite.
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 2.5;
+const DEFAULT_ZOOM = 1;
+
 const ui = document.getElementById("ui");
 
 // ============================================================================
+// Idioma — el juego está preparado para varios desde el principio. Se
+// elige aquí (o en Opciones dentro de la partida) y todo el texto de la
+// interfaz (HTML y Phaser) sale de estos diccionarios, no hay texto fijo
+// repartido por el código. Añadir un idioma nuevo es: crear
+// client/public/i18n/xx.json + client/public/patchnotes/xx.json y sumarlo
+// a AVAILABLE_LANGUAGES — no hace falta tocar nada más.
+// ============================================================================
+
+const LANG_STORAGE_KEY = "spacemmo_lang";
+const DEFAULT_LANG = "es";
+const AVAILABLE_LANGUAGES = [
+  { code: "es", label: "Español" },
+  { code: "en", label: "English" },
+];
+
+let TRANSLATIONS = {};
+let currentLang = DEFAULT_LANG;
+
+function detectInitialLang() {
+  const saved = localStorage.getItem(LANG_STORAGE_KEY);
+  if (saved && AVAILABLE_LANGUAGES.some((l) => l.code === saved)) return saved;
+
+  const browserLang = (navigator.language || "es").slice(0, 2).toLowerCase();
+  if (AVAILABLE_LANGUAGES.some((l) => l.code === browserLang)) return browserLang;
+
+  return DEFAULT_LANG;
+}
+
+async function loadTranslations() {
+  currentLang = detectInitialLang();
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}i18n/${currentLang}.json`);
+    TRANSLATIONS = await res.json();
+  } catch {
+    currentLang = DEFAULT_LANG;
+    TRANSLATIONS = {};
+  }
+}
+
+// Busca una clave tipo "hud.pingSuffix" en el diccionario y sustituye
+// variables {nombre} por sus valores. Si falta la clave, devuelve la
+// propia clave (visible y fácil de detectar, en vez de romper la UI).
+function t(key, vars) {
+  const parts = key.split(".");
+  let node = TRANSLATIONS;
+  for (const p of parts) {
+    node = node?.[p];
+  }
+  if (typeof node !== "string") return key;
+  if (!vars) return node;
+  return node.replace(/\{(\w+)\}/g, (_, name) => (vars[name] !== undefined ? String(vars[name]) : ""));
+}
+
+function localeForLang(lang) {
+  return lang === "en" ? "en-US" : "es-ES";
+}
+
+function setLanguage(code) {
+  localStorage.setItem(LANG_STORAGE_KEY, code);
+  location.reload();
+}
+
+// ============================================================================
 // Conexión en segundo plano — arranca nada más cargar la página, antes de
-// que el jugador termine de leer el changelog o elegir personaje. Así se
-// aprovecha ese tiempo para que el servidor de Render despierte si estaba
-// dormido (el plan gratuito duerme tras inactividad).
+// que el jugador termine de leer las patch notes o elegir personaje. Así
+// se aprovecha ese tiempo para que el servidor de Render despierte si
+// estaba dormido (el plan gratuito duerme tras inactividad).
 // ============================================================================
 
 let roomPromise = null;
 let CHOSEN_NAME = "Piloto";
 
 const statusListeners = new Set();
-let currentStatusText = "Comprobando estado del servidor…";
+let currentStatusText = "";
 
 function setStatus(text) {
   currentStatusText = text;
@@ -72,7 +136,7 @@ function setStatus(text) {
 
 function onStatusChange(fn) {
   statusListeners.add(fn);
-  fn(currentStatusText); // notifica el estado actual al suscribirse
+  fn(currentStatusText);
 }
 
 function httpUrlFromWsUrl(wsUrl) {
@@ -82,11 +146,11 @@ function httpUrlFromWsUrl(wsUrl) {
 // "Despierta" el servidor con una petición ligera antes de intentar la
 // conexión real por websocket. Si el servidor está dormido (Render free
 // tier), esta petición se queda esperando hasta que arranca — es
-// justamente lo que da tiempo para leer el changelog.
+// justamente lo que da tiempo para leer las patch notes.
 async function warmupServer() {
   const httpUrl = httpUrlFromWsUrl(SERVER_URL);
   const hintTimer = setTimeout(() => {
-    setStatus("Despertando el servidor (plan gratuito) — puede tardar hasta 30s…");
+    setStatus(t("intro.wakingServer"));
   }, 3000);
 
   const maxAttempts = 6;
@@ -100,8 +164,6 @@ async function warmupServer() {
     }
   }
   clearTimeout(hintTimer);
-  // Si tras varios intentos sigue sin responder, seguimos igualmente —
-  // el intento real de conexión colyseus dará su propio error si procede.
 }
 
 function joinRoom() {
@@ -110,77 +172,29 @@ function joinRoom() {
 }
 
 async function startBackgroundConnection() {
-  setStatus("Comprobando estado del servidor…");
+  setStatus(t("intro.checkingServer"));
   await warmupServer();
-  setStatus("Servidor listo. Conectando…");
+  setStatus(t("intro.serverReady"));
 
   roomPromise = joinRoom();
   try {
     await roomPromise;
-    setStatus("Conectado. Listo para jugar.");
+    setStatus(t("intro.connected"));
   } catch (err) {
-    setStatus(`Error de conexión: ${err.message}`);
+    setStatus(t("intro.connectionError", { error: err.message }));
   }
 }
 
-startBackgroundConnection();
-
 // ============================================================================
-// Pantalla 1: changelog scrolleable + barra de estado fija
+// Pantalla 1: patch notes (resumen para jugador) + barra de estado, ANCLADA
+// ARRIBA — así nunca se pierde de vista aunque se haga scroll a las notas.
 // ============================================================================
 
 function escapeHtml(str) {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function formatInline(text) {
-  return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-}
-
-// Conversor mínimo de Markdown a HTML — cubre justo lo que usa
-// CHANGELOG.md (encabezados, listas, párrafos, negrita). No es un parser
-// completo a propósito, para no añadir una dependencia solo para esto.
-function simpleMarkdownToHtml(md) {
-  const lines = md.split("\n");
-  let html = "";
-  let inList = false;
-
-  const closeList = () => {
-    if (inList) {
-      html += "</ul>";
-      inList = false;
-    }
-  };
-
-  for (const raw of lines) {
-    const line = raw.trimEnd();
-    if (line.startsWith("### ")) {
-      closeList();
-      html += `<h3>${formatInline(line.slice(4))}</h3>`;
-    } else if (line.startsWith("## ")) {
-      closeList();
-      html += `<h2>${formatInline(line.slice(3))}</h2>`;
-    } else if (line.startsWith("# ")) {
-      closeList();
-      html += `<h1>${formatInline(line.slice(2))}</h1>`;
-    } else if (line.startsWith("- ")) {
-      if (!inList) {
-        html += "<ul>";
-        inList = true;
-      }
-      html += `<li>${formatInline(line.slice(2))}</li>`;
-    } else if (line.trim() === "") {
-      closeList();
-    } else {
-      closeList();
-      html += `<p>${formatInline(line)}</p>`;
-    }
-  }
-  closeList();
-  return html;
-}
-
-const introScroll = document.getElementById("intro-scroll");
+const introScrollInner = document.getElementById("intro-scroll-inner");
 const loadStatusEl = document.getElementById("load-status");
 const introContinueBtn = document.getElementById("intro-continue-btn");
 const introScreen = document.getElementById("intro-screen");
@@ -190,16 +204,27 @@ onStatusChange((text) => {
   loadStatusEl.textContent = text;
 });
 
-async function loadChangelog() {
+async function loadPatchNotes() {
   try {
-    const res = await fetch(`${import.meta.env.BASE_URL}CHANGELOG.md`);
-    const md = await res.text();
-    introScroll.innerHTML = simpleMarkdownToHtml(md);
+    const res = await fetch(`${import.meta.env.BASE_URL}patchnotes/${currentLang}.json`);
+    const notes = await res.json();
+    introScrollInner.innerHTML = notes
+      .map((entry) => {
+        const isCurrent = entry.version === GAME_VERSION;
+        const tag = isCurrent ? `<span class="current-tag">${escapeHtml(t("intro.current"))}</span>` : "";
+        const items = entry.highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join("");
+        return `
+          <div class="patch-entry">
+            <div class="patch-version">${escapeHtml(entry.version)}${tag}</div>
+            <ul>${items}</ul>
+          </div>
+        `;
+      })
+      .join("");
   } catch {
-    introScroll.innerHTML = "<p>No se pudo cargar el changelog.</p>";
+    introScrollInner.innerHTML = `<p>${escapeHtml(t("intro.loadError"))}</p>`;
   }
 }
-loadChangelog();
 
 introContinueBtn.addEventListener("click", () => {
   introScreen.style.display = "none";
@@ -229,6 +254,7 @@ function saveCharacters(characters) {
   localStorage.setItem(CHARACTERS_STORAGE_KEY, JSON.stringify(characters));
 }
 
+const charTitleEl = document.getElementById("char-title");
 const charListEl = document.getElementById("char-list");
 const charCreateEl = document.getElementById("char-create");
 const charNameInput = document.getElementById("char-name-input");
@@ -253,7 +279,8 @@ function renderCharacterScreen() {
   characters.forEach((char) => {
     const btn = document.createElement("button");
     btn.className = "char-item";
-    btn.innerHTML = `${escapeHtml(char.name)}<div class="char-meta">Creado ${new Date(char.createdAt).toLocaleDateString()}</div>`;
+    const dateStr = new Date(char.createdAt).toLocaleDateString(localeForLang(currentLang));
+    btn.innerHTML = `${escapeHtml(char.name)}<div class="char-meta">${escapeHtml(t("character.createdOn", { date: dateStr }))}</div>`;
     btn.addEventListener("click", () => selectCharacter(char));
     charListEl.appendChild(btn);
   });
@@ -261,8 +288,6 @@ function renderCharacterScreen() {
   const atLimit = characters.length >= MAX_CHARACTERS;
   charLimitMsg.style.display = atLimit ? "block" : "none";
 
-  // Si no hay ningún personaje todavía, no tiene sentido pedir que
-  // pulsen "crear nuevo" — se muestra el formulario directamente.
   const showCreateFormDirectly = characters.length === 0 && !atLimit;
   charCreateEl.style.display = showCreateFormDirectly ? "block" : "none";
   charCreateToggleBtn.style.display = atLimit || showCreateFormDirectly ? "none" : "block";
@@ -279,7 +304,7 @@ function createCharacter() {
   if (characters.length >= MAX_CHARACTERS) return;
 
   const typed = charNameInput.value.trim();
-  const name = typed ? typed.slice(0, 16) : `Piloto-${characters.length + 1}`;
+  const name = typed ? typed.slice(0, 16) : t("character.defaultName", { n: characters.length + 1 });
 
   const character = {
     id: `char_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
@@ -300,12 +325,33 @@ charNameInput.addEventListener("keydown", (e) => {
 function selectCharacter(character) {
   CHOSEN_NAME = character.name;
   characterScreen.style.display = "none";
-
-  // El join en segundo plano pudo haber arrancado con el nombre por
-  // defecto ("Piloto") mientras el jugador aún elegía — se corrige en
-  // cuanto la room esté lista, dentro de la escena de Phaser.
   launchGame();
 }
+
+// Aplica las traducciones a los textos fijos del HTML (una vez, al arrancar).
+function applyStaticTranslations() {
+  introContinueBtn.textContent = t("intro.continue");
+  charTitleEl.textContent = t("character.title");
+  charNameInput.placeholder = t("character.namePlaceholder");
+  charCreateBtn.textContent = t("character.createButton");
+  charCreateToggleBtn.textContent = t("character.createNewToggle");
+  charLimitMsg.textContent = t("character.limitReached");
+}
+
+// ============================================================================
+// Arranque: cargar idioma antes que nada (para no mostrar texto sin
+// traducir ni un instante), luego patch notes + conexión en paralelo.
+// ============================================================================
+
+async function boot() {
+  await loadTranslations();
+  applyStaticTranslations();
+  loadPatchNotes();
+  startBackgroundConnection();
+  introScreen.style.visibility = "visible";
+}
+
+boot();
 
 // ============================================================================
 // Juego (Phaser + Colyseus)
@@ -317,23 +363,17 @@ class ChunkScene extends Phaser.Scene {
     this.playerEntities = new Map(); // sessionId -> { container, sprite, label, isMe, buffer }
     this.asteroidSprites = new Map(); // id -> Phaser.GameObjects
     this.touchInput = { up: false, down: false, left: false, right: false, mining: false };
-    this.localEntry = null; // referencia rápida a la entidad del propio jugador
+    this.localEntry = null;
     this.localPlayerState = null;
-    this.manualLeave = false; // true si el propio jugador cerró el juego
+    this.manualLeave = false;
     this.latencyMs = null;
-    this.shipMeta = null; // datos de la nave activa, leídos de ships.json
+    this.shipMeta = null;
     this.engineSound = null;
     this.engineSoundPlaying = false;
+    this.pinchPointers = new Map(); // id -> {x,y}, dedos libres candidatos a pellizco
+    this.lastPinchDistance = null;
   }
 
-  // Carga la textura y el sonido de la nave activa desde la carpeta
-  // compartida con la naveteca (client/public/ships/). Cambiar esos
-  // archivos ahí cambia lo que se ve/oye aquí, sin tocar código.
-  //
-  // Si hay una edición local guardada desde la naveteca (misma clave de
-  // localStorage, OVERRIDES_KEY), se usa esa en vez del archivo estático
-  // — así "guardar" en la naveteca se nota al instante en el juego, en
-  // el mismo navegador, sin necesidad de desplegar nada.
   preload() {
     const base = `${import.meta.env.BASE_URL}ships/`;
     this.load.json("shipsCatalog", `${base}ships.json`);
@@ -355,6 +395,7 @@ class ChunkScene extends Phaser.Scene {
 
   async create() {
     this.cameras.main.setBackgroundColor("#05050a");
+    this.cameras.main.setZoom(DEFAULT_ZOOM);
 
     const catalog = this.cache.json.get("shipsCatalog") || [];
     const baseMeta = catalog.find((s) => s.id === STARTING_SHIP_ID) || null;
@@ -366,6 +407,7 @@ class ChunkScene extends Phaser.Scene {
     this.starfield();
     this.drawWorldBorder();
     this.setupInput();
+    this.setupZoom();
     this.createTopBarUI();
 
     await this.connectToServer();
@@ -376,12 +418,10 @@ class ChunkScene extends Phaser.Scene {
       const x = Phaser.Math.Between(-2500, 2500);
       const y = Phaser.Math.Between(-2500, 2500);
       const star = this.add.circle(x, y, Phaser.Math.Between(1, 2), 0xffffff, Phaser.Math.FloatBetween(0.3, 0.9));
-      star.setScrollFactor(0.6); // ligero parallax
+      star.setScrollFactor(0.6);
     }
   }
 
-  // Borde visual del mundo jugable. El servidor es quien realmente aplica
-  // el límite (clamp de posición) — esto es solo la representación.
   drawWorldBorder() {
     const half = WORLD_SIZE / 2;
     this.add
@@ -391,30 +431,47 @@ class ChunkScene extends Phaser.Scene {
       .setFillStyle();
   }
 
+  // ---- Zoom: rueda del ratón (PC) + pellizco con dos dedos (táctil) ----
+
+  setupZoom() {
+    this.input.on("wheel", (_pointer, _gameObjects, _dx, dy) => {
+      this.adjustZoom(-dy * 0.0015);
+    });
+  }
+
+  setZoom(value) {
+    const clamped = Phaser.Math.Clamp(value, MIN_ZOOM, MAX_ZOOM);
+    this.cameras.main.setZoom(clamped);
+    // Compensa el HUD persistente para que no cambie de tamaño en pantalla
+    // al hacer zoom del mundo (el zoom de cámara afecta también a los
+    // objetos con scrollFactor 0 en Phaser, así que hay que contrarrestarlo).
+    const compensate = 1 / clamped;
+    this.versionText?.setScale(compensate);
+    this.menuBtn?.setScale(compensate);
+    if (this.optionsMenu) this.optionsMenu.setScale(compensate);
+  }
+
+  adjustZoom(delta) {
+    this.setZoom(this.cameras.main.zoom + delta);
+  }
+
   // ---- Conexión, reconexión y binding de eventos de la room ----
 
   async connectToServer() {
     ui.textContent = currentStatusText;
-    const unsubscribeStatus = (text) => {
+    onStatusChange((text) => {
       if (!this.room) ui.textContent = text;
-    };
-    onStatusChange(unsubscribeStatus);
+    });
 
     try {
-      // Reutiliza la conexión que ya se inició en segundo plano nada más
-      // cargar la página (mientras se leía el changelog / elegía personaje)
-      // en vez de arrancar una nueva desde cero.
       this.room = roomPromise ? await roomPromise : await joinRoom();
     } catch (err) {
-      ui.textContent = `Error de conexión: ${err.message}`;
+      ui.textContent = t("hud.connectionError", { error: err.message });
       return;
     }
 
-    // El join de fondo pudo haberse hecho con el nombre por defecto —
-    // corrige al nombre real del personaje elegido.
     this.room.send("setName", CHOSEN_NAME);
-
-    ui.textContent = `Conectado. Sesión: ${this.room.sessionId}`;
+    ui.textContent = t("hud.connectedSession", { id: this.room.sessionId });
 
     this.bindRoomEvents();
     this.startPingLoop();
@@ -425,15 +482,9 @@ class ChunkScene extends Phaser.Scene {
     });
   }
 
-  // Vuelve a registrar todos los listeners de estado sobre this.room.
-  // Se llama tanto en la conexión inicial como tras cada reconexión (la
-  // room es un objeto nuevo cada vez, así que hay que re-suscribirse).
   bindRoomEvents() {
     this.room.state.players.onAdd((player, sessionId) => {
       const isMe = sessionId === this.room.sessionId;
-      // Sprite real de la nave (cargado en preload() desde ships/sprites/).
-      // El arte viene con el morro hacia arriba, igual que el triángulo
-      // que sustituye, así que la misma fórmula de rotación sigue valiendo.
       const sprite = this.add.image(0, 0, `ship-${STARTING_SHIP_ID}`).setScale(0.5);
       sprite.setTint(isMe ? 0x9fd6ff : 0xffb090);
       const label = this.add.text(0, 22, player.name, { fontSize: "10px", color: "#cfe8ff" }).setOrigin(0.5, 0);
@@ -499,9 +550,14 @@ class ChunkScene extends Phaser.Scene {
   }
 
   updateStatusText(player) {
-    const pingPart = this.latencyMs !== null ? `  |  Ping: ${this.latencyMs}ms` : "";
+    const pingPart = this.latencyMs !== null ? t("hud.pingSuffix", { ms: this.latencyMs }) : "";
     const shipPart = this.shipMeta ? `${this.shipMeta.name} — ` : "";
-    ui.textContent = `${shipPart}Carga: ${Math.floor(player.cargo)}  |  HP: ${Math.floor(player.hp)}${pingPart}`;
+    ui.textContent = t("hud.shipCargoHp", {
+      ship: shipPart,
+      cargo: Math.floor(player.cargo),
+      hp: Math.floor(player.hp),
+      ping: pingPart,
+    });
   }
 
   startPingLoop() {
@@ -514,9 +570,6 @@ class ChunkScene extends Phaser.Scene {
     });
   }
 
-  // Destruye todos los sprites de jugadores/asteroides actuales — se usa
-  // antes de reconectar, porque la room nueva reenvía el estado completo
-  // (vuelve a disparar onAdd para todo lo que ya existía).
   resetEntities() {
     this.playerEntities.forEach((entry) => entry.container.destroy());
     this.playerEntities.clear();
@@ -529,13 +582,13 @@ class ChunkScene extends Phaser.Scene {
   async handleUnexpectedDisconnect() {
     const token = this.room?.reconnectionToken;
     if (!token) {
-      ui.textContent = "Conexión perdida. Recarga la página para volver a jugar.";
+      ui.textContent = t("hud.connectionLost");
       return;
     }
 
     const maxAttempts = 5;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      ui.textContent = `Conexión perdida. Reconectando… (intento ${attempt}/${maxAttempts})`;
+      ui.textContent = t("hud.reconnecting", { attempt, max: maxAttempts });
       try {
         const client = new Client(SERVER_URL);
         this.room = await client.reconnect(token);
@@ -545,13 +598,13 @@ class ChunkScene extends Phaser.Scene {
           if (this.manualLeave) return;
           this.handleUnexpectedDisconnect();
         });
-        ui.textContent = `Reconectado. Sesión: ${this.room.sessionId}`;
+        ui.textContent = t("hud.reconnected", { id: this.room.sessionId });
         return;
       } catch {
         await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
       }
     }
-    ui.textContent = "No se pudo reconectar. Recarga la página para volver a jugar.";
+    ui.textContent = t("hud.couldNotReconnect");
   }
 
   // ---- Input ----
@@ -561,11 +614,11 @@ class ChunkScene extends Phaser.Scene {
 
     if (this.sys.game.device.input.touch) {
       this.setupMiningButton();
-      this.setupVirtualJoystick();
+      this.setupTouchMovementAndZoom();
     }
 
     this.time.addEvent({
-      delay: 50, // cadencia de red — no tiene por qué ir a la par del render
+      delay: 50,
       loop: true,
       callback: () => {
         if (this.room) this.room.send("input", this.currentInput());
@@ -589,9 +642,6 @@ class ChunkScene extends Phaser.Scene {
     this.interpolateRemotePlayers();
   }
 
-  // Arranca/para el zumbido de motor en bucle, sin reiniciarlo en cada
-  // frame — solo actúa cuando cambia el estado (empieza o deja de
-  // acelerar). Es el mismo archivo de sonido que usa la naveteca.
   updateEngineSound(isThrusting) {
     if (!this.engineSound) return;
     if (isThrusting && !this.engineSoundPlaying) {
@@ -672,14 +722,14 @@ class ChunkScene extends Phaser.Scene {
       }
 
       const span = newer.t - older.t || 1;
-      const t = Phaser.Math.Clamp((renderTime - older.t) / span, 0, 1);
-      entry.container.x = Phaser.Math.Linear(older.x, newer.x, t);
-      entry.container.y = Phaser.Math.Linear(older.y, newer.y, t);
-      entry.sprite.rotation = Phaser.Math.Linear(older.rotation, newer.rotation, t) + Math.PI / 2;
+      const tt = Phaser.Math.Clamp((renderTime - older.t) / span, 0, 1);
+      entry.container.x = Phaser.Math.Linear(older.x, newer.x, tt);
+      entry.container.y = Phaser.Math.Linear(older.y, newer.y, tt);
+      entry.sprite.rotation = Phaser.Math.Linear(older.rotation, newer.rotation, tt) + Math.PI / 2;
     });
   }
 
-  // ---- Controles táctiles ----
+  // ---- Controles táctiles: botón de minar, joystick, y pellizco de zoom ----
 
   setupMiningButton() {
     const margin = 70;
@@ -695,24 +745,35 @@ class ChunkScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     this.add
-      .text(x, y, "MINAR", { fontSize: "12px", color: "#ffffff" })
+      .text(x, y, t("controls.mine"), { fontSize: "12px", color: "#ffffff" })
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(101);
 
     this.miningButtonBounds = { x, y, radius: radius + 15 };
 
-    circle.on("pointerdown", () => (this.touchInput.mining = true));
-    circle.on("pointerup", () => (this.touchInput.mining = false));
-    circle.on("pointerout", () => (this.touchInput.mining = false));
+    circle.on("pointerdown", (pointer) => {
+      this.touchInput.mining = true;
+      this.touchPurpose.set(pointer.id, "mining");
+    });
+    const releaseMining = (pointer) => {
+      this.touchInput.mining = false;
+      if (this.touchPurpose.get(pointer.id) === "mining") this.touchPurpose.delete(pointer.id);
+    };
+    circle.on("pointerup", releaseMining);
+    circle.on("pointerout", releaseMining);
   }
 
-  setupVirtualJoystick() {
+  // Un único listener de pointerdown/move/up gestiona tres cosas a la vez:
+  // el joystick (primer dedo libre), el pellizco de zoom (dos dedos libres
+  // que no sean ni el joystick ni el botón de minar), y limpieza al soltar.
+  setupTouchMovementAndZoom() {
+    this.touchPurpose = new Map(); // pointer.id -> "joystick" | "mining" | "pinch"
     const maxRadius = 60;
     const deadzone = maxRadius * 0.2;
     let base = null;
     let thumb = null;
-    let activePointerId = null;
+    let joystickPointerId = null;
 
     const insideMiningButton = (x, y) => {
       if (!this.miningButtonBounds) return false;
@@ -732,58 +793,92 @@ class ChunkScene extends Phaser.Scene {
       thumb?.destroy();
       base = null;
       thumb = null;
-      activePointerId = null;
+      joystickPointerId = null;
       resetDirections();
     };
 
     this.input.on("pointerdown", (pointer) => {
-      if (activePointerId !== null) return;
-      if (insideMiningButton(pointer.x, pointer.y)) return;
+      if (insideMiningButton(pointer.x, pointer.y)) return; // lo gestiona el botón
 
-      activePointerId = pointer.id;
-      base = this.add
-        .circle(pointer.x, pointer.y, maxRadius, 0x66ccff, 0.15)
-        .setScrollFactor(0)
-        .setDepth(90)
-        .setStrokeStyle(2, 0x66ccff, 0.5);
-      thumb = this.add
-        .circle(pointer.x, pointer.y, 26, 0x66ccff, 0.35)
-        .setScrollFactor(0)
-        .setDepth(91);
-    });
-
-    this.input.on("pointermove", (pointer) => {
-      if (activePointerId !== pointer.id || !base) return;
-
-      const dx = pointer.x - base.x;
-      const dy = pointer.y - base.y;
-      const dist = Math.min(Math.hypot(dx, dy), maxRadius);
-      const angle = Math.atan2(dy, dx);
-
-      thumb.x = base.x + Math.cos(angle) * dist;
-      thumb.y = base.y + Math.sin(angle) * dist;
-
-      if (dist < deadzone) {
-        resetDirections();
+      if (joystickPointerId === null) {
+        joystickPointerId = pointer.id;
+        this.touchPurpose.set(pointer.id, "joystick");
+        const compensate = 1 / this.cameras.main.zoom;
+        base = this.add
+          .circle(pointer.x, pointer.y, maxRadius, 0x66ccff, 0.15)
+          .setScrollFactor(0)
+          .setDepth(90)
+          .setStrokeStyle(2, 0x66ccff, 0.5)
+          .setScale(compensate);
+        thumb = this.add
+          .circle(pointer.x, pointer.y, 26, 0x66ccff, 0.35)
+          .setScrollFactor(0)
+          .setDepth(91)
+          .setScale(compensate);
         return;
       }
 
-      this.touchInput.right = Math.cos(angle) > 0.3;
-      this.touchInput.left = Math.cos(angle) < -0.3;
-      this.touchInput.down = Math.sin(angle) > 0.3;
-      this.touchInput.up = Math.sin(angle) < -0.3;
+      // No es ni el botón de minar ni el primer dedo del joystick — es
+      // candidato a pellizco de zoom.
+      this.touchPurpose.set(pointer.id, "pinch");
+      this.pinchPointers.set(pointer.id, { x: pointer.x, y: pointer.y });
+      if (this.pinchPointers.size !== 2) this.lastPinchDistance = null;
+    });
+
+    this.input.on("pointermove", (pointer) => {
+      const purpose = this.touchPurpose.get(pointer.id);
+
+      if (purpose === "joystick" && joystickPointerId === pointer.id && base) {
+        const dx = pointer.x - base.x;
+        const dy = pointer.y - base.y;
+        const dist = Math.min(Math.hypot(dx, dy), maxRadius);
+        const angle = Math.atan2(dy, dx);
+
+        thumb.x = base.x + Math.cos(angle) * dist;
+        thumb.y = base.y + Math.sin(angle) * dist;
+
+        if (dist < deadzone) {
+          resetDirections();
+        } else {
+          this.touchInput.right = Math.cos(angle) > 0.3;
+          this.touchInput.left = Math.cos(angle) < -0.3;
+          this.touchInput.down = Math.sin(angle) > 0.3;
+          this.touchInput.up = Math.sin(angle) < -0.3;
+        }
+        return;
+      }
+
+      if (purpose === "pinch" && this.pinchPointers.has(pointer.id)) {
+        this.pinchPointers.set(pointer.id, { x: pointer.x, y: pointer.y });
+        if (this.pinchPointers.size === 2) {
+          const [a, b] = [...this.pinchPointers.values()];
+          const dist = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
+          if (this.lastPinchDistance !== null) {
+            const ratio = dist / this.lastPinchDistance;
+            this.setZoom(this.cameras.main.zoom * ratio);
+          }
+          this.lastPinchDistance = dist;
+        }
+      }
     });
 
     this.input.on("pointerup", (pointer) => {
-      if (activePointerId !== pointer.id) return;
-      destroyJoystick();
+      const purpose = this.touchPurpose.get(pointer.id);
+      this.touchPurpose.delete(pointer.id);
+
+      if (purpose === "joystick" && joystickPointerId === pointer.id) {
+        destroyJoystick();
+      } else if (purpose === "pinch") {
+        this.pinchPointers.delete(pointer.id);
+        this.lastPinchDistance = null;
+      }
     });
   }
 
-  // ---- UI: versión, ping, menú ----
+  // ---- UI: versión, ping, menú de opciones (con selector de idioma) ----
 
   createTopBarUI() {
-    this.add
+    this.versionText = this.add
       .text(this.scale.width - 10, 10, GAME_VERSION, {
         fontSize: "12px",
         color: "#7d93b0",
@@ -792,7 +887,7 @@ class ChunkScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(200);
 
-    const menuBtn = this.add
+    this.menuBtn = this.add
       .text(10, 10, "☰", {
         fontSize: "20px",
         color: "#cfe8ff",
@@ -803,7 +898,7 @@ class ChunkScene extends Phaser.Scene {
       .setDepth(200)
       .setInteractive({ useHandCursor: true });
 
-    menuBtn.on("pointerdown", () => this.toggleOptionsMenu());
+    this.menuBtn.on("pointerdown", () => this.toggleOptionsMenu());
   }
 
   toggleOptionsMenu() {
@@ -813,19 +908,37 @@ class ChunkScene extends Phaser.Scene {
       return;
     }
 
-    const w = 220;
-    const h = 130;
+    const w = 240;
+    const langRowH = 30;
+    const h = 140 + AVAILABLE_LANGUAGES.length * langRowH;
     const x = this.scale.width / 2 - w / 2;
     const y = this.scale.height / 2 - h / 2;
 
     const bg = this.add.rectangle(0, 0, w, h, 0x0a0e16, 0.95).setOrigin(0).setStrokeStyle(1, 0x334455);
-    const title = this.add.text(w / 2, 16, "Opciones", { fontSize: "14px", color: "#cfe8ff" }).setOrigin(0.5, 0);
+    const title = this.add.text(w / 2, 16, t("menu.title"), { fontSize: "14px", color: "#cfe8ff" }).setOrigin(0.5, 0);
     const version = this.add
       .text(w / 2, 38, GAME_VERSION, { fontSize: "11px", color: "#7d93b0" })
       .setOrigin(0.5, 0);
 
+    const langLabel = this.add
+      .text(16, 60, t("menu.language"), { fontSize: "11px", color: "#7d93b0" })
+      .setOrigin(0, 0);
+
+    const langButtons = AVAILABLE_LANGUAGES.map((lang, i) => {
+      const isCurrent = lang.code === currentLang;
+      const btn = this.add
+        .text(16, 78 + i * langRowH, `${isCurrent ? "● " : "○ "}${lang.label}`, {
+          fontSize: "13px",
+          color: isCurrent ? "#66ccff" : "#cfe8ff",
+        })
+        .setOrigin(0, 0)
+        .setInteractive({ useHandCursor: true });
+      btn.on("pointerdown", () => setLanguage(lang.code));
+      return btn;
+    });
+
     const closeBtn = this.add
-      .text(w / 2, h / 2 + 20, "Cerrar juego", {
+      .text(w / 2, h - 34, t("menu.closeGame"), {
         fontSize: "14px",
         color: "#ffffff",
         backgroundColor: "#883333",
@@ -842,9 +955,10 @@ class ChunkScene extends Phaser.Scene {
     dismissBtn.on("pointerdown", () => this.toggleOptionsMenu());
 
     this.optionsMenu = this.add
-      .container(x, y, [bg, title, version, closeBtn, dismissBtn])
+      .container(x, y, [bg, title, version, langLabel, ...langButtons, closeBtn, dismissBtn])
       .setScrollFactor(0)
-      .setDepth(300);
+      .setDepth(300)
+      .setScale(1 / this.cameras.main.zoom);
   }
 
   closeGame() {
@@ -860,7 +974,7 @@ class ChunkScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(500);
     this.add
-      .text(this.scale.width / 2, this.scale.height / 2, "Juego cerrado.\nRecarga la página para volver a jugar.", {
+      .text(this.scale.width / 2, this.scale.height / 2, `${t("menu.gameClosedLine1")}\n${t("menu.gameClosedLine2")}`, {
         fontSize: "16px",
         color: "#cfe8ff",
         align: "center",
@@ -874,7 +988,7 @@ class ChunkScene extends Phaser.Scene {
 let gameInstance = null;
 
 function launchGame() {
-  if (gameInstance) return; // evita instanciar Phaser dos veces
+  if (gameInstance) return;
   gameInstance = new Phaser.Game({
     type: Phaser.AUTO,
     parent: document.body,
@@ -883,7 +997,7 @@ function launchGame() {
     backgroundColor: "#05050a",
     scene: [ChunkScene],
     input: {
-      activePointers: 2, // un dedo para el joystick, otro para minar
+      activePointers: 3, // joystick + botón de minar + un dedo extra para pellizco
     },
   });
 }

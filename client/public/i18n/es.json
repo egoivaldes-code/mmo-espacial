@@ -1,0 +1,41 @@
+{
+  "intro": {
+    "checkingServer": "Comprobando estado del servidor…",
+    "wakingServer": "Despertando el servidor (plan gratuito) — puede tardar hasta 30s…",
+    "serverReady": "Servidor listo. Conectando…",
+    "connected": "Conectado. Listo para jugar.",
+    "connectionError": "Error de conexión: {error}",
+    "continue": "Continuar",
+    "current": "ACTUAL",
+    "loadError": "No se pudieron cargar las notas del parche."
+  },
+  "character": {
+    "title": "Elige tu piloto",
+    "namePlaceholder": "Nombre del piloto",
+    "createButton": "Crear personaje",
+    "createNewToggle": "+ Crear nuevo personaje",
+    "limitReached": "Límite de 5 personajes alcanzado.",
+    "createdOn": "Creado {date}",
+    "defaultName": "Piloto-{n}"
+  },
+  "hud": {
+    "shipCargoHp": "{ship}Carga: {cargo}  |  HP: {hp}{ping}",
+    "pingSuffix": "  |  Ping: {ms}ms",
+    "connectedSession": "Conectado. Sesión: {id}",
+    "reconnecting": "Conexión perdida. Reconectando… (intento {attempt}/{max})",
+    "reconnected": "Reconectado. Sesión: {id}",
+    "connectionLost": "Conexión perdida. Recarga la página para volver a jugar.",
+    "couldNotReconnect": "No se pudo reconectar. Recarga la página para volver a jugar.",
+    "connectionError": "Error de conexión: {error}"
+  },
+  "menu": {
+    "title": "Opciones",
+    "closeGame": "Cerrar juego",
+    "language": "Idioma",
+    "gameClosedLine1": "Juego cerrado.",
+    "gameClosedLine2": "Recarga la página para volver a jugar."
+  },
+  "controls": {
+    "mine": "MINAR"
+  }
+}

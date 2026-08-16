@@ -58,6 +58,31 @@ documento de diseño completo y el roadmap.
   el cliente (el sprite se limitaba a "teletransportarse" a la última
   posición recibida del servidor, sin nada entre medias).
 
+## [v0.0.6]
+
+### Añadido
+- **Patch notes reales**: la pantalla 1 ya no muestra el `CHANGELOG.md`
+  técnico en crudo — muestra un resumen curado para jugador por versión
+  (`client/public/patchnotes/{lang}.json`), con la versión actual
+  marcada. Sigue listando todas las versiones, la más reciente arriba.
+- **UI anclada arriba** en la pantalla de patch notes: la barra de estado
+  de conexión y el botón "Continuar" ahora están fijos arriba (antes
+  abajo), siempre visibles al hacer scroll a las notas.
+- **Diseño responsive**: tamaños de texto y anchos de ventana (patch
+  notes, selección de personaje) escalan con `clamp()` entre móvil
+  pequeño y escritorio grande, con contenedor centrado en pantallas
+  anchas para no estirar el texto de lado a lado.
+- **Zoom de cámara**: rueda del ratón en PC, pellizco con dos dedos en
+  táctil. El HUD persistente (versión, botón de menú, menú de opciones)
+  se compensa para no cambiar de tamaño con el zoom.
+- **Internacionalización**: arquitectura de idiomas lista desde la base —
+  todo el texto de la interfaz (HTML y Phaser) sale de diccionarios en
+  `client/public/i18n/{lang}.json`, sin cadenas de texto sueltas en el
+  código. Selector de idioma en el menú de opciones (guarda preferencia y
+  recarga). De momento español e inglés; añadir un idioma nuevo es solo
+  crear los dos archivos JSON correspondientes (i18n + patch notes) y
+  sumarlo a la lista, sin tocar lógica.
+
 ## [v0.0.5]
 
 ### Añadido

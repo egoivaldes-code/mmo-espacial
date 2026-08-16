@@ -1,0 +1,41 @@
+{
+  "intro": {
+    "checkingServer": "Checking server status…",
+    "wakingServer": "Waking up the server (free tier) — can take up to 30s…",
+    "serverReady": "Server ready. Connecting…",
+    "connected": "Connected. Ready to play.",
+    "connectionError": "Connection error: {error}",
+    "continue": "Continue",
+    "current": "CURRENT",
+    "loadError": "Could not load patch notes."
+  },
+  "character": {
+    "title": "Choose your pilot",
+    "namePlaceholder": "Pilot name",
+    "createButton": "Create character",
+    "createNewToggle": "+ Create new character",
+    "limitReached": "5-character limit reached.",
+    "createdOn": "Created {date}",
+    "defaultName": "Pilot-{n}"
+  },
+  "hud": {
+    "shipCargoHp": "{ship}Cargo: {cargo}  |  HP: {hp}{ping}",
+    "pingSuffix": "  |  Ping: {ms}ms",
+    "connectedSession": "Connected. Session: {id}",
+    "reconnecting": "Connection lost. Reconnecting… (attempt {attempt}/{max})",
+    "reconnected": "Reconnected. Session: {id}",
+    "connectionLost": "Connection lost. Reload the page to play again.",
+    "couldNotReconnect": "Could not reconnect. Reload the page to play again.",
+    "connectionError": "Connection error: {error}"
+  },
+  "menu": {
+    "title": "Options",
+    "closeGame": "Close game",
+    "language": "Language",
+    "gameClosedLine1": "Game closed.",
+    "gameClosedLine2": "Reload the page to play again."
+  },
+  "controls": {
+    "mine": "MINE"
+  }
+}

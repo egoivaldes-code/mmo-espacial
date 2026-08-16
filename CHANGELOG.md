@@ -58,6 +58,16 @@ documento de diseño completo y el roadmap.
   el cliente (el sprite se limitaba a "teletransportarse" a la última
   posición recibida del servidor, sin nada entre medias).
 
+## [v0.0.7]
+
+### Corregido
+- El pellizco de zoom no funcionaba — el primer dedo se comprometía con
+  el joystick de movimiento al instante, así que nunca llegaban a
+  coexistir dos dedos "libres" para reconocerse como pellizco. Ahora el
+  primer toque espera un margen corto (~120ms) antes de confirmar el
+  joystick; si llega un segundo dedo en ese margen, el gesto se
+  reinterpreta como pellizco de zoom en vez de arrancar el joystick.
+
 ## [v0.0.6]
 
 ### Añadido

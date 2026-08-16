@@ -1,5 +1,20 @@
 [
   {
+    "version": "v0.0.7",
+    "highlights": [
+      "Fixed pinch-to-zoom — it wasn't working correctly on mobile before."
+    ]
+  },
+  {
+    "version": "v0.0.6",
+    "highlights": [
+      "New patch notes screen on startup, highlighting what matters in each version.",
+      "Zoom with mouse wheel (PC) or pinch (mobile).",
+      "The game now supports multiple languages — pick yours from the options menu.",
+      "Text and window sizing adjustments so it looks good on any screen."
+    ]
+  },
+  {
     "version": "v0.0.5",
     "highlights": [
       "The Ship Codex is now an editor: change any ship's name, stats, sprite, or sound.",

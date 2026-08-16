@@ -1,5 +1,20 @@
 [
   {
+    "version": "v0.0.7",
+    "highlights": [
+      "Arreglado el pellizco para hacer zoom — antes no funcionaba bien en móvil."
+    ]
+  },
+  {
+    "version": "v0.0.6",
+    "highlights": [
+      "Nueva pantalla de novedades al entrar, con lo importante de cada versión.",
+      "Zoom con la rueda del ratón (PC) o pellizcando (móvil).",
+      "El juego ya soporta varios idiomas — elige el tuyo desde el menú de opciones.",
+      "Ajustes de tamaño de texto y ventanas para que se vea bien en cualquier pantalla."
+    ]
+  },
+  {
     "version": "v0.0.5",
     "highlights": [
       "La Naveteca ahora es un editor: cambia el nombre, las estadísticas, el sprite o el sonido de cualquier nave.",

@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.0.6";
+const GAME_VERSION = "v0.0.7";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -767,13 +767,23 @@ class ChunkScene extends Phaser.Scene {
   // Un único listener de pointerdown/move/up gestiona tres cosas a la vez:
   // el joystick (primer dedo libre), el pellizco de zoom (dos dedos libres
   // que no sean ni el joystick ni el botón de minar), y limpieza al soltar.
+  // Un único listener de pointerdown/move/up gestiona tres cosas: el botón
+  // de minar (aparte, en setupMiningButton), el joystick, y el pellizco de
+  // zoom. El truco para que no se disparen a la vez: el primer dedo NO se
+  // compromete al joystick al instante — espera un margen corto
+  // (JOYSTICK_COMMIT_DELAY) por si llega un segundo dedo, en cuyo caso el
+  // gesto se reinterpreta como pellizco en vez de arrancar el joystick.
   setupTouchMovementAndZoom() {
     this.touchPurpose = new Map(); // pointer.id -> "joystick" | "mining" | "pinch"
     const maxRadius = 60;
     const deadzone = maxRadius * 0.2;
+    const JOYSTICK_COMMIT_DELAY = 120; // ms
+
     let base = null;
     let thumb = null;
     let joystickPointerId = null;
+    let pendingJoystickPointer = null; // { id, x, y } — a la espera de confirmación
+    let pendingTimer = null;
 
     const insideMiningButton = (x, y) => {
       if (!this.miningButtonBounds) return false;
@@ -788,6 +798,23 @@ class ChunkScene extends Phaser.Scene {
       this.touchInput.right = false;
     };
 
+    const commitJoystick = ({ id, x, y }) => {
+      joystickPointerId = id;
+      this.touchPurpose.set(id, "joystick");
+      const compensate = 1 / this.cameras.main.zoom;
+      base = this.add
+        .circle(x, y, maxRadius, 0x66ccff, 0.15)
+        .setScrollFactor(0)
+        .setDepth(90)
+        .setStrokeStyle(2, 0x66ccff, 0.5)
+        .setScale(compensate);
+      thumb = this.add
+        .circle(x, y, 26, 0x66ccff, 0.35)
+        .setScrollFactor(0)
+        .setDepth(91)
+        .setScale(compensate);
+    };
+
     const destroyJoystick = () => {
       base?.destroy();
       thumb?.destroy();
@@ -797,35 +824,60 @@ class ChunkScene extends Phaser.Scene {
       resetDirections();
     };
 
+    const startPinch = (p1, p2) => {
+      this.touchPurpose.set(p1.id, "pinch");
+      this.touchPurpose.set(p2.id, "pinch");
+      this.pinchPointers.set(p1.id, { x: p1.x, y: p1.y });
+      this.pinchPointers.set(p2.id, { x: p2.x, y: p2.y });
+      this.lastPinchDistance = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+    };
+
+    const endPinch = () => {
+      this.touchPurpose.forEach((purpose, id) => {
+        if (purpose === "pinch") this.touchPurpose.delete(id);
+      });
+      this.pinchPointers.clear();
+      this.lastPinchDistance = null;
+    };
+
     this.input.on("pointerdown", (pointer) => {
       if (insideMiningButton(pointer.x, pointer.y)) return; // lo gestiona el botón
 
-      if (joystickPointerId === null) {
-        joystickPointerId = pointer.id;
-        this.touchPurpose.set(pointer.id, "joystick");
-        const compensate = 1 / this.cameras.main.zoom;
-        base = this.add
-          .circle(pointer.x, pointer.y, maxRadius, 0x66ccff, 0.15)
-          .setScrollFactor(0)
-          .setDepth(90)
-          .setStrokeStyle(2, 0x66ccff, 0.5)
-          .setScale(compensate);
-        thumb = this.add
-          .circle(pointer.x, pointer.y, 26, 0x66ccff, 0.35)
-          .setScrollFactor(0)
-          .setDepth(91)
-          .setScale(compensate);
+      // Ya hay un joystick confirmado o un pellizco en marcha — no se
+      // reconoce un tercer gesto simultáneo, se ignora este dedo extra.
+      if (joystickPointerId !== null || this.pinchPointers.size > 0) return;
+
+      if (pendingJoystickPointer) {
+        // Llega un segundo dedo mientras el primero seguía "pendiente" de
+        // confirmar — es un pellizco, no dos joysticks.
+        clearTimeout(pendingTimer);
+        startPinch(pendingJoystickPointer, { id: pointer.id, x: pointer.x, y: pointer.y });
+        pendingJoystickPointer = null;
+        pendingTimer = null;
         return;
       }
 
-      // No es ni el botón de minar ni el primer dedo del joystick — es
-      // candidato a pellizco de zoom.
-      this.touchPurpose.set(pointer.id, "pinch");
-      this.pinchPointers.set(pointer.id, { x: pointer.x, y: pointer.y });
-      if (this.pinchPointers.size !== 2) this.lastPinchDistance = null;
+      // Primer dedo — candidato a joystick, con un margen corto por si
+      // llega un segundo dedo (pellizco).
+      pendingJoystickPointer = { id: pointer.id, x: pointer.x, y: pointer.y };
+      pendingTimer = setTimeout(() => {
+        if (pendingJoystickPointer && pendingJoystickPointer.id === pointer.id) {
+          commitJoystick(pendingJoystickPointer);
+          pendingJoystickPointer = null;
+        }
+        pendingTimer = null;
+      }, JOYSTICK_COMMIT_DELAY);
     });
 
     this.input.on("pointermove", (pointer) => {
+      // Mantiene actualizada la posición del dedo pendiente, para que si
+      // se confirma como joystick aparezca donde está el dedo ahora, no
+      // donde tocó por primera vez hace unos ms.
+      if (pendingJoystickPointer && pendingJoystickPointer.id === pointer.id) {
+        pendingJoystickPointer.x = pointer.x;
+        pendingJoystickPointer.y = pointer.y;
+      }
+
       const purpose = this.touchPurpose.get(pointer.id);
 
       if (purpose === "joystick" && joystickPointerId === pointer.id && base) {
@@ -863,14 +915,23 @@ class ChunkScene extends Phaser.Scene {
     });
 
     this.input.on("pointerup", (pointer) => {
+      if (pendingJoystickPointer && pendingJoystickPointer.id === pointer.id) {
+        // Se levantó el dedo antes de que se confirmara nada (toque suelto).
+        clearTimeout(pendingTimer);
+        pendingTimer = null;
+        pendingJoystickPointer = null;
+        return;
+      }
+
       const purpose = this.touchPurpose.get(pointer.id);
       this.touchPurpose.delete(pointer.id);
 
       if (purpose === "joystick" && joystickPointerId === pointer.id) {
         destroyJoystick();
       } else if (purpose === "pinch") {
-        this.pinchPointers.delete(pointer.id);
-        this.lastPinchDistance = null;
+        // Al soltar cualquiera de los dos dedos del pellizco se cierra el
+        // gesto entero — hay que volver a tocar con dos dedos para otro.
+        endPinch();
       }
     });
   }

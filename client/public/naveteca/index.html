@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <title>Naveteca — Fiji Heavy Industries</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root {
     --bg: #05050a;
@@ -11,6 +12,7 @@
     --text: #cfe8ff;
     --muted: #7d93b0;
     --accent: #66ccff;
+    --warn: #d09a5a;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -20,7 +22,7 @@
   #app { display: flex; height: 100%; }
   #sidebar {
     width: 220px; flex-shrink: 0; border-right: 1px solid var(--border);
-    padding: 16px 12px; overflow-y: auto;
+    padding: 16px 12px; overflow-y: auto; display: flex; flex-direction: column;
   }
   #sidebar h1 { font-size: 16px; margin: 0 0 2px; color: #fff; }
   #sidebar .subtitle { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
@@ -32,6 +34,15 @@
   .class-filter:hover { background: #10151f; }
   .class-filter.active { background: #142433; border-color: var(--accent); color: var(--accent); }
   .class-filter .count { float: right; color: var(--muted); font-size: 11px; }
+  #sidebar-footer { margin-top: auto; padding-top: 12px; }
+  #export-btn, #clear-overrides-btn {
+    width: 100%; padding: 9px; border-radius: 6px; border: none;
+    font-size: 12px; cursor: pointer; margin-top: 6px;
+  }
+  #export-btn { background: #2a6fb0; color: #fff; }
+  #export-btn:disabled { background: #223344; color: var(--muted); cursor: not-allowed; }
+  #clear-overrides-btn { background: transparent; border: 1px solid #663333; color: #d08080; }
+  #overrides-count { font-size: 10px; color: var(--muted); text-align: center; margin-top: 6px; }
   #grid-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   #grid-header {
     padding: 14px 20px; border-bottom: 1px solid var(--border);
@@ -51,38 +62,56 @@
   .ship-card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
     padding: 10px; cursor: pointer; text-align: center; transition: border-color .15s;
+    position: relative;
   }
   .ship-card:hover { border-color: var(--accent); }
   .ship-card.selected { border-color: var(--accent); background: #10202c; }
+  .ship-card.edited { border-color: var(--warn); }
+  .ship-card .edited-dot {
+    position: absolute; top: 6px; right: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--warn);
+  }
   .ship-card img { max-width: 100%; max-height: 90px; display: block; margin: 0 auto 6px; }
   .ship-card .name { font-size: 12px; color: var(--text); }
   .ship-card .class-tag { font-size: 10px; color: var(--muted); margin-top: 2px; }
   #detail-panel {
-    width: 340px; flex-shrink: 0; border-left: 1px solid var(--border);
+    width: 380px; flex-shrink: 0; border-left: 1px solid var(--border);
     padding: 20px; overflow-y: auto;
   }
   #detail-panel.empty { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; }
-  #detail-panel img.detail-sprite { display: block; max-width: 100%; max-height: 220px; margin: 0 auto 16px; }
-  #detail-panel h2 { font-size: 18px; margin: 0 0 2px; color: #fff; }
-  #detail-panel .manufacturer { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
-  #detail-panel .class-badge {
-    display: inline-block; font-size: 11px; color: var(--accent);
-    border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; margin: 8px 0 14px;
-  }
-  #detail-panel .description { font-size: 13px; line-height: 1.5; color: #b8cbe0; margin-bottom: 16px; }
-  .stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #16202c; }
-  .stat-row .label { color: var(--muted); }
+  #detail-panel img.detail-sprite { display: block; max-width: 100%; max-height: 200px; margin: 0 auto 16px; }
+  #detail-panel h2 { font-size: 16px; margin: 0 0 8px; }
+  #detail-panel .manufacturer { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
   .active-note {
-    margin-top: 14px; padding: 8px 10px; border-radius: 6px; font-size: 11px;
+    margin-bottom: 14px; padding: 8px 10px; border-radius: 6px; font-size: 11px;
     background: #142433; border: 1px solid var(--accent); color: var(--accent);
   }
-  #sound-btn {
-    margin-top: 16px; width: 100%; padding: 10px; border-radius: 6px; border: none;
-    background: #2a6fb0; color: #fff; font-size: 13px; cursor: pointer;
+  .edited-note {
+    margin-bottom: 14px; padding: 8px 10px; border-radius: 6px; font-size: 11px;
+    background: #2a2015; border: 1px solid var(--warn); color: var(--warn);
   }
-  #sound-btn:active { background: #1f5686; }
-  #sound-note { font-size: 10px; color: var(--muted); margin-top: 6px; text-align: center; }
-  @media (max-width: 800px) {
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .field input[type=text], .field textarea, .field select {
+    width: 100%; padding: 8px 10px; border-radius: 6px; font-size: 13px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text);
+    font-family: inherit;
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .field-row { display: flex; gap: 8px; }
+  .field-row .field { flex: 1; }
+  .field input[type=file] { font-size: 11px; color: var(--muted); width: 100%; }
+  #sound-btn, #save-btn, #reset-btn {
+    width: 100%; padding: 10px; border-radius: 6px; border: none;
+    font-size: 13px; cursor: pointer; margin-top: 6px;
+  }
+  #sound-btn { background: #2a6fb0; color: #fff; }
+  #save-btn { background: #2f8f5b; color: #fff; }
+  #reset-btn { background: transparent; border: 1px solid #663333; color: #d08080; }
+  #sound-note, #save-note { font-size: 10px; color: var(--muted); margin-top: 6px; text-align: center; }
+  #save-confirm { font-size: 11px; color: #6fd68a; text-align: center; margin-top: 6px; height: 14px; }
+  hr.sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  @media (max-width: 900px) {
     #app { flex-direction: column; }
     #sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
     #detail-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); }
@@ -93,8 +122,13 @@
 <div id="app">
   <div id="sidebar">
     <h1>Naveteca</h1>
-    <div class="subtitle">Fiji Heavy Industries</div>
+    <div class="subtitle">Fiji Heavy Industries — Editor</div>
     <div id="class-filters"></div>
+    <div id="sidebar-footer">
+      <button id="export-btn" disabled>⬇ Exportar parche (.zip)</button>
+      <button id="clear-overrides-btn">Borrar ediciones locales</button>
+      <div id="overrides-count">0 naves editadas localmente</div>
+    </div>
   </div>
   <div id="grid-panel">
     <div id="grid-header">
@@ -103,16 +137,23 @@
     </div>
     <div id="grid"></div>
   </div>
-  <div id="detail-panel" class="empty">Selecciona una nave para ver sus detalles.</div>
+  <div id="detail-panel" class="empty">Selecciona una nave para editarla.</div>
 </div>
 
 <script>
 // Esta herramienta vive DENTRO del sitio del juego y lee del mismo sitio
-// que usa el cliente Phaser (../ships/). No hay una copia separada — si
-// se cambia un sprite o un sonido en client/public/ships/, se refleja
-// aquí Y en el juego a la vez, tras el siguiente despliegue.
+// que usa el cliente Phaser (../ships/). No hay una copia separada.
+//
+// GUARDADO: GitHub Pages es hosting estático — no puede escribir en el
+// repo por sí solo. Así que el guardado tiene dos niveles:
+//  1. "Guardar cambios" escribe en localStorage de ESTE navegador. Se ve
+//     reflejado al instante aquí Y en el juego (mismo navegador, misma
+//     clave de localStorage — ver STARTING_SHIP_ID en main.js).
+//  2. "Exportar parche" empaqueta todas las ediciones locales en un .zip
+//     listo para aplicar al repo con el flujo habitual (Jules/ChatGPT) y
+//     que así lo vea todo el mundo, no solo tu navegador.
 const ACTIVE_SHIP_ID = "shuttle_01"; // debe coincidir con main.js (STARTING_SHIP_ID)
-// Fiji Heavy Industries — catálogo de naves usado por el cliente desde v0.0.4.
+const OVERRIDES_KEY = "spacemmo_ship_overrides"; // misma clave que usa main.js
 
 const CLASS_ORDER = ["shuttle","frigate","destroyer","cruiser","battlecruiser","battleship","carrier","dreadnought"];
 const CLASS_LABEL = {
@@ -121,17 +162,61 @@ const CLASS_LABEL = {
   dreadnought: "Dreadnought",
 };
 
-let SHIPS = [];
+let SHIPS = [];       // catálogo base, tal cual viene de ships.json
+let overrides = {};   // ediciones locales por id, desde localStorage
 let activeClass = null;
 let searchTerm = "";
 let selectedId = null;
 let audio = null;
 
+function loadOverrides() {
+  try {
+    const raw = localStorage.getItem(OVERRIDES_KEY);
+    overrides = raw ? JSON.parse(raw) : {};
+  } catch {
+    overrides = {};
+  }
+}
+
+function saveOverrides() {
+  try {
+    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+    return true;
+  } catch (err) {
+    alert("No se pudo guardar: " + err.message + "\n\nEl almacenamiento local del navegador tiene un límite (~5-10MB). Si has subido varias imágenes/sonidos grandes, prueba a exportar el parche y borrar las ediciones locales para liberar espacio.");
+    return false;
+  }
+}
+
+// Combina el catálogo base con la edición local, si existe.
+function effectiveShip(ship) {
+  const o = overrides[ship.id];
+  if (!o) return ship;
+  return {
+    ...ship,
+    name: o.name ?? ship.name,
+    class: o.class ?? ship.class,
+    classLabel: o.classLabel ?? ship.classLabel,
+    description: o.description ?? ship.description,
+    stats: { ...ship.stats, ...(o.stats || {}) },
+    _spriteSrc: o.spriteDataUrl || `../ships/${ship.sprite}`,
+    _soundSrc: o.soundDataUrl || `../ships/${ship.sounds.engineHum}`,
+    _edited: true,
+  };
+}
+
+function spriteSrc(ship) {
+  const eff = effectiveShip(ship);
+  return eff._spriteSrc || `../ships/${ship.sprite}`;
+}
+
 async function init() {
+  loadOverrides();
   const res = await fetch("../ships/ships.json");
   SHIPS = await res.json();
   renderClassFilters();
   renderGrid();
+  renderOverridesFooter();
 }
 
 function renderClassFilters() {
@@ -156,8 +241,9 @@ function renderClassFilters() {
 
 function filteredShips() {
   return SHIPS.filter((s) => {
-    if (activeClass && s.class !== activeClass) return false;
-    if (searchTerm && !s.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    const eff = effectiveShip(s);
+    if (activeClass && eff.class !== activeClass) return false;
+    if (searchTerm && !eff.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
 }
@@ -168,12 +254,15 @@ function renderGrid() {
   document.getElementById("ship-count").textContent = `${ships.length} nave${ships.length === 1 ? "" : "s"}`;
   grid.innerHTML = "";
   ships.forEach((ship) => {
+    const eff = effectiveShip(ship);
+    const isEdited = !!overrides[ship.id];
     const card = document.createElement("div");
-    card.className = "ship-card" + (ship.id === selectedId ? " selected" : "");
+    card.className = "ship-card" + (ship.id === selectedId ? " selected" : "") + (isEdited ? " edited" : "");
     card.innerHTML = `
-      <img src="../ships/${ship.sprite}" alt="${ship.name}" />
-      <div class="name">${ship.name}</div>
-      <div class="class-tag">${ship.classLabel}</div>
+      ${isEdited ? '<div class="edited-dot" title="Editado localmente"></div>' : ""}
+      <img src="${spriteSrc(ship)}" alt="${eff.name}" />
+      <div class="name">${eff.name}</div>
+      <div class="class-tag">${eff.classLabel}</div>
     `;
     card.onclick = () => { selectedId = ship.id; renderGrid(); renderDetail(ship); };
     grid.appendChild(card);
@@ -183,27 +272,249 @@ function renderGrid() {
 function renderDetail(ship) {
   const panel = document.getElementById("detail-panel");
   panel.classList.remove("empty");
+  const eff = effectiveShip(ship);
   const isActiveInGame = ship.id === ACTIVE_SHIP_ID;
+  const isEdited = !!overrides[ship.id];
+
   panel.innerHTML = `
-    <img class="detail-sprite" src="../ships/${ship.sprite}" alt="${ship.name}" />
-    <h2>${ship.name}</h2>
-    <div class="manufacturer">${ship.manufacturer}</div>
-    <div class="class-badge">${ship.classLabel}</div>
-    <div class="description">${ship.description}</div>
-    <div class="stat-row"><span class="label">Casco (HP)</span><span>${ship.stats.hp}</span></div>
-    <div class="stat-row"><span class="label">Velocidad</span><span>${ship.stats.speed} u/s</span></div>
-    <div class="stat-row"><span class="label">Carga</span><span>${ship.stats.cargo} m³</span></div>
-    <div class="stat-row"><span class="label">Tripulación</span><span>${ship.stats.crew}</span></div>
-    <div class="stat-row"><span class="label">Dimensiones sprite</span><span>${ship.spriteSize.w}×${ship.spriteSize.h}px</span></div>
+    <img class="detail-sprite" id="detail-sprite-img" src="${spriteSrc(ship)}" alt="${eff.name}" />
     ${isActiveInGame ? '<div class="active-note">✓ Esta es la nave que se usa actualmente en el juego</div>' : ""}
+    ${isEdited ? '<div class="edited-note">✎ Tiene ediciones locales (solo en este navegador, sin exportar aún)</div>' : ""}
+
+    <div class="manufacturer">${eff.manufacturer} — <code>${ship.id}</code></div>
+
+    <div class="field">
+      <label>Nombre</label>
+      <input type="text" id="f-name" value="${escapeAttr(eff.name)}" maxlength="40" />
+    </div>
+
+    <div class="field">
+      <label>Clase</label>
+      <select id="f-class">
+        ${CLASS_ORDER.map((c) => `<option value="${c}" ${c === eff.class ? "selected" : ""}>${CLASS_LABEL[c]}</option>`).join("")}
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Descripción</label>
+      <textarea id="f-desc" maxlength="400">${escapeHtml(eff.description)}</textarea>
+    </div>
+
+    <div class="field-row">
+      <div class="field"><label>HP</label><input type="text" id="f-hp" value="${eff.stats.hp}" /></div>
+      <div class="field"><label>Velocidad</label><input type="text" id="f-speed" value="${eff.stats.speed}" /></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Carga (m³)</label><input type="text" id="f-cargo" value="${eff.stats.cargo}" /></div>
+      <div class="field"><label>Tripulación</label><input type="text" id="f-crew" value="${escapeAttr(eff.stats.crew)}" /></div>
+    </div>
+
+    <hr class="sep" />
+
+    <div class="field">
+      <label>Sustituir sprite (.png)</label>
+      <input type="file" id="f-sprite-file" accept="image/png" />
+    </div>
+    <div class="field">
+      <label>Sustituir sonido de motor (.mp3 / .wav)</label>
+      <input type="file" id="f-sound-file" accept="audio/mpeg,audio/wav,.mp3,.wav" />
+    </div>
+
+    <button id="save-btn">💾 Guardar cambios (local)</button>
+    <div id="save-confirm"></div>
+    <div id="save-note">Se guarda en este navegador y afecta al instante a esta naveteca y al juego (mismo navegador). Para que lo vean los demás, usa "Exportar parche" en la barra lateral.</div>
+
+    ${isEdited ? '<button id="reset-btn">↺ Restablecer a la versión original</button>' : ""}
+
+    <hr class="sep" />
+
     <button id="sound-btn">▶ Reproducir zumbido de motor</button>
-    <div id="sound-note">Sonido placeholder generado por procedimiento — pendiente de diseño de audio final. Es el mismo archivo que reproduce el juego cuando esta nave está en uso.</div>
+    <div id="sound-note">Sonido placeholder generado por procedimiento — pendiente de diseño de audio final.</div>
   `;
+
+  document.getElementById("f-sprite-file").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Esa imagen pesa más de 2MB — puede no caber en el almacenamiento local. Prueba con un PNG más pequeño.");
+      return;
+    }
+    const dataUrl = await fileToDataUrl(file);
+    document.getElementById("detail-sprite-img").src = dataUrl;
+    panel.dataset.pendingSpriteDataUrl = dataUrl;
+    panel.dataset.pendingSpriteName = file.name;
+  });
+
+  document.getElementById("f-sound-file").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      alert("Ese sonido pesa más de 3MB — puede no caber en el almacenamiento local. Prueba con un archivo más pequeño.");
+      return;
+    }
+    const dataUrl = await fileToDataUrl(file);
+    panel.dataset.pendingSoundDataUrl = dataUrl;
+    panel.dataset.pendingSoundName = file.name;
+  });
+
+  document.getElementById("save-btn").onclick = () => saveShipEdits(ship, panel);
+
+  const resetBtn = document.getElementById("reset-btn");
+  if (resetBtn) {
+    resetBtn.onclick = () => {
+      delete overrides[ship.id];
+      saveOverrides();
+      renderGrid();
+      renderDetail(ship);
+      renderOverridesFooter();
+    };
+  }
+
   document.getElementById("sound-btn").onclick = () => {
     if (audio) { audio.pause(); audio.currentTime = 0; }
-    audio = new Audio(`../ships/${ship.sounds.engineHum}`);
+    audio = new Audio(effectiveShip(ship)._soundSrc);
     audio.play();
   };
+}
+
+function saveShipEdits(ship, panel) {
+  const existing = overrides[ship.id] || {};
+  const next = {
+    ...existing,
+    name: document.getElementById("f-name").value.trim() || ship.name,
+    class: document.getElementById("f-class").value,
+    classLabel: CLASS_LABEL[document.getElementById("f-class").value],
+    description: document.getElementById("f-desc").value.trim() || ship.description,
+    stats: {
+      hp: Number(document.getElementById("f-hp").value) || ship.stats.hp,
+      speed: Number(document.getElementById("f-speed").value) || ship.stats.speed,
+      cargo: Number(document.getElementById("f-cargo").value) || ship.stats.cargo,
+      crew: document.getElementById("f-crew").value.trim() || ship.stats.crew,
+    },
+  };
+  if (panel.dataset.pendingSpriteDataUrl) {
+    next.spriteDataUrl = panel.dataset.pendingSpriteDataUrl;
+    next.spriteFileName = panel.dataset.pendingSpriteName;
+  }
+  if (panel.dataset.pendingSoundDataUrl) {
+    next.soundDataUrl = panel.dataset.pendingSoundDataUrl;
+    next.soundFileName = panel.dataset.pendingSoundName;
+  }
+
+  overrides[ship.id] = next;
+  const ok = saveOverrides();
+  if (!ok) return;
+
+  renderGrid();
+  renderOverridesFooter();
+  const confirmEl = document.getElementById("save-confirm");
+  if (confirmEl) confirmEl.textContent = "Guardado ✓ — recarga el juego para verlo en la partida";
+}
+
+function renderOverridesFooter() {
+  const count = Object.keys(overrides).length;
+  document.getElementById("overrides-count").textContent =
+    count === 0 ? "0 naves editadas localmente" : `${count} nave${count === 1 ? "" : "s"} editada${count === 1 ? "" : "s"} localmente`;
+  document.getElementById("export-btn").disabled = count === 0;
+}
+
+document.getElementById("clear-overrides-btn").onclick = () => {
+  if (Object.keys(overrides).length === 0) return;
+  if (!confirm("¿Borrar todas las ediciones locales? No afecta a lo ya exportado/desplegado, solo a este navegador.")) return;
+  overrides = {};
+  saveOverrides();
+  renderGrid();
+  if (selectedId) renderDetail(SHIPS.find((s) => s.id === selectedId));
+  renderOverridesFooter();
+};
+
+document.getElementById("export-btn").onclick = async () => {
+  const zip = new JSZip();
+  const spritesFolder = zip.folder("sprites");
+  const soundsFolder = zip.folder("sounds");
+
+  // Parte del ships.json con las ediciones fusionadas (nombre, clase,
+  // descripción, stats) — las rutas de archivo se actualizan si se
+  // sustituyó el sprite/sonido, para no dejar nombres desincronizados.
+  const mergedCatalog = SHIPS.map((ship) => {
+    const o = overrides[ship.id];
+    if (!o) return ship;
+    const merged = {
+      ...ship,
+      name: o.name ?? ship.name,
+      class: o.class ?? ship.class,
+      classLabel: o.classLabel ?? ship.classLabel,
+      description: o.description ?? ship.description,
+      stats: { ...ship.stats, ...(o.stats || {}) },
+    };
+    if (o.spriteFileName) merged.sprite = `sprites/${o.spriteFileName}`;
+    if (o.soundFileName) merged.sounds = { engineHum: `sounds/${o.soundFileName}` };
+    return merged;
+  });
+
+  zip.file("ships.json", JSON.stringify(mergedCatalog, null, 2));
+
+  for (const [id, o] of Object.entries(overrides)) {
+    if (o.spriteDataUrl && o.spriteFileName) {
+      spritesFolder.file(o.spriteFileName, dataUrlToBlob(o.spriteDataUrl));
+    }
+    if (o.soundDataUrl && o.soundFileName) {
+      soundsFolder.file(o.soundFileName, dataUrlToBlob(o.soundDataUrl));
+    }
+  }
+
+  const editedNames = Object.keys(overrides)
+    .map((id) => (SHIPS.find((s) => s.id === id) || { id }).id)
+    .join(", ");
+
+  zip.file("README.md", `# Parche de naveteca — ediciones locales exportadas
+
+Generado desde la naveteca (editor en el navegador). Naves modificadas: ${editedNames}.
+
+## Cómo aplicarlo
+
+1. Sustituye \`client/public/ships/ships.json\` por el \`ships.json\` de
+   este zip (ES el catálogo completo con tus ediciones ya fusionadas, no
+   solo un fragmento — sobreescribe entero).
+2. Copia cualquier archivo dentro de \`sprites/\` o \`sounds/\` de este zip
+   a las carpetas correspondientes en \`client/public/ships/\`
+   (\`client/public/ships/sprites/\`, \`client/public/ships/sounds/\`).
+3. Commit + push a main. El workflow de deploy-pages republica el sitio
+   con los cambios ya visibles para todo el mundo.
+`);
+
+  const blob = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "naveteca-parche.zip";
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [meta, base64] = dataUrl.split(",");
+  const mime = meta.match(/:(.*?);/)[1];
+  const bytes = atob(base64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function escapeAttr(str) {
+  return escapeHtml(str).replace(/"/g, "&quot;");
 }
 
 document.getElementById("search-input").addEventListener("input", (e) => {

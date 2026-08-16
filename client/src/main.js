@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.0.4";
+const GAME_VERSION = "v0.0.5";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -30,6 +30,25 @@ const CHARACTERS_STORAGE_KEY = "spacemmo_characters";
 // client/public/ships/ — es la MISMA carpeta que usa la naveteca, así que
 // cambiar esos archivos ahí cambia lo que se ve/oye en el juego también.
 const STARTING_SHIP_ID = "shuttle_01";
+
+// Misma clave de localStorage que usa client/public/naveteca/index.html.
+// Es el mecanismo de "guardado" de la naveteca: como GitHub Pages es
+// hosting estático y no puede escribir en el repo, las ediciones desde
+// la naveteca se guardan en el navegador y el juego las lee de aquí para
+// que se noten al instante en la misma máquina — para que las vea todo
+// el mundo hace falta exportar el parche desde la naveteca y desplegarlo.
+const SHIP_OVERRIDES_KEY = "spacemmo_ship_overrides";
+
+function getLocalShipOverride(shipId) {
+  try {
+    const raw = localStorage.getItem(SHIP_OVERRIDES_KEY);
+    if (!raw) return null;
+    const all = JSON.parse(raw);
+    return all[shipId] || null;
+  } catch {
+    return null;
+  }
+}
 
 const ui = document.getElementById("ui");
 
@@ -310,18 +329,38 @@ class ChunkScene extends Phaser.Scene {
   // Carga la textura y el sonido de la nave activa desde la carpeta
   // compartida con la naveteca (client/public/ships/). Cambiar esos
   // archivos ahí cambia lo que se ve/oye aquí, sin tocar código.
+  //
+  // Si hay una edición local guardada desde la naveteca (misma clave de
+  // localStorage, OVERRIDES_KEY), se usa esa en vez del archivo estático
+  // — así "guardar" en la naveteca se nota al instante en el juego, en
+  // el mismo navegador, sin necesidad de desplegar nada.
   preload() {
     const base = `${import.meta.env.BASE_URL}ships/`;
     this.load.json("shipsCatalog", `${base}ships.json`);
-    this.load.image(`ship-${STARTING_SHIP_ID}`, `${base}sprites/${STARTING_SHIP_ID}.png`);
-    this.load.audio(`ship-${STARTING_SHIP_ID}-hum`, `${base}sounds/${STARTING_SHIP_ID}_hum.wav`);
+
+    const override = getLocalShipOverride(STARTING_SHIP_ID);
+
+    if (override?.spriteDataUrl) {
+      this.load.image(`ship-${STARTING_SHIP_ID}`, override.spriteDataUrl);
+    } else {
+      this.load.image(`ship-${STARTING_SHIP_ID}`, `${base}sprites/${STARTING_SHIP_ID}.png`);
+    }
+
+    if (override?.soundDataUrl) {
+      this.load.audio(`ship-${STARTING_SHIP_ID}-hum`, [override.soundDataUrl]);
+    } else {
+      this.load.audio(`ship-${STARTING_SHIP_ID}-hum`, `${base}sounds/${STARTING_SHIP_ID}_hum.wav`);
+    }
   }
 
   async create() {
     this.cameras.main.setBackgroundColor("#05050a");
 
     const catalog = this.cache.json.get("shipsCatalog") || [];
-    this.shipMeta = catalog.find((s) => s.id === STARTING_SHIP_ID) || null;
+    const baseMeta = catalog.find((s) => s.id === STARTING_SHIP_ID) || null;
+    const override = getLocalShipOverride(STARTING_SHIP_ID);
+    this.shipMeta = override && baseMeta ? { ...baseMeta, ...override, stats: { ...baseMeta.stats, ...(override.stats || {}) } } : baseMeta;
+
     this.engineSound = this.sound.add(`ship-${STARTING_SHIP_ID}-hum`, { loop: true, volume: 0.12 });
 
     this.starfield();

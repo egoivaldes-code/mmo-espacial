@@ -58,6 +58,28 @@ documento de diseño completo y el roadmap.
   el cliente (el sprite se limitaba a "teletransportarse" a la última
   posición recibida del servidor, sin nada entre medias).
 
+## [v0.0.5]
+
+### Añadido
+- La naveteca pasa de visor a **editor**: cada nave se puede editar
+  (nombre, clase, descripción, HP, velocidad, carga, tripulación) y se le
+  puede sustituir el sprite (.png) o el sonido de motor (.mp3/.wav) desde
+  la propia interfaz, con botón "Guardar cambios".
+- Guardado en dos niveles, porque GitHub Pages es hosting estático y no
+  puede escribir en el repo:
+  1. **Local (instantáneo)**: se guarda en `localStorage` del navegador.
+     Se refleja al momento en la naveteca y en el juego (mismo
+     navegador, misma clave de almacenamiento) — recargar el juego basta
+     para verlo, sin necesidad de desplegar nada.
+  2. **Exportar parche**: botón que empaqueta todas las ediciones locales
+     en un `.zip` (`ships.json` fusionado + sprites/sonidos sustituidos)
+     listo para aplicar al repo con el flujo habitual de parches, para
+     que el cambio lo vea todo el mundo, no solo quien editó.
+- Indicador visual de qué naves tienen ediciones locales sin exportar
+  (punto de color en la tarjeta + aviso en la ficha), botón para
+  restablecer una nave a su versión original, y botón para borrar todas
+  las ediciones locales del navegador.
+
 ## [v0.0.4]
 
 ### Añadido

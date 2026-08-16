@@ -206,6 +206,33 @@ real de nadie, solo la predice/interpola visualmente:
   arquitectura para cuando exista el sistema de chunks dinámico, no es
   algo exclusivo del chunk fijo de fase 0.
 
+### 5.3 Física de vuelo (decidido en el prototipo)
+
+**Modelo tipo Asteroids/Newtoniano, no "velocidad instantánea en la
+dirección del input".** El input marca el rumbo *deseado*, no la
+velocidad directa:
+
+- La nave gira el morro hacia el rumbo deseado a una velocidad angular
+  limitada (`TURN_RATE`) — no salta a esa dirección de golpe.
+- El empuje (`ACCELERATION`) se aplica en la dirección hacia la que la
+  nave está físicamente orientada *en ese instante*, no hacia el rumbo
+  deseado. Girar rápido yendo a alta velocidad produce deriva real —
+  intentar orbitar algo sin corregir constantemente el rumbo da elipses,
+  no círculos perfectos, tal y como se pidió en el diseño original.
+- Fricción suave (`DRAG`) constante: sin empuje, la nave frena sola en
+  un par de segundos en vez de derivar para siempre o parar en seco.
+- Movimiento libre a 360°, no direcciones fijas.
+- Simulado en el servidor (autoridad) y replicado exactamente en el
+  cliente para la predicción local — mismas constantes en ambos sitios
+  (`server/rooms/ChunkRoom.js` y `client/src/main.js`).
+
+**Valores actuales del prototipo** están calibrados para la única nave
+que existe en el juego (FHI Wren, lanzadera — nave nimble por diseño).
+Cuando exista selección real de nave, cada clase debería tener sus
+propios valores derivados de sus stats (más grande/pesada = giro y
+aceleración más bajos, tirando de `ships.json` en
+`client/public/ships/`) — de momento son globales para toda nave.
+
 ### 5.1 Contenido de los chunks vírgenes
 
 Cada chunk sin explorar puede combinar tres tipos de contenido (no son

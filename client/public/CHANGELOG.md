@@ -58,6 +58,30 @@ documento de diseño completo y el roadmap.
   el cliente (el sprite se limitaba a "teletransportarse" a la última
   posición recibida del servidor, sin nada entre medias).
 
+## [v0.0.8]
+
+### Cambiado
+- **Física de vuelo real**, sustituye el movimiento anterior (velocidad
+  instantánea en la dirección del input). Ahora es un modelo tipo
+  Asteroids/Newtoniano:
+  - El input marca el rumbo *deseado*; la nave gira el morro hacia ahí a
+    una velocidad angular limitada (`TURN_RATE`), no de golpe.
+  - El empuje (`ACCELERATION`) se aplica en la dirección hacia la que la
+    nave está físicamente orientada en ese instante, no hacia el rumbo
+    deseado — girar rápido a alta velocidad produce deriva real en vez de
+    cambio de dirección instantáneo (intentar orbitar algo sin corregir
+    constantemente da elipses, no círculos).
+  - Fricción suave (`DRAG`) para que la nave frene sola en un par de
+    segundos al soltar el input, en vez de derivar para siempre o parar
+    en seco.
+  - Movimiento libre a 360°, no las 8 direcciones fijas de antes.
+  - Simulado en servidor (autoridad) y replicado en el cliente para la
+    predicción local — mismas constantes en los dos sitios.
+  - Valores actuales calibrados para la única nave que hay en el juego
+    (FHI Wren, lanzadera nimble). Cuando exista selección real de nave,
+    cada clase debería tener sus propios valores (más grande/pesada =
+    giro y aceleración más bajos).
+
 ## [v0.0.7]
 
 ### Corregido

@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.0.8",
+    "highlights": [
+      "New flight physics: your ship now has real inertia — it turns gradually and drifts a bit when turning sharply at high speed, instead of changing direction instantly.",
+      "Free movement in any direction, no longer just 8 fixed directions."
+    ]
+  },
+  {
     "version": "v0.0.7",
     "highlights": [
       "Fixed pinch-to-zoom — it wasn't working correctly on mobile before."

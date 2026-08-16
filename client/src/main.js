@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.0.7";
+const GAME_VERSION = "v0.0.8";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -13,8 +13,24 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:2567";
 // Debe coincidir con las constantes homónimas del servidor
 // (server/rooms/ChunkRoom.js). Candidatas a mover a un archivo de config
 // compartido más adelante.
-const SHIP_SPEED = 220;
+// Física de vuelo — DEBE coincidir exactamente con las constantes
+// homónimas de server/rooms/ChunkRoom.js (es la misma simulación
+// replicada en cliente para la predicción local). Ver el comentario
+// largo allí para la explicación completa del modelo.
+const TURN_RATE = Math.PI; // rad/s
+const ACCELERATION = 300; // unidades/s²
+const MAX_SPEED = 240; // unidades/s
+const DRAG = 0.6;
+
 const WORLD_SIZE = 4000;
+
+// Diferencia angular más corta entre dos ángulos, en [-PI, PI].
+function angleDiff(from, to) {
+  let diff = (to - from) % (Math.PI * 2);
+  if (diff > Math.PI) diff -= Math.PI * 2;
+  if (diff < -Math.PI) diff += Math.PI * 2;
+  return diff;
+}
 
 // Cuánto "en el pasado" se dibujan los jugadores remotos, para poder
 // interpolar entre dos posiciones reales del servidor en vez de saltar de
@@ -655,6 +671,7 @@ class ChunkScene extends Phaser.Scene {
 
   predictLocalMovement(delta) {
     if (!this.localEntry) return;
+    const dt = delta / 1000;
 
     const input = this.currentInput();
     let dx = 0;
@@ -663,26 +680,55 @@ class ChunkScene extends Phaser.Scene {
     if (input.down) dy += 1;
     if (input.left) dx -= 1;
     if (input.right) dx += 1;
+    const hasInput = dx !== 0 || dy !== 0;
 
-    const isThrusting = dx !== 0 || dy !== 0;
-    this.updateEngineSound(isThrusting);
+    this.updateEngineSound(hasInput);
 
-    if (isThrusting) {
-      const len = Math.hypot(dx, dy);
-      const dt = delta / 1000;
-      const half = WORLD_SIZE / 2;
-      this.localEntry.container.x = Phaser.Math.Clamp(
-        this.localEntry.container.x + (dx / len) * SHIP_SPEED * dt,
-        -half,
-        half
-      );
-      this.localEntry.container.y = Phaser.Math.Clamp(
-        this.localEntry.container.y + (dy / len) * SHIP_SPEED * dt,
-        -half,
-        half
-      );
-      this.localEntry.sprite.rotation = Math.atan2(dy, dx) + Math.PI / 2;
+    if (this.localEntry.vx === undefined) {
+      this.localEntry.vx = 0;
+      this.localEntry.vy = 0;
     }
+    if (this.localEntry.facing === undefined) {
+      this.localEntry.facing = 0;
+    }
+
+    if (hasInput) {
+      // Gira el morro hacia el rumbo deseado, limitado por TURN_RATE —
+      // igual que en el servidor, no salta directo a esa dirección.
+      const desiredAngle = Math.atan2(dy, dx);
+      const diff = angleDiff(this.localEntry.facing, desiredAngle);
+      const maxStep = TURN_RATE * dt;
+      this.localEntry.facing += Math.abs(diff) <= maxStep ? diff : Math.sign(diff) * maxStep;
+
+      // El empuje va en la dirección hacia la que la nave está orientada
+      // AHORA, no hacia el rumbo deseado — de ahí la deriva al girar
+      // rápido sin haber terminado de orientarse.
+      this.localEntry.vx += Math.cos(this.localEntry.facing) * ACCELERATION * dt;
+      this.localEntry.vy += Math.sin(this.localEntry.facing) * ACCELERATION * dt;
+
+      const speed = Math.hypot(this.localEntry.vx, this.localEntry.vy);
+      if (speed > MAX_SPEED) {
+        this.localEntry.vx = (this.localEntry.vx / speed) * MAX_SPEED;
+        this.localEntry.vy = (this.localEntry.vy / speed) * MAX_SPEED;
+      }
+    }
+
+    const dragFactor = Math.max(0, 1 - DRAG * dt);
+    this.localEntry.vx *= dragFactor;
+    this.localEntry.vy *= dragFactor;
+
+    const half = WORLD_SIZE / 2;
+    this.localEntry.container.x = Phaser.Math.Clamp(
+      this.localEntry.container.x + this.localEntry.vx * dt,
+      -half,
+      half
+    );
+    this.localEntry.container.y = Phaser.Math.Clamp(
+      this.localEntry.container.y + this.localEntry.vy * dt,
+      -half,
+      half
+    );
+    this.localEntry.sprite.rotation = this.localEntry.facing + Math.PI / 2;
 
     const drift = Phaser.Math.Distance.Between(
       this.localEntry.container.x,

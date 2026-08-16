@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.0.8",
+    "highlights": [
+      "Nueva física de vuelo: la nave ahora tiene inercia de verdad — gira poco a poco y derrapa un poco al girar rápido yendo a toda velocidad, en vez de cambiar de dirección al instante.",
+      "Movimiento libre en cualquier dirección, ya no solo 8 direcciones fijas."
+    ]
+  },
+  {
     "version": "v0.0.7",
     "highlights": [
       "Arreglado el pellizco para hacer zoom — antes no funcionaba bien en móvil."

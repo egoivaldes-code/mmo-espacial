@@ -1,5 +1,17 @@
 [
   {
+    "version": "v0.0.11",
+    "highlights": [
+      "Fixed the engine trail, which was coming out of the ship's side instead of behind it."
+    ]
+  },
+  {
+    "version": "v0.0.10",
+    "highlights": [
+      "Cleaner ship art for the full catalog — no visible change to the ship you're currently using."
+    ]
+  },
+  {
     "version": "v0.0.9",
     "highlights": [
       "Fixed reconnection — it used to always fail after minimizing the game on mobile, now it retries when you come back.",

@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.0.9";
+const GAME_VERSION = "v0.0.11";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -815,12 +815,18 @@ class ChunkScene extends Phaser.Scene {
 
   // Coloca el emisor de la estela detrás de la nave (en el sentido
   // contrario al morro) y lo enciende/apaga según si está acelerando.
-  // sprite.rotation ya lleva el +PI/2 de offset del arte (ver
-  // predictLocalMovement/interpolateRemotePlayers), así que aquí basta con
-  // restar PI para apuntar hacia atrás.
+  //
+  // sprite.rotation = facing + PI/2 (el arte apunta "arriba" por defecto,
+  // así que se compensa con +PI/2 — ver predictLocalMovement /
+  // interpolateRemotePlayers). Para volver a la dirección física real
+  // ("facing") hay que DESHACER ese +PI/2 restándolo, y luego sumar PI
+  // para apuntar hacia atrás: facing + PI = (sprite.rotation - PI/2) + PI
+  // = sprite.rotation + PI/2. Restar PI directamente a sprite.rotation
+  // (como estaba antes) deja el offset girado 90° de más — la estela
+  // salía por el lateral de la nave en vez de por la cola.
   updateEngineTrailPosition(entry, isThrusting) {
     if (!entry.engineTrail) return;
-    const back = entry.sprite.rotation - Math.PI;
+    const back = entry.sprite.rotation + Math.PI / 2;
     const offset = 16;
     entry.engineTrail.setPosition(
       entry.container.x + Math.cos(back) * offset,

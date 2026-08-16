@@ -1,5 +1,17 @@
 [
   {
+    "version": "v0.0.11",
+    "highlights": [
+      "Arreglada la estela del motor, que salía por el lateral de la nave en vez de por detrás."
+    ]
+  },
+  {
+    "version": "v0.0.10",
+    "highlights": [
+      "Arte de las naves más limpio de cara al catálogo completo — sin cambios visibles en la nave que usas ahora mismo."
+    ]
+  },
+  {
     "version": "v0.0.9",
     "highlights": [
       "Arreglada la reconexión — antes fallaba siempre al minimizar el juego en el móvil, ahora se reintenta al volver.",

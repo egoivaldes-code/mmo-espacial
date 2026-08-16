@@ -14,6 +14,31 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.0.11]
+
+### Corregido
+- La estela de plasma del motor salía por el lateral de la nave en vez de
+  por la cola. La fórmula de posicionamiento restaba `PI` directamente a
+  `sprite.rotation`, pero ese ángulo ya lleva un desfase de `+PI/2` por la
+  orientación del arte (el sprite apunta "arriba" por defecto) — restar
+  `PI` sin deshacer antes ese desfase dejaba el offset girado 90° de más.
+  Corregido a `sprite.rotation + PI/2`. Verificado en las 4 direcciones
+  cardinales antes de aplicar.
+
+## [v0.0.10]
+
+### Añadido
+- Los 41 sprites del catálogo de naves (`client/public/ships/sprites/`)
+  se recortan ahora a partir de una hoja con canal alfa real, en vez del
+  umbral de brillo aproximado usado originalmente. De paso se corrigió un
+  fallo del propio recorte: cuando dos naves quedaban muy cerca en la
+  hoja, el rectángulo de recorte de una podía capturar una esquina de la
+  vecina — ahora se enmascara por componente conectado antes de recortar,
+  no solo por rectángulo. Mismos IDs/nombres/clases de antes, solo mejor
+  arte fuente. No afecta visualmente a la nave en uso ahora mismo
+  (`shuttle_01`, que ya estaba limpia) — relevante para cuando exista
+  selección real de nave y se usen las demás.
+
 ## [v0.0.9]
 
 ### Arreglado

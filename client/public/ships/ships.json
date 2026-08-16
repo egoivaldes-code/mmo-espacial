@@ -1,0 +1,904 @@
+[
+  {
+    "id": "shuttle_01",
+    "name": "FHI Wren",
+    "class": "shuttle",
+    "classLabel": "Lanzadera",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Transporte mínimo, sin armamento serio. La primera nave de cualquier piloto. Modelo de la línea Wren, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/shuttle_01.png",
+    "spriteSize": {
+      "w": 41,
+      "h": 80
+    },
+    "stats": {
+      "hp": 57,
+      "speed": 405,
+      "cargo": 5,
+      "crew": "1"
+    },
+    "sounds": {
+      "engineHum": "sounds/shuttle_01_hum.wav"
+    }
+  },
+  {
+    "id": "shuttle_02",
+    "name": "FHI Finch",
+    "class": "shuttle",
+    "classLabel": "Lanzadera",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Transporte mínimo, sin armamento serio. La primera nave de cualquier piloto. Modelo de la línea Finch, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/shuttle_02.png",
+    "spriteSize": {
+      "w": 44,
+      "h": 85
+    },
+    "stats": {
+      "hp": 57,
+      "speed": 434,
+      "cargo": 5,
+      "crew": "1"
+    },
+    "sounds": {
+      "engineHum": "sounds/shuttle_02_hum.wav"
+    }
+  },
+  {
+    "id": "shuttle_03",
+    "name": "FHI Sparrow",
+    "class": "shuttle",
+    "classLabel": "Lanzadera",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Transporte mínimo, sin armamento serio. La primera nave de cualquier piloto. Modelo de la línea Sparrow, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/shuttle_03.png",
+    "spriteSize": {
+      "w": 44,
+      "h": 71
+    },
+    "stats": {
+      "hp": 64,
+      "speed": 387,
+      "cargo": 5,
+      "crew": "1"
+    },
+    "sounds": {
+      "engineHum": "sounds/shuttle_03_hum.wav"
+    }
+  },
+  {
+    "id": "shuttle_04",
+    "name": "FHI Swallow",
+    "class": "shuttle",
+    "classLabel": "Lanzadera",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Transporte mínimo, sin armamento serio. La primera nave de cualquier piloto. Modelo de la línea Swallow, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/shuttle_04.png",
+    "spriteSize": {
+      "w": 49,
+      "h": 73
+    },
+    "stats": {
+      "hp": 63,
+      "speed": 438,
+      "cargo": 5,
+      "crew": "1"
+    },
+    "sounds": {
+      "engineHum": "sounds/shuttle_04_hum.wav"
+    }
+  },
+  {
+    "id": "shuttle_05",
+    "name": "FHI Lark",
+    "class": "shuttle",
+    "classLabel": "Lanzadera",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Transporte mínimo, sin armamento serio. La primera nave de cualquier piloto. Modelo de la línea Lark, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/shuttle_05.png",
+    "spriteSize": {
+      "w": 52,
+      "h": 68
+    },
+    "stats": {
+      "hp": 61,
+      "speed": 376,
+      "cargo": 5,
+      "crew": "1"
+    },
+    "sounds": {
+      "engineHum": "sounds/shuttle_05_hum.wav"
+    }
+  },
+  {
+    "id": "shuttle_06",
+    "name": "FHI Martin",
+    "class": "shuttle",
+    "classLabel": "Lanzadera",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Transporte mínimo, sin armamento serio. La primera nave de cualquier piloto. Modelo de la línea Martin, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/shuttle_06.png",
+    "spriteSize": {
+      "w": 56,
+      "h": 73
+    },
+    "stats": {
+      "hp": 57,
+      "speed": 381,
+      "cargo": 5,
+      "crew": "1"
+    },
+    "sounds": {
+      "engineHum": "sounds/shuttle_06_hum.wav"
+    }
+  },
+  {
+    "id": "frigate_01",
+    "name": "FHI Talon",
+    "class": "frigate",
+    "classLabel": "Fragata",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Exploración y combate ligero. Rápida, barata de fabricar, fácil de perder. Modelo de la línea Talon, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/frigate_01.png",
+    "spriteSize": {
+      "w": 58,
+      "h": 82
+    },
+    "stats": {
+      "hp": 137,
+      "speed": 349,
+      "cargo": 20,
+      "crew": "1-2"
+    },
+    "sounds": {
+      "engineHum": "sounds/frigate_01_hum.wav"
+    }
+  },
+  {
+    "id": "frigate_02",
+    "name": "FHI Kestrel",
+    "class": "frigate",
+    "classLabel": "Fragata",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Exploración y combate ligero. Rápida, barata de fabricar, fácil de perder. Modelo de la línea Kestrel, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/frigate_02.png",
+    "spriteSize": {
+      "w": 64,
+      "h": 90
+    },
+    "stats": {
+      "hp": 145,
+      "speed": 334,
+      "cargo": 20,
+      "crew": "1-2"
+    },
+    "sounds": {
+      "engineHum": "sounds/frigate_02_hum.wav"
+    }
+  },
+  {
+    "id": "frigate_03",
+    "name": "FHI Falcon",
+    "class": "frigate",
+    "classLabel": "Fragata",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Exploración y combate ligero. Rápida, barata de fabricar, fácil de perder. Modelo de la línea Falcon, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/frigate_03.png",
+    "spriteSize": {
+      "w": 83,
+      "h": 97
+    },
+    "stats": {
+      "hp": 153,
+      "speed": 328,
+      "cargo": 19,
+      "crew": "1-2"
+    },
+    "sounds": {
+      "engineHum": "sounds/frigate_03_hum.wav"
+    }
+  },
+  {
+    "id": "frigate_04",
+    "name": "FHI Osprey",
+    "class": "frigate",
+    "classLabel": "Fragata",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Exploración y combate ligero. Rápida, barata de fabricar, fácil de perder. Modelo de la línea Osprey, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/frigate_04.png",
+    "spriteSize": {
+      "w": 64,
+      "h": 99
+    },
+    "stats": {
+      "hp": 152,
+      "speed": 356,
+      "cargo": 21,
+      "crew": "1-2"
+    },
+    "sounds": {
+      "engineHum": "sounds/frigate_04_hum.wav"
+    }
+  },
+  {
+    "id": "frigate_05",
+    "name": "FHI Harrier",
+    "class": "frigate",
+    "classLabel": "Fragata",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Exploración y combate ligero. Rápida, barata de fabricar, fácil de perder. Modelo de la línea Harrier, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/frigate_05.png",
+    "spriteSize": {
+      "w": 76,
+      "h": 93
+    },
+    "stats": {
+      "hp": 139,
+      "speed": 351,
+      "cargo": 22,
+      "crew": "1-2"
+    },
+    "sounds": {
+      "engineHum": "sounds/frigate_05_hum.wav"
+    }
+  },
+  {
+    "id": "frigate_06",
+    "name": "FHI Merlin",
+    "class": "frigate",
+    "classLabel": "Fragata",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Exploración y combate ligero. Rápida, barata de fabricar, fácil de perder. Modelo de la línea Merlin, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/frigate_06.png",
+    "spriteSize": {
+      "w": 81,
+      "h": 105
+    },
+    "stats": {
+      "hp": 142,
+      "speed": 319,
+      "cargo": 22,
+      "crew": "1-2"
+    },
+    "sounds": {
+      "engineHum": "sounds/frigate_06_hum.wav"
+    }
+  },
+  {
+    "id": "destroyer_01",
+    "name": "FHI Saber",
+    "class": "destroyer",
+    "classLabel": "Destructor",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Escolta y ataque contra objetivos pequeños en número. Cazadora de fragatas. Modelo de la línea Saber, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/destroyer_01.png",
+    "spriteSize": {
+      "w": 60,
+      "h": 125
+    },
+    "stats": {
+      "hp": 331,
+      "speed": 292,
+      "cargo": 43,
+      "crew": "3-5"
+    },
+    "sounds": {
+      "engineHum": "sounds/destroyer_01_hum.wav"
+    }
+  },
+  {
+    "id": "destroyer_02",
+    "name": "FHI Rapier",
+    "class": "destroyer",
+    "classLabel": "Destructor",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Escolta y ataque contra objetivos pequeños en número. Cazadora de fragatas. Modelo de la línea Rapier, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/destroyer_02.png",
+    "spriteSize": {
+      "w": 83,
+      "h": 127
+    },
+    "stats": {
+      "hp": 310,
+      "speed": 274,
+      "cargo": 43,
+      "crew": "3-5"
+    },
+    "sounds": {
+      "engineHum": "sounds/destroyer_02_hum.wav"
+    }
+  },
+  {
+    "id": "destroyer_03",
+    "name": "FHI Cutlass",
+    "class": "destroyer",
+    "classLabel": "Destructor",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Escolta y ataque contra objetivos pequeños en número. Cazadora de fragatas. Modelo de la línea Cutlass, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/destroyer_03.png",
+    "spriteSize": {
+      "w": 79,
+      "h": 128
+    },
+    "stats": {
+      "hp": 348,
+      "speed": 256,
+      "cargo": 46,
+      "crew": "3-5"
+    },
+    "sounds": {
+      "engineHum": "sounds/destroyer_03_hum.wav"
+    }
+  },
+  {
+    "id": "destroyer_04",
+    "name": "FHI Stiletto",
+    "class": "destroyer",
+    "classLabel": "Destructor",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Escolta y ataque contra objetivos pequeños en número. Cazadora de fragatas. Modelo de la línea Stiletto, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/destroyer_04.png",
+    "spriteSize": {
+      "w": 112,
+      "h": 111
+    },
+    "stats": {
+      "hp": 331,
+      "speed": 278,
+      "cargo": 42,
+      "crew": "3-5"
+    },
+    "sounds": {
+      "engineHum": "sounds/destroyer_04_hum.wav"
+    }
+  },
+  {
+    "id": "destroyer_05",
+    "name": "FHI Dirk",
+    "class": "destroyer",
+    "classLabel": "Destructor",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Escolta y ataque contra objetivos pequeños en número. Cazadora de fragatas. Modelo de la línea Dirk, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/destroyer_05.png",
+    "spriteSize": {
+      "w": 83,
+      "h": 124
+    },
+    "stats": {
+      "hp": 301,
+      "speed": 261,
+      "cargo": 46,
+      "crew": "3-5"
+    },
+    "sounds": {
+      "engineHum": "sounds/destroyer_05_hum.wav"
+    }
+  },
+  {
+    "id": "destroyer_06",
+    "name": "FHI Cleaver",
+    "class": "destroyer",
+    "classLabel": "Destructor",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Escolta y ataque contra objetivos pequeños en número. Cazadora de fragatas. Modelo de la línea Cleaver, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/destroyer_06.png",
+    "spriteSize": {
+      "w": 96,
+      "h": 137
+    },
+    "stats": {
+      "hp": 338,
+      "speed": 303,
+      "cargo": 41,
+      "crew": "3-5"
+    },
+    "sounds": {
+      "engineHum": "sounds/destroyer_06_hum.wav"
+    }
+  },
+  {
+    "id": "destroyer_07",
+    "name": "FHI Scythe",
+    "class": "destroyer",
+    "classLabel": "Destructor",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Escolta y ataque contra objetivos pequeños en número. Cazadora de fragatas. Modelo de la línea Scythe, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/destroyer_07.png",
+    "spriteSize": {
+      "w": 96,
+      "h": 133
+    },
+    "stats": {
+      "hp": 312,
+      "speed": 304,
+      "cargo": 47,
+      "crew": "3-5"
+    },
+    "sounds": {
+      "engineHum": "sounds/destroyer_07_hum.wav"
+    }
+  },
+  {
+    "id": "destroyer_08",
+    "name": "FHI Reaper",
+    "class": "destroyer",
+    "classLabel": "Destructor",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Escolta y ataque contra objetivos pequeños en número. Cazadora de fragatas. Modelo de la línea Reaper, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/destroyer_08.png",
+    "spriteSize": {
+      "w": 99,
+      "h": 132
+    },
+    "stats": {
+      "hp": 323,
+      "speed": 269,
+      "cargo": 47,
+      "crew": "3-5"
+    },
+    "sounds": {
+      "engineHum": "sounds/destroyer_08_hum.wav"
+    }
+  },
+  {
+    "id": "destroyer_09",
+    "name": "FHI Ripper",
+    "class": "destroyer",
+    "classLabel": "Destructor",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Escolta y ataque contra objetivos pequeños en número. Cazadora de fragatas. Modelo de la línea Ripper, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/destroyer_09.png",
+    "spriteSize": {
+      "w": 96,
+      "h": 150
+    },
+    "stats": {
+      "hp": 297,
+      "speed": 263,
+      "cargo": 43,
+      "crew": "3-5"
+    },
+    "sounds": {
+      "engineHum": "sounds/destroyer_09_hum.wav"
+    }
+  },
+  {
+    "id": "cruiser_01",
+    "name": "FHI Warden",
+    "class": "cruiser",
+    "classLabel": "Crucero",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Multipropósito. La columna vertebral de cualquier flota organizada. Modelo de la línea Warden, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/cruiser_01.png",
+    "spriteSize": {
+      "w": 98,
+      "h": 169
+    },
+    "stats": {
+      "hp": 698,
+      "speed": 242,
+      "cargo": 93,
+      "crew": "8-12"
+    },
+    "sounds": {
+      "engineHum": "sounds/cruiser_01_hum.wav"
+    }
+  },
+  {
+    "id": "cruiser_02",
+    "name": "FHI Sentinel",
+    "class": "cruiser",
+    "classLabel": "Crucero",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Multipropósito. La columna vertebral de cualquier flota organizada. Modelo de la línea Sentinel, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/cruiser_02.png",
+    "spriteSize": {
+      "w": 112,
+      "h": 121
+    },
+    "stats": {
+      "hp": 612,
+      "speed": 238,
+      "cargo": 91,
+      "crew": "8-12"
+    },
+    "sounds": {
+      "engineHum": "sounds/cruiser_02_hum.wav"
+    }
+  },
+  {
+    "id": "cruiser_03",
+    "name": "FHI Guardian",
+    "class": "cruiser",
+    "classLabel": "Crucero",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Multipropósito. La columna vertebral de cualquier flota organizada. Modelo de la línea Guardian, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/cruiser_03.png",
+    "spriteSize": {
+      "w": 105,
+      "h": 168
+    },
+    "stats": {
+      "hp": 610,
+      "speed": 239,
+      "cargo": 84,
+      "crew": "8-12"
+    },
+    "sounds": {
+      "engineHum": "sounds/cruiser_03_hum.wav"
+    }
+  },
+  {
+    "id": "cruiser_04",
+    "name": "FHI Bastion",
+    "class": "cruiser",
+    "classLabel": "Crucero",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Multipropósito. La columna vertebral de cualquier flota organizada. Modelo de la línea Bastion, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/cruiser_04.png",
+    "spriteSize": {
+      "w": 95,
+      "h": 175
+    },
+    "stats": {
+      "hp": 632,
+      "speed": 248,
+      "cargo": 97,
+      "crew": "8-12"
+    },
+    "sounds": {
+      "engineHum": "sounds/cruiser_04_hum.wav"
+    }
+  },
+  {
+    "id": "cruiser_05",
+    "name": "FHI Aegis",
+    "class": "cruiser",
+    "classLabel": "Crucero",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Multipropósito. La columna vertebral de cualquier flota organizada. Modelo de la línea Aegis, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/cruiser_05.png",
+    "spriteSize": {
+      "w": 110,
+      "h": 162
+    },
+    "stats": {
+      "hp": 713,
+      "speed": 233,
+      "cargo": 84,
+      "crew": "8-12"
+    },
+    "sounds": {
+      "engineHum": "sounds/cruiser_05_hum.wav"
+    }
+  },
+  {
+    "id": "cruiser_06",
+    "name": "FHI Vanguard",
+    "class": "cruiser",
+    "classLabel": "Crucero",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Multipropósito. La columna vertebral de cualquier flota organizada. Modelo de la línea Vanguard, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/cruiser_06.png",
+    "spriteSize": {
+      "w": 136,
+      "h": 138
+    },
+    "stats": {
+      "hp": 711,
+      "speed": 209,
+      "cargo": 96,
+      "crew": "8-12"
+    },
+    "sounds": {
+      "engineHum": "sounds/cruiser_06_hum.wav"
+    }
+  },
+  {
+    "id": "battlecruiser_01",
+    "name": "FHI Marauder",
+    "class": "battlecruiser",
+    "classLabel": "Cruceroacorazado",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Potencia de fuego sostenida sin llegar al coste de un acorazado. Modelo de la línea Marauder, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/battlecruiser_01.png",
+    "spriteSize": {
+      "w": 108,
+      "h": 206
+    },
+    "stats": {
+      "hp": 1203,
+      "speed": 187,
+      "cargo": 161,
+      "crew": "20-30"
+    },
+    "sounds": {
+      "engineHum": "sounds/battlecruiser_01_hum.wav"
+    }
+  },
+  {
+    "id": "battlecruiser_02",
+    "name": "FHI Ravager",
+    "class": "battlecruiser",
+    "classLabel": "Cruceroacorazado",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Potencia de fuego sostenida sin llegar al coste de un acorazado. Modelo de la línea Ravager, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/battlecruiser_02.png",
+    "spriteSize": {
+      "w": 93,
+      "h": 277
+    },
+    "stats": {
+      "hp": 1318,
+      "speed": 189,
+      "cargo": 149,
+      "crew": "20-30"
+    },
+    "sounds": {
+      "engineHum": "sounds/battlecruiser_02_hum.wav"
+    }
+  },
+  {
+    "id": "battlecruiser_03",
+    "name": "FHI Subjugator",
+    "class": "battlecruiser",
+    "classLabel": "Cruceroacorazado",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Potencia de fuego sostenida sin llegar al coste de un acorazado. Modelo de la línea Subjugator, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/battlecruiser_03.png",
+    "spriteSize": {
+      "w": 142,
+      "h": 223
+    },
+    "stats": {
+      "hp": 1155,
+      "speed": 204,
+      "cargo": 150,
+      "crew": "20-30"
+    },
+    "sounds": {
+      "engineHum": "sounds/battlecruiser_03_hum.wav"
+    }
+  },
+  {
+    "id": "battlecruiser_04",
+    "name": "FHI Dominator",
+    "class": "battlecruiser",
+    "classLabel": "Cruceroacorazado",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Potencia de fuego sostenida sin llegar al coste de un acorazado. Modelo de la línea Dominator, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/battlecruiser_04.png",
+    "spriteSize": {
+      "w": 133,
+      "h": 231
+    },
+    "stats": {
+      "hp": 1180,
+      "speed": 184,
+      "cargo": 152,
+      "crew": "20-30"
+    },
+    "sounds": {
+      "engineHum": "sounds/battlecruiser_04_hum.wav"
+    }
+  },
+  {
+    "id": "battlecruiser_05",
+    "name": "FHI Predator",
+    "class": "battlecruiser",
+    "classLabel": "Cruceroacorazado",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Potencia de fuego sostenida sin llegar al coste de un acorazado. Modelo de la línea Predator, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/battlecruiser_05.png",
+    "spriteSize": {
+      "w": 186,
+      "h": 207
+    },
+    "stats": {
+      "hp": 1135,
+      "speed": 176,
+      "cargo": 165,
+      "crew": "20-30"
+    },
+    "sounds": {
+      "engineHum": "sounds/battlecruiser_05_hum.wav"
+    }
+  },
+  {
+    "id": "battleship_01",
+    "name": "FHI Sovereign",
+    "class": "battleship",
+    "classLabel": "Acorazado",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Artillería pesada. Domina un chunk por sí sola frente a naves menores. Modelo de la línea Sovereign, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/battleship_01.png",
+    "spriteSize": {
+      "w": 163,
+      "h": 466
+    },
+    "stats": {
+      "hp": 2284,
+      "speed": 138,
+      "cargo": 237,
+      "crew": "60-90"
+    },
+    "sounds": {
+      "engineHum": "sounds/battleship_01_hum.wav"
+    }
+  },
+  {
+    "id": "battleship_02",
+    "name": "FHI Emperor",
+    "class": "battleship",
+    "classLabel": "Acorazado",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Artillería pesada. Domina un chunk por sí sola frente a naves menores. Modelo de la línea Emperor, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/battleship_02.png",
+    "spriteSize": {
+      "w": 197,
+      "h": 401
+    },
+    "stats": {
+      "hp": 2335,
+      "speed": 138,
+      "cargo": 246,
+      "crew": "60-90"
+    },
+    "sounds": {
+      "engineHum": "sounds/battleship_02_hum.wav"
+    }
+  },
+  {
+    "id": "battleship_03",
+    "name": "FHI Monarch",
+    "class": "battleship",
+    "classLabel": "Acorazado",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Artillería pesada. Domina un chunk por sí sola frente a naves menores. Modelo de la línea Monarch, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/battleship_03.png",
+    "spriteSize": {
+      "w": 179,
+      "h": 456
+    },
+    "stats": {
+      "hp": 2440,
+      "speed": 145,
+      "cargo": 283,
+      "crew": "60-90"
+    },
+    "sounds": {
+      "engineHum": "sounds/battleship_03_hum.wav"
+    }
+  },
+  {
+    "id": "battleship_04",
+    "name": "FHI Warlord",
+    "class": "battleship",
+    "classLabel": "Acorazado",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Artillería pesada. Domina un chunk por sí sola frente a naves menores. Modelo de la línea Warlord, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/battleship_04.png",
+    "spriteSize": {
+      "w": 171,
+      "h": 456
+    },
+    "stats": {
+      "hp": 2319,
+      "speed": 128,
+      "cargo": 257,
+      "crew": "60-90"
+    },
+    "sounds": {
+      "engineHum": "sounds/battleship_04_hum.wav"
+    }
+  },
+  {
+    "id": "battleship_05",
+    "name": "FHI Overlord",
+    "class": "battleship",
+    "classLabel": "Acorazado",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Artillería pesada. Domina un chunk por sí sola frente a naves menores. Modelo de la línea Overlord, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/battleship_05.png",
+    "spriteSize": {
+      "w": 207,
+      "h": 494
+    },
+    "stats": {
+      "hp": 2166,
+      "speed": 149,
+      "cargo": 252,
+      "crew": "60-90"
+    },
+    "sounds": {
+      "engineHum": "sounds/battleship_05_hum.wav"
+    }
+  },
+  {
+    "id": "carrier_01",
+    "name": "FHI Atlas",
+    "class": "carrier",
+    "classLabel": "Portanaves",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Plataforma logística y de despliegue, con hangar para naves menores. Modelo de la línea Atlas, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/carrier_01.png",
+    "spriteSize": {
+      "w": 189,
+      "h": 515
+    },
+    "stats": {
+      "hp": 3817,
+      "speed": 104,
+      "cargo": 456,
+      "crew": "200-300"
+    },
+    "sounds": {
+      "engineHum": "sounds/carrier_01_hum.wav"
+    }
+  },
+  {
+    "id": "carrier_02",
+    "name": "FHI Olympus",
+    "class": "carrier",
+    "classLabel": "Portanaves",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Plataforma logística y de despliegue, con hangar para naves menores. Modelo de la línea Olympus, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/carrier_02.png",
+    "spriteSize": {
+      "w": 239,
+      "h": 466
+    },
+    "stats": {
+      "hp": 3998,
+      "speed": 91,
+      "cargo": 544,
+      "crew": "200-300"
+    },
+    "sounds": {
+      "engineHum": "sounds/carrier_02_hum.wav"
+    }
+  },
+  {
+    "id": "carrier_03",
+    "name": "FHI Prometheus",
+    "class": "carrier",
+    "classLabel": "Portanaves",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Plataforma logística y de despliegue, con hangar para naves menores. Modelo de la línea Prometheus, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/carrier_03.png",
+    "spriteSize": {
+      "w": 224,
+      "h": 491
+    },
+    "stats": {
+      "hp": 4197,
+      "speed": 103,
+      "cargo": 521,
+      "crew": "200-300"
+    },
+    "sounds": {
+      "engineHum": "sounds/carrier_03_hum.wav"
+    }
+  },
+  {
+    "id": "dreadnought_01",
+    "name": "FHI Threshold",
+    "class": "dreadnought",
+    "classLabel": "Acorazado pesado (Dreadnought)",
+    "manufacturer": "Fiji Heavy Industries",
+    "description": "Arma estratégica. Proyección de poder a nivel de sistema entero. Modelo de la línea Threshold, fabricado bajo licencia de planos de Fiji Heavy Industries.",
+    "sprite": "sprites/dreadnought_01.png",
+    "spriteSize": {
+      "w": 284,
+      "h": 558
+    },
+    "stats": {
+      "hp": 7769,
+      "speed": 56,
+      "cargo": 978,
+      "crew": "500+"
+    },
+    "sounds": {
+      "engineHum": "sounds/dreadnought_01_hum.wav"
+    }
+  }
+]

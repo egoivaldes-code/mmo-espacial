@@ -58,6 +58,20 @@ documento de diseño completo y el roadmap.
   el cliente (el sprite se limitaba a "teletransportarse" a la última
   posición recibida del servidor, sin nada entre medias).
 
+## [v0.0.4]
+
+### Añadido
+- Naveteca: catálogo de 41 naves (Shuttle a Dreadnought) de Fiji Heavy
+  Industries, generado a partir de un sprite sheet, con nombre, clase,
+  estadísticas y sonido de motor placeholder por nave. Vive en
+  `client/public/ships/` (sprites, sonidos, `ships.json`) y se visualiza
+  en `client/public/naveteca/` — esta es la MISMA carpeta de assets que
+  usa el juego para renderizar las naves, no una copia separada: cambiar
+  un sprite o sonido ahí cambia lo que se ve/oye en el juego y en la
+  naveteca a la vez. El juego ya usa el sprite real de la nave inicial
+  (FHI Wren, `shuttle_01`) en vez del triángulo placeholder, con zumbido
+  de motor que suena mientras se acelera.
+
 ## [v0.0.2]
 
 ### Añadido

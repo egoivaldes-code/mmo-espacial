@@ -293,6 +293,38 @@ desarrollar y balancear). Es una decisión que puede esperar — afecta
 mucho al alcance técnico y probablemente conviene decidirla cuando ya haya
 un prototipo mínimo jugando con minado y combate básicos.
 
+**Decisión tomada — clases de nave**: se adopta el sistema de clases de
+EVE Online como escala de progresión: Shuttle → Frigate → Destroyer →
+Cruiser → Battlecruiser → Battleship → Carrier → Dreadnought. Cada clase
+sube en HP, carga y tripulación necesaria, y baja en velocidad — la
+progresión natural del juego pasa por ir subiendo de clase, no solo de
+equipo dentro de una misma nave.
+
+**Fabricante — Fiji Heavy Industries (FHI)**: primer set de cascos base
+del juego, uno de los astilleros humanos que trajo planos de construcción
+al otro lado del wormhole (encaja con la premisa de 4.2: la estación hub
+inicial vende equipo básico porque lo trajeron los propios humanos). Los
+jugadores fabrican naves a partir de estos planos con licencia FHI; a
+futuro pueden aparecer otros fabricantes (humanos o de las civilizaciones
+NPC no-humanas de 1.1.1) con estética y estadísticas propias.
+
+Catálogo actual: 41 modelos de casco (6 lanzaderas, 6 fragatas, 9
+destructores, 6 cruceros, 5 cruceroacorazados, 5 acorazados, 3 portanaves,
+1 dreadnought), con sprite 2D, estadísticas base y sonido de motor
+(placeholder, pendiente de audio final) para cada uno. Los assets viven en
+`client/public/ships/` (sprites, sonidos, `ships.json`) — es la misma
+carpeta que usa el propio juego para renderizar las naves, no una copia
+de referencia separada: cambiar un archivo ahí cambia el juego. Se
+visualiza con la herramienta `client/public/naveteca/`. Por ahora todo el
+mundo usa la misma nave inicial (FHI Wren, lanzadera) — selección/crafteo
+real de nave queda para cuando exista el sistema de fabricación (8.3).
+
+**Pendiente de definir:** armamento y módulos equipables por clase,
+diferencias de rol dentro de una misma clase (algunos modelos priorizan
+velocidad, otros tanque — ya reflejado ligeramente en las estadísticas
+generadas, pero sin mecánica de módulos real todavía), coste de
+fabricación de cada clase en recursos.
+
 ### 8.4 Combate
 
 **Apuntado**: sistema híbrido — armas de disparo directo (apuntar y

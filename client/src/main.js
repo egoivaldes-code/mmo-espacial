@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.0.3";
+const GAME_VERSION = "v0.0.4";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -23,6 +23,13 @@ const INTERP_DELAY_MS = 100;
 
 const MAX_CHARACTERS = 5;
 const CHARACTERS_STORAGE_KEY = "spacemmo_characters";
+
+// Nave que usa todo el mundo por ahora (todavía no hay selección/crafteo
+// de nave — ver roadmap). Debe coincidir con ACTIVE_SHIP_ID en
+// client/public/naveteca/index.html. El sprite y el sonido salen de
+// client/public/ships/ — es la MISMA carpeta que usa la naveteca, así que
+// cambiar esos archivos ahí cambia lo que se ve/oye en el juego también.
+const STARTING_SHIP_ID = "shuttle_01";
 
 const ui = document.getElementById("ui");
 
@@ -295,10 +302,28 @@ class ChunkScene extends Phaser.Scene {
     this.localPlayerState = null;
     this.manualLeave = false; // true si el propio jugador cerró el juego
     this.latencyMs = null;
+    this.shipMeta = null; // datos de la nave activa, leídos de ships.json
+    this.engineSound = null;
+    this.engineSoundPlaying = false;
+  }
+
+  // Carga la textura y el sonido de la nave activa desde la carpeta
+  // compartida con la naveteca (client/public/ships/). Cambiar esos
+  // archivos ahí cambia lo que se ve/oye aquí, sin tocar código.
+  preload() {
+    const base = `${import.meta.env.BASE_URL}ships/`;
+    this.load.json("shipsCatalog", `${base}ships.json`);
+    this.load.image(`ship-${STARTING_SHIP_ID}`, `${base}sprites/${STARTING_SHIP_ID}.png`);
+    this.load.audio(`ship-${STARTING_SHIP_ID}-hum`, `${base}sounds/${STARTING_SHIP_ID}_hum.wav`);
   }
 
   async create() {
     this.cameras.main.setBackgroundColor("#05050a");
+
+    const catalog = this.cache.json.get("shipsCatalog") || [];
+    this.shipMeta = catalog.find((s) => s.id === STARTING_SHIP_ID) || null;
+    this.engineSound = this.sound.add(`ship-${STARTING_SHIP_ID}-hum`, { loop: true, volume: 0.12 });
+
     this.starfield();
     this.drawWorldBorder();
     this.setupInput();
@@ -367,9 +392,12 @@ class ChunkScene extends Phaser.Scene {
   bindRoomEvents() {
     this.room.state.players.onAdd((player, sessionId) => {
       const isMe = sessionId === this.room.sessionId;
-      const sprite = this.add.triangle(0, 0, 0, -14, -10, 12, 10, 12, isMe ? 0x66ccff : 0xff8866);
-      sprite.setStrokeStyle(1, 0xffffff);
-      const label = this.add.text(0, 18, player.name, { fontSize: "10px", color: "#cfe8ff" }).setOrigin(0.5, 0);
+      // Sprite real de la nave (cargado en preload() desde ships/sprites/).
+      // El arte viene con el morro hacia arriba, igual que el triángulo
+      // que sustituye, así que la misma fórmula de rotación sigue valiendo.
+      const sprite = this.add.image(0, 0, `ship-${STARTING_SHIP_ID}`).setScale(0.5);
+      sprite.setTint(isMe ? 0x9fd6ff : 0xffb090);
+      const label = this.add.text(0, 22, player.name, { fontSize: "10px", color: "#cfe8ff" }).setOrigin(0.5, 0);
       const container = this.add.container(player.x, player.y, [sprite, label]);
 
       const entry = {
@@ -433,7 +461,8 @@ class ChunkScene extends Phaser.Scene {
 
   updateStatusText(player) {
     const pingPart = this.latencyMs !== null ? `  |  Ping: ${this.latencyMs}ms` : "";
-    ui.textContent = `Carga: ${Math.floor(player.cargo)}  |  HP: ${Math.floor(player.hp)}${pingPart}`;
+    const shipPart = this.shipMeta ? `${this.shipMeta.name} — ` : "";
+    ui.textContent = `${shipPart}Carga: ${Math.floor(player.cargo)}  |  HP: ${Math.floor(player.hp)}${pingPart}`;
   }
 
   startPingLoop() {
@@ -521,6 +550,20 @@ class ChunkScene extends Phaser.Scene {
     this.interpolateRemotePlayers();
   }
 
+  // Arranca/para el zumbido de motor en bucle, sin reiniciarlo en cada
+  // frame — solo actúa cuando cambia el estado (empieza o deja de
+  // acelerar). Es el mismo archivo de sonido que usa la naveteca.
+  updateEngineSound(isThrusting) {
+    if (!this.engineSound) return;
+    if (isThrusting && !this.engineSoundPlaying) {
+      this.engineSound.play();
+      this.engineSoundPlaying = true;
+    } else if (!isThrusting && this.engineSoundPlaying) {
+      this.engineSound.stop();
+      this.engineSoundPlaying = false;
+    }
+  }
+
   predictLocalMovement(delta) {
     if (!this.localEntry) return;
 
@@ -532,7 +575,10 @@ class ChunkScene extends Phaser.Scene {
     if (input.left) dx -= 1;
     if (input.right) dx += 1;
 
-    if (dx !== 0 || dy !== 0) {
+    const isThrusting = dx !== 0 || dy !== 0;
+    this.updateEngineSound(isThrusting);
+
+    if (isThrusting) {
       const len = Math.hypot(dx, dy);
       const dt = delta / 1000;
       const half = WORLD_SIZE / 2;

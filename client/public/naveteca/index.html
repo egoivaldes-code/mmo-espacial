@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Naveteca — Fiji Heavy Industries</title>
+<style>
+  :root {
+    --bg: #05050a;
+    --panel: #0a0e16;
+    --border: #223344;
+    --text: #cfe8ff;
+    --muted: #7d93b0;
+    --accent: #66ccff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: system-ui, sans-serif;
+  }
+  #app { display: flex; height: 100%; }
+  #sidebar {
+    width: 220px; flex-shrink: 0; border-right: 1px solid var(--border);
+    padding: 16px 12px; overflow-y: auto;
+  }
+  #sidebar h1 { font-size: 16px; margin: 0 0 2px; color: #fff; }
+  #sidebar .subtitle { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
+  .class-filter {
+    display: block; width: 100%; text-align: left; padding: 8px 10px;
+    margin-bottom: 4px; background: transparent; border: 1px solid transparent;
+    border-radius: 6px; color: var(--text); font-size: 13px; cursor: pointer;
+  }
+  .class-filter:hover { background: #10151f; }
+  .class-filter.active { background: #142433; border-color: var(--accent); color: var(--accent); }
+  .class-filter .count { float: right; color: var(--muted); font-size: 11px; }
+  #grid-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #grid-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  #search-input {
+    flex: 1; max-width: 280px; padding: 8px 10px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text);
+    font-size: 13px;
+  }
+  #ship-count { font-size: 12px; color: var(--muted); }
+  #grid {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px; align-content: start;
+  }
+  .ship-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; cursor: pointer; text-align: center; transition: border-color .15s;
+  }
+  .ship-card:hover { border-color: var(--accent); }
+  .ship-card.selected { border-color: var(--accent); background: #10202c; }
+  .ship-card img { max-width: 100%; max-height: 90px; display: block; margin: 0 auto 6px; }
+  .ship-card .name { font-size: 12px; color: var(--text); }
+  .ship-card .class-tag { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  #detail-panel {
+    width: 340px; flex-shrink: 0; border-left: 1px solid var(--border);
+    padding: 20px; overflow-y: auto;
+  }
+  #detail-panel.empty { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; }
+  #detail-panel img.detail-sprite { display: block; max-width: 100%; max-height: 220px; margin: 0 auto 16px; }
+  #detail-panel h2 { font-size: 18px; margin: 0 0 2px; color: #fff; }
+  #detail-panel .manufacturer { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  #detail-panel .class-badge {
+    display: inline-block; font-size: 11px; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; margin: 8px 0 14px;
+  }
+  #detail-panel .description { font-size: 13px; line-height: 1.5; color: #b8cbe0; margin-bottom: 16px; }
+  .stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #16202c; }
+  .stat-row .label { color: var(--muted); }
+  .active-note {
+    margin-top: 14px; padding: 8px 10px; border-radius: 6px; font-size: 11px;
+    background: #142433; border: 1px solid var(--accent); color: var(--accent);
+  }
+  #sound-btn {
+    margin-top: 16px; width: 100%; padding: 10px; border-radius: 6px; border: none;
+    background: #2a6fb0; color: #fff; font-size: 13px; cursor: pointer;
+  }
+  #sound-btn:active { background: #1f5686; }
+  #sound-note { font-size: 10px; color: var(--muted); margin-top: 6px; text-align: center; }
+  @media (max-width: 800px) {
+    #app { flex-direction: column; }
+    #sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+    #detail-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <h1>Naveteca</h1>
+    <div class="subtitle">Fiji Heavy Industries</div>
+    <div id="class-filters"></div>
+  </div>
+  <div id="grid-panel">
+    <div id="grid-header">
+      <input id="search-input" type="text" placeholder="Buscar nave…" />
+      <div id="ship-count"></div>
+    </div>
+    <div id="grid"></div>
+  </div>
+  <div id="detail-panel" class="empty">Selecciona una nave para ver sus detalles.</div>
+</div>
+
+<script>
+// Esta herramienta vive DENTRO del sitio del juego y lee del mismo sitio
+// que usa el cliente Phaser (../ships/). No hay una copia separada — si
+// se cambia un sprite o un sonido en client/public/ships/, se refleja
+// aquí Y en el juego a la vez, tras el siguiente despliegue.
+const ACTIVE_SHIP_ID = "shuttle_01"; // debe coincidir con main.js (STARTING_SHIP_ID)
+// Fiji Heavy Industries — catálogo de naves usado por el cliente desde v0.0.4.
+
+const CLASS_ORDER = ["shuttle","frigate","destroyer","cruiser","battlecruiser","battleship","carrier","dreadnought"];
+const CLASS_LABEL = {
+  shuttle: "Lanzadera", frigate: "Fragata", destroyer: "Destructor", cruiser: "Crucero",
+  battlecruiser: "Cruceroacorazado", battleship: "Acorazado", carrier: "Portanaves",
+  dreadnought: "Dreadnought",
+};
+
+let SHIPS = [];
+let activeClass = null;
+let searchTerm = "";
+let selectedId = null;
+let audio = null;
+
+async function init() {
+  const res = await fetch("../ships/ships.json");
+  SHIPS = await res.json();
+  renderClassFilters();
+  renderGrid();
+}
+
+function renderClassFilters() {
+  const container = document.getElementById("class-filters");
+  container.innerHTML = "";
+  const allBtn = document.createElement("button");
+  allBtn.className = "class-filter" + (activeClass === null ? " active" : "");
+  allBtn.innerHTML = `Todas <span class="count">${SHIPS.length}</span>`;
+  allBtn.onclick = () => { activeClass = null; renderClassFilters(); renderGrid(); };
+  container.appendChild(allBtn);
+
+  CLASS_ORDER.forEach((cls) => {
+    const count = SHIPS.filter((s) => s.class === cls).length;
+    if (count === 0) return;
+    const btn = document.createElement("button");
+    btn.className = "class-filter" + (activeClass === cls ? " active" : "");
+    btn.innerHTML = `${CLASS_LABEL[cls]} <span class="count">${count}</span>`;
+    btn.onclick = () => { activeClass = cls; renderClassFilters(); renderGrid(); };
+    container.appendChild(btn);
+  });
+}
+
+function filteredShips() {
+  return SHIPS.filter((s) => {
+    if (activeClass && s.class !== activeClass) return false;
+    if (searchTerm && !s.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
+}
+
+function renderGrid() {
+  const grid = document.getElementById("grid");
+  const ships = filteredShips();
+  document.getElementById("ship-count").textContent = `${ships.length} nave${ships.length === 1 ? "" : "s"}`;
+  grid.innerHTML = "";
+  ships.forEach((ship) => {
+    const card = document.createElement("div");
+    card.className = "ship-card" + (ship.id === selectedId ? " selected" : "");
+    card.innerHTML = `
+      <img src="../ships/${ship.sprite}" alt="${ship.name}" />
+      <div class="name">${ship.name}</div>
+      <div class="class-tag">${ship.classLabel}</div>
+    `;
+    card.onclick = () => { selectedId = ship.id; renderGrid(); renderDetail(ship); };
+    grid.appendChild(card);
+  });
+}
+
+function renderDetail(ship) {
+  const panel = document.getElementById("detail-panel");
+  panel.classList.remove("empty");
+  const isActiveInGame = ship.id === ACTIVE_SHIP_ID;
+  panel.innerHTML = `
+    <img class="detail-sprite" src="../ships/${ship.sprite}" alt="${ship.name}" />
+    <h2>${ship.name}</h2>
+    <div class="manufacturer">${ship.manufacturer}</div>
+    <div class="class-badge">${ship.classLabel}</div>
+    <div class="description">${ship.description}</div>
+    <div class="stat-row"><span class="label">Casco (HP)</span><span>${ship.stats.hp}</span></div>
+    <div class="stat-row"><span class="label">Velocidad</span><span>${ship.stats.speed} u/s</span></div>
+    <div class="stat-row"><span class="label">Carga</span><span>${ship.stats.cargo} m³</span></div>
+    <div class="stat-row"><span class="label">Tripulación</span><span>${ship.stats.crew}</span></div>
+    <div class="stat-row"><span class="label">Dimensiones sprite</span><span>${ship.spriteSize.w}×${ship.spriteSize.h}px</span></div>
+    ${isActiveInGame ? '<div class="active-note">✓ Esta es la nave que se usa actualmente en el juego</div>' : ""}
+    <button id="sound-btn">▶ Reproducir zumbido de motor</button>
+    <div id="sound-note">Sonido placeholder generado por procedimiento — pendiente de diseño de audio final. Es el mismo archivo que reproduce el juego cuando esta nave está en uso.</div>
+  `;
+  document.getElementById("sound-btn").onclick = () => {
+    if (audio) { audio.pause(); audio.currentTime = 0; }
+    audio = new Audio(`../ships/${ship.sounds.engineHum}`);
+    audio.play();
+  };
+}
+
+document.getElementById("search-input").addEventListener("input", (e) => {
+  searchTerm = e.target.value;
+  renderGrid();
+});
+
+init();
+</script>
+</body>
+</html>

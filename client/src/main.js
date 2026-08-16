@@ -43,14 +43,14 @@ class ChunkScene extends Phaser.Scene {
       const container = this.add.container(player.x, player.y, [sprite, label]);
       this.shipSprites.set(sessionId, container);
 
-      player.onChange = () => {
+      player.onChange(() => {
         container.x = player.x;
         container.y = player.y;
         sprite.rotation = player.rotation + Math.PI / 2;
         if (isMe) {
           ui.textContent = `Carga: ${Math.floor(player.cargo)}  |  HP: ${Math.floor(player.hp)}`;
         }
-      };
+      });
 
       if (isMe) {
         this.cameras.main.startFollow(container, true, 0.15, 0.15);

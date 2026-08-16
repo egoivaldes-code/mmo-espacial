@@ -8,6 +8,7 @@ const WORLD_SIZE = 4000; // el "chunk" es grande en espacio, poco denso
 const MINING_RANGE = 80;
 const MINING_RATE = 5; // recurso extraído por tick de minado
 const TICK_RATE = 20; // Hz
+const RECONNECT_GRACE_S = 90; // ventana para volver tras un corte de socket
 
 // Física de vuelo — modelo tipo Asteroids/Newtoniano, no "velocidad
 // instantánea en la dirección del input". El input marca hacia dónde
@@ -83,6 +84,11 @@ class ChunkRoom extends Room {
   }
 
   onJoin(client, options) {
+    // Si ya hay un Player para este sessionId es una reconexión dentro de
+    // la ventana de allowReconnection (ver onLeave) — se conserva posición,
+    // carga, HP, etc. Solo se crea uno nuevo si es la primera entrada.
+    if (this.state.players.has(client.sessionId)) return;
+
     const player = new Player();
     player.name = options?.name || `Piloto-${client.sessionId.slice(0, 4)}`;
     player.x = (Math.random() - 0.5) * 400;
@@ -91,8 +97,31 @@ class ChunkRoom extends Room {
     this.state.players.set(client.sessionId, player);
   }
 
-  onLeave(client) {
-    this.state.players.delete(client.sessionId);
+  // Antes borraba al jugador de state al instante en cuanto caía el socket.
+  // Eso hacía inútil el reconnect() del cliente: reconnect() de Colyseus
+  // solo funciona si el servidor reservó el asiento con allowReconnection().
+  // Al minimizar el navegador el socket se corta en segundos, así que todo
+  // intento de reconexión fallaba siempre, no de forma intermitente.
+  //
+  // Ahora: se guarda el estado del jugador y se da una ventana de RECONNECT_GRACE_S
+  // segundos para volver. Solo se borra si expira sin que reconecte.
+  async onLeave(client, consented) {
+    const player = this.state.players.get(client.sessionId);
+
+    // Salida explícita (el jugador cerró el juego) — no reservar asiento.
+    if (consented) {
+      this.state.players.delete(client.sessionId);
+      return;
+    }
+
+    try {
+      await this.allowReconnection(client, RECONNECT_GRACE_S);
+      // El cliente volvió dentro de la ventana — el jugador sigue en state,
+      // no hay que hacer nada más.
+    } catch {
+      // Expiró la ventana sin reconexión.
+      if (player) this.state.players.delete(client.sessionId);
+    }
   }
 
   update(deltaMs) {

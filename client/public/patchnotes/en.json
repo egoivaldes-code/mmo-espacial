@@ -1,5 +1,14 @@
 [
   {
+    "version": "v0.0.9",
+    "highlights": [
+      "Fixed reconnection — it used to always fail after minimizing the game on mobile, now it retries when you come back.",
+      "Fixed the menu and mining buttons drifting out of place when zooming out.",
+      "Fixed the ship jittering when zoomed in.",
+      "New blue plasma trail on the ship's engine."
+    ]
+  },
+  {
     "version": "v0.0.8",
     "highlights": [
       "New flight physics: your ship now has real inertia — it turns gradually and drifts a bit when turning sharply at high speed, instead of changing direction instantly.",

@@ -14,6 +14,34 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.0.9]
+
+### Arreglado
+- Reconexión: el servidor borraba al jugador de la partida al instante en
+  cuanto se cortaba el socket, así que reconectar (p. ej. al minimizar en
+  móvil) fallaba siempre, no de forma intermitente. Ahora se reserva el
+  asiento 90s antes de borrar al jugador, y el cliente reintenta hasta
+  cubrir esa ventana, incluyendo al volver de segundo plano.
+- HUD (menú, versión, botón de minar, joystick) ahora vive en una cámara
+  propia que nunca hereda el zoom del mundo — antes se desajustaba al
+  hacer zoom out porque solo se compensaba a mano el tamaño de algunos
+  elementos, no la posición, y el botón de minar no se compensaba en
+  absoluto.
+- Vibración de la nave con zoom metido: la cámara redondeaba su posición a
+  píxel entero en cada frame (`roundPixels`), visible sobre todo con zoom
+  alto. Ya no redondea.
+- Botón de minar: más margen de exclusión frente al joystick táctil, para
+  que un toque no perfectamente centrado no dispare un joystick que tape
+  el botón.
+- Sprites de nave: se recorta el padding transparente del PNG al cargar,
+  para aprovechar mejor la resolución disponible en zoom in. (No resuelve
+  aún la diferencia de escala completa entre clases de nave — pendiente
+  de trabajo de pipeline de arte.)
+
+### Añadido
+- Estela de plasma azul en el motor mientras la nave acelera, para
+  orientarse mejor sobre la propia posición y dirección.
+
 ## [v0.0.3]
 
 ### Añadido

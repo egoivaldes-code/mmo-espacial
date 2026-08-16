@@ -1,5 +1,14 @@
 [
   {
+    "version": "v0.0.9",
+    "highlights": [
+      "Arreglada la reconexión — antes fallaba siempre al minimizar el juego en el móvil, ahora se reintenta al volver.",
+      "Arreglado el desajuste de los botones de menú y minar al hacer zoom out.",
+      "Arreglada la vibración de la nave con zoom metido.",
+      "Nueva estela de plasma azul en el motor de la nave."
+    ]
+  },
+  {
     "version": "v0.0.8",
     "highlights": [
       "Nueva física de vuelo: la nave ahora tiene inercia de verdad — gira poco a poco y derrapa un poco al girar rápido yendo a toda velocidad, en vez de cambiar de dirección al instante.",

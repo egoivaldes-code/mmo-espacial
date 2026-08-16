@@ -24,6 +24,7 @@
     "connectedSession": "Conectado. Sesión: {id}",
     "reconnecting": "Conexión perdida. Reconectando… (intento {attempt}/{max})",
     "reconnected": "Reconectado. Sesión: {id}",
+    "reconnectPaused": "Conexión perdida. Se reintentará al volver a esta pestaña.",
     "connectionLost": "Conexión perdida. Recarga la página para volver a jugar.",
     "couldNotReconnect": "No se pudo reconectar. Recarga la página para volver a jugar.",
     "connectionError": "Error de conexión: {error}"

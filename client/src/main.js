@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.0.8";
+const GAME_VERSION = "v0.0.9";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -24,6 +24,61 @@ const DRAG = 0.6;
 
 const WORLD_SIZE = 4000;
 
+// Recorta el padding transparente alrededor del sprite real dentro del
+// PNG. Los sprites de naveteca vienen en lienzos de tamaño uniforme con
+// mucho margen vacío alrededor de cada nave — eso hace que, a la misma
+// escala visual, una fragata "ocupe" muchos menos píxeles reales que su
+// silueta debería, y se pixele antes al hacer zoom in. Recortar al
+// bounding box real del contenido opaco arregla eso sin tocar el arte.
+//
+// Nota: esto NO resuelve todavía el problema completo de escala entre
+// clases de nave (fragata vs dreadnought) — eso es trabajo de pipeline de
+// arte (LOD/mipmaps por clase), pendiente aparte. Esto solo asegura que
+// cada sprite individual usa el máximo de resolución disponible en su
+// propio PNG.
+function trimTransparentPadding(scene, key, alphaThreshold = 8) {
+  const source = scene.textures.get(key)?.getSourceImage();
+  if (!source || !source.width) return;
+
+  const full = document.createElement("canvas");
+  full.width = source.width;
+  full.height = source.height;
+  const fullCtx = full.getContext("2d");
+  fullCtx.drawImage(source, 0, 0);
+
+  const { data } = fullCtx.getImageData(0, 0, full.width, full.height);
+  let minX = full.width;
+  let minY = full.height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < full.height; y++) {
+    for (let x = 0; x < full.width; x++) {
+      const alpha = data[(y * full.width + x) * 4 + 3];
+      if (alpha > alphaThreshold) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return; // sprite completamente vacío, no tocar
+
+  const w = maxX - minX + 1;
+  const h = maxY - minY + 1;
+  if (w === full.width && h === full.height) return; // ya estaba ajustado
+
+  const trimmed = document.createElement("canvas");
+  trimmed.width = w;
+  trimmed.height = h;
+  trimmed.getContext("2d").drawImage(full, minX, minY, w, h, 0, 0, w, h);
+
+  scene.textures.remove(key);
+  scene.textures.addCanvas(key, trimmed);
+}
+
 // Diferencia angular más corta entre dos ángulos, en [-PI, PI].
 function angleDiff(from, to) {
   let diff = (to - from) % (Math.PI * 2);
@@ -36,6 +91,11 @@ function angleDiff(from, to) {
 // interpolar entre dos posiciones reales del servidor en vez de saltar de
 // una a otra. Más alto = más suave pero más lag visual de los demás.
 const INTERP_DELAY_MS = 100;
+
+// Debe ser <= RECONNECT_GRACE_S del servidor (server/rooms/ChunkRoom.js).
+// Un margen de 5s por debajo evita reintentar ya sabiendo que el asiento
+// del servidor va a haber expirado.
+const RECONNECT_WINDOW_MS = 85000;
 
 const MAX_CHARACTERS = 5;
 const CHARACTERS_STORAGE_KEY = "spacemmo_characters";
@@ -391,6 +451,14 @@ class ChunkScene extends Phaser.Scene {
   }
 
   preload() {
+    // Textura de la estela de plasma — un disco suave generado a mano,
+    // sin necesidad de un asset nuevo de arte.
+    const trailGfx = this.make.graphics({ x: 0, y: 0, add: false });
+    trailGfx.fillStyle(0xffffff, 1);
+    trailGfx.fillCircle(6, 6, 6);
+    trailGfx.generateTexture("plasma-particle", 12, 12);
+    trailGfx.destroy();
+
     const base = `${import.meta.env.BASE_URL}ships/`;
     this.load.json("shipsCatalog", `${base}ships.json`);
 
@@ -413,10 +481,29 @@ class ChunkScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#05050a");
     this.cameras.main.setZoom(DEFAULT_ZOOM);
 
+    // Cámara de HUD dedicada, siempre a zoom 1 y sin scroll. Antes el HUD
+    // (menú, versión, botón de minar, joystick) se dibujaba en la cámara
+    // principal con scrollFactor(0) + un setScale(1/zoom) manual por
+    // elemento para contrarrestar el zoom del mundo — Phaser aplica el
+    // zoom de cámara también a los objetos con scrollFactor(0), así que
+    // cualquier elemento sin ese parche se desajustaba al hacer zoom out.
+    // Con una cámara aparte que ignora el mundo, el HUD nunca ve el zoom
+    // y no hace falta compensar nada a mano.
+    this.worldLayer = this.add.layer();
+    this.hudLayer = this.add.layer();
+    this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height);
+    this.uiCamera.setScroll(0, 0);
+    this.uiCamera.setZoom(1);
+    this.uiCamera.setBackgroundColor("rgba(0,0,0,0)");
+    this.cameras.main.ignore(this.hudLayer);
+    this.uiCamera.ignore(this.worldLayer);
+
     const catalog = this.cache.json.get("shipsCatalog") || [];
     const baseMeta = catalog.find((s) => s.id === STARTING_SHIP_ID) || null;
     const override = getLocalShipOverride(STARTING_SHIP_ID);
     this.shipMeta = override && baseMeta ? { ...baseMeta, ...override, stats: { ...baseMeta.stats, ...(override.stats || {}) } } : baseMeta;
+
+    trimTransparentPadding(this, `ship-${STARTING_SHIP_ID}`);
 
     this.engineSound = this.sound.add(`ship-${STARTING_SHIP_ID}-hum`, { loop: true, volume: 0.12 });
 
@@ -425,6 +512,7 @@ class ChunkScene extends Phaser.Scene {
     this.setupInput();
     this.setupZoom();
     this.createTopBarUI();
+    this.setupVisibilityRetry();
 
     await this.connectToServer();
   }
@@ -435,16 +523,18 @@ class ChunkScene extends Phaser.Scene {
       const y = Phaser.Math.Between(-2500, 2500);
       const star = this.add.circle(x, y, Phaser.Math.Between(1, 2), 0xffffff, Phaser.Math.FloatBetween(0.3, 0.9));
       star.setScrollFactor(0.6);
+      this.worldLayer.add(star);
     }
   }
 
   drawWorldBorder() {
     const half = WORLD_SIZE / 2;
-    this.add
+    const border = this.add
       .rectangle(-half, -half, WORLD_SIZE, WORLD_SIZE)
       .setOrigin(0)
       .setStrokeStyle(2, 0x334455, 0.8)
       .setFillStyle();
+    this.worldLayer.add(border);
   }
 
   // ---- Zoom: rueda del ratón (PC) + pellizco con dos dedos (táctil) ----
@@ -458,13 +548,8 @@ class ChunkScene extends Phaser.Scene {
   setZoom(value) {
     const clamped = Phaser.Math.Clamp(value, MIN_ZOOM, MAX_ZOOM);
     this.cameras.main.setZoom(clamped);
-    // Compensa el HUD persistente para que no cambie de tamaño en pantalla
-    // al hacer zoom del mundo (el zoom de cámara afecta también a los
-    // objetos con scrollFactor 0 en Phaser, así que hay que contrarrestarlo).
-    const compensate = 1 / clamped;
-    this.versionText?.setScale(compensate);
-    this.menuBtn?.setScale(compensate);
-    if (this.optionsMenu) this.optionsMenu.setScale(compensate);
+    // El HUD vive en this.uiCamera, que siempre está a zoom 1 — ya no hace
+    // falta compensar manualmente cada elemento (ver hudLayer en create()).
   }
 
   adjustZoom(delta) {
@@ -505,12 +590,31 @@ class ChunkScene extends Phaser.Scene {
       sprite.setTint(isMe ? 0x9fd6ff : 0xffb090);
       const label = this.add.text(0, 22, player.name, { fontSize: "10px", color: "#cfe8ff" }).setOrigin(0.5, 0);
       const container = this.add.container(player.x, player.y, [sprite, label]);
+      this.worldLayer.add(container);
+
+      // Estela de plasma del motor — solo se activa mientras la nave
+      // acelera (ver updateEngineTrail, llamado desde predictLocalMovement
+      // para la nave propia; las remotas se activan por cambio de posición).
+      const engineTrail = this.add.particles(0, 0, "plasma-particle", {
+        // Sin "follow": la posición se actualiza a mano cada frame
+        // (updateEngineTrailPosition) para poder colocarla detrás de la
+        // nave según su orientación real, no un offset fijo en pantalla.
+        lifespan: 260,
+        speed: { min: 10, max: 30 },
+        scale: { start: 0.9, end: 0 },
+        alpha: { start: 0.85, end: 0 },
+        tint: 0x66ccff,
+        frequency: 30,
+        emitting: false,
+      });
+      this.worldLayer.add(engineTrail);
 
       const entry = {
         container,
         sprite,
         label,
         isMe,
+        engineTrail,
         buffer: [{ x: player.x, y: player.y, rotation: player.rotation, t: performance.now() }],
         serverX: player.x,
         serverY: player.y,
@@ -530,7 +634,14 @@ class ChunkScene extends Phaser.Scene {
       });
 
       if (isMe) {
-        this.cameras.main.startFollow(container, true, 0.15, 0.15);
+        // El segundo argumento de startFollow es roundPixels: con true, la
+        // cámara redondea su posición a píxel entero cada frame. Con zoom
+        // metido, un píxel de pantalla equivale a poca distancia real, así
+        // que ese redondeo se veía como una vibración/oscilación de la
+        // nave — más notable cuanto más zoom. Con false el seguimiento es
+        // subpíxel y estable; WebGL interpola bien, no hace falta el
+        // redondeo.
+        this.cameras.main.startFollow(container, false, 0.15, 0.15);
         this.localEntry = entry;
         this.localPlayerState = player;
         this.updateStatusText(player);
@@ -539,7 +650,10 @@ class ChunkScene extends Phaser.Scene {
 
     this.room.state.players.onRemove((_, sessionId) => {
       const entry = this.playerEntities.get(sessionId);
-      if (entry) entry.container.destroy();
+      if (entry) {
+        entry.container.destroy();
+        entry.engineTrail?.destroy();
+      }
       this.playerEntities.delete(sessionId);
       if (sessionId === this.room.sessionId) {
         this.localEntry = null;
@@ -550,6 +664,7 @@ class ChunkScene extends Phaser.Scene {
     this.room.state.asteroids.onAdd((asteroid, id) => {
       const circle = this.add.circle(asteroid.x, asteroid.y, 22, 0x8a8a8a);
       circle.setStrokeStyle(1, 0xcccccc);
+      this.worldLayer.add(circle);
       this.asteroidSprites.set(id, circle);
     });
 
@@ -587,7 +702,10 @@ class ChunkScene extends Phaser.Scene {
   }
 
   resetEntities() {
-    this.playerEntities.forEach((entry) => entry.container.destroy());
+    this.playerEntities.forEach((entry) => {
+      entry.container.destroy();
+      entry.engineTrail?.destroy();
+    });
     this.playerEntities.clear();
     this.asteroidSprites.forEach((circle) => circle.destroy());
     this.asteroidSprites.clear();
@@ -595,6 +713,12 @@ class ChunkScene extends Phaser.Scene {
     this.localPlayerState = null;
   }
 
+  // Debe cubrir, en tiempo real transcurrido, la ventana de
+  // allowReconnection del servidor (RECONNECT_GRACE_S en ChunkRoom.js,
+  // hoy 90s) — no un número de intentos fijo. Con la pestaña en segundo
+  // plano, setTimeout se ralentiza (throttling del navegador), así que
+  // contar intentos en vez de tiempo real podía agotarse sin haber
+  // pasado ni la mitad de la ventana del servidor.
   async handleUnexpectedDisconnect() {
     const token = this.room?.reconnectionToken;
     if (!token) {
@@ -602,9 +726,14 @@ class ChunkScene extends Phaser.Scene {
       return;
     }
 
-    const maxAttempts = 5;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      ui.textContent = t("hud.reconnecting", { attempt, max: maxAttempts });
+    if (this.reconnecting) return; // ya hay un intento en marcha
+    this.reconnecting = true;
+    this.reconnectDeadline = performance.now() + RECONNECT_WINDOW_MS;
+
+    let attempt = 0;
+    while (performance.now() < this.reconnectDeadline) {
+      attempt += 1;
+      ui.textContent = t("hud.reconnecting", { attempt, max: "…" });
       try {
         const client = new Client(SERVER_URL);
         this.room = await client.reconnect(token);
@@ -615,12 +744,38 @@ class ChunkScene extends Phaser.Scene {
           this.handleUnexpectedDisconnect();
         });
         ui.textContent = t("hud.reconnected", { id: this.room.sessionId });
+        this.reconnecting = false;
         return;
       } catch {
-        await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+        // Si la pestaña está oculta, no tiene sentido seguir reintentando
+        // a ciegas (los sockets en background suelen fallar igual) — se
+        // espera a que vuelva a estar visible, ver setupVisibilityRetry().
+        if (document.hidden) {
+          this.reconnecting = false;
+          this.pendingReconnectToken = token;
+          ui.textContent = t("hud.reconnectPaused");
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, Math.min(1500 * attempt, 8000)));
       }
     }
+    this.reconnecting = false;
     ui.textContent = t("hud.couldNotReconnect");
+  }
+
+  // Al minimizar/cambiar de pestaña, Android corta el socket casi de
+  // inmediato — antes eso consumía los reintentos en segundo plano sin
+  // ninguna posibilidad real de éxito. Ahora se pausa y se retoma en
+  // cuanto la pestaña vuelve a primer plano, dentro de lo que quede de
+  // la ventana de reconexión.
+  setupVisibilityRetry() {
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) return;
+      if (this.pendingReconnectToken && !this.reconnecting) {
+        this.pendingReconnectToken = null;
+        this.handleUnexpectedDisconnect();
+      }
+    });
   }
 
   // ---- Input ----
@@ -658,6 +813,22 @@ class ChunkScene extends Phaser.Scene {
     this.interpolateRemotePlayers();
   }
 
+  // Coloca el emisor de la estela detrás de la nave (en el sentido
+  // contrario al morro) y lo enciende/apaga según si está acelerando.
+  // sprite.rotation ya lleva el +PI/2 de offset del arte (ver
+  // predictLocalMovement/interpolateRemotePlayers), así que aquí basta con
+  // restar PI para apuntar hacia atrás.
+  updateEngineTrailPosition(entry, isThrusting) {
+    if (!entry.engineTrail) return;
+    const back = entry.sprite.rotation - Math.PI;
+    const offset = 16;
+    entry.engineTrail.setPosition(
+      entry.container.x + Math.cos(back) * offset,
+      entry.container.y + Math.sin(back) * offset
+    );
+    entry.engineTrail.emitting = isThrusting;
+  }
+
   updateEngineSound(isThrusting) {
     if (!this.engineSound) return;
     if (isThrusting && !this.engineSoundPlaying) {
@@ -683,6 +854,7 @@ class ChunkScene extends Phaser.Scene {
     const hasInput = dx !== 0 || dy !== 0;
 
     this.updateEngineSound(hasInput);
+    this.updateEngineTrailPosition(this.localEntry, hasInput);
 
     if (this.localEntry.vx === undefined) {
       this.localEntry.vx = 0;
@@ -772,6 +944,13 @@ class ChunkScene extends Phaser.Scene {
       entry.container.x = Phaser.Math.Linear(older.x, newer.x, tt);
       entry.container.y = Phaser.Math.Linear(older.y, newer.y, tt);
       entry.sprite.rotation = Phaser.Math.Linear(older.rotation, newer.rotation, tt) + Math.PI / 2;
+
+      // No hay input de otros jugadores, así que se infiere "está
+      // acelerando" por la distancia recorrida entre los dos últimos
+      // paquetes del buffer — aproximado, pero suficiente para que la
+      // estela no quede encendida con la nave parada.
+      const movedDist = Phaser.Math.Distance.Between(older.x, older.y, newer.x, newer.y);
+      this.updateEngineTrailPosition(entry, movedDist > 2);
     });
   }
 
@@ -785,18 +964,24 @@ class ChunkScene extends Phaser.Scene {
 
     const circle = this.add
       .circle(x, y, radius, 0xff6644, 0.3)
-      .setScrollFactor(0)
       .setDepth(100)
       .setStrokeStyle(2, 0xff6644, 0.8)
       .setInteractive({ useHandCursor: true });
+    this.hudLayer.add(circle);
 
-    this.add
+    const label = this.add
       .text(x, y, t("controls.mine"), { fontSize: "12px", color: "#ffffff" })
       .setOrigin(0.5)
-      .setScrollFactor(0)
       .setDepth(101);
+    this.hudLayer.add(label);
 
-    this.miningButtonBounds = { x, y, radius: radius + 15 };
+    // Margen de exclusión para que un toque cerca del botón (no exacto)
+    // no dispare un joystick que lo tape visualmente. 15px era poco para
+    // un pulgar real; con 40 el radio de exclusión (85px) queda por
+    // encima del radio del propio joystick (60px), así que un joystick
+    // que nazca justo fuera de la zona de exclusión ya no llega a
+    // solaparse con el botón.
+    this.miningButtonBounds = { x, y, radius: radius + 40 };
 
     circle.on("pointerdown", (pointer) => {
       this.touchInput.mining = true;
@@ -847,18 +1032,13 @@ class ChunkScene extends Phaser.Scene {
     const commitJoystick = ({ id, x, y }) => {
       joystickPointerId = id;
       this.touchPurpose.set(id, "joystick");
-      const compensate = 1 / this.cameras.main.zoom;
       base = this.add
         .circle(x, y, maxRadius, 0x66ccff, 0.15)
-        .setScrollFactor(0)
         .setDepth(90)
-        .setStrokeStyle(2, 0x66ccff, 0.5)
-        .setScale(compensate);
-      thumb = this.add
-        .circle(x, y, 26, 0x66ccff, 0.35)
-        .setScrollFactor(0)
-        .setDepth(91)
-        .setScale(compensate);
+        .setStrokeStyle(2, 0x66ccff, 0.5);
+      thumb = this.add.circle(x, y, 26, 0x66ccff, 0.35).setDepth(91);
+      this.hudLayer.add(base);
+      this.hudLayer.add(thumb);
     };
 
     const destroyJoystick = () => {
@@ -991,8 +1171,8 @@ class ChunkScene extends Phaser.Scene {
         color: "#7d93b0",
       })
       .setOrigin(1, 0)
-      .setScrollFactor(0)
       .setDepth(200);
+    this.hudLayer.add(this.versionText);
 
     this.menuBtn = this.add
       .text(10, 10, "☰", {
@@ -1001,9 +1181,9 @@ class ChunkScene extends Phaser.Scene {
         backgroundColor: "#141a24",
         padding: { x: 8, y: 4 },
       })
-      .setScrollFactor(0)
       .setDepth(200)
       .setInteractive({ useHandCursor: true });
+    this.hudLayer.add(this.menuBtn);
 
     this.menuBtn.on("pointerdown", () => this.toggleOptionsMenu());
   }
@@ -1063,9 +1243,8 @@ class ChunkScene extends Phaser.Scene {
 
     this.optionsMenu = this.add
       .container(x, y, [bg, title, version, langLabel, ...langButtons, closeBtn, dismissBtn])
-      .setScrollFactor(0)
-      .setDepth(300)
-      .setScale(1 / this.cameras.main.zoom);
+      .setDepth(300);
+    this.hudLayer.add(this.optionsMenu);
   }
 
   closeGame() {
@@ -1075,20 +1254,20 @@ class ChunkScene extends Phaser.Scene {
     this.time.removeAllEvents();
     this.scene.pause();
 
-    this.add
+    const overlay = this.add
       .rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.92)
       .setOrigin(0)
-      .setScrollFactor(0)
       .setDepth(500);
-    this.add
+    const closedText = this.add
       .text(this.scale.width / 2, this.scale.height / 2, `${t("menu.gameClosedLine1")}\n${t("menu.gameClosedLine2")}`, {
         fontSize: "16px",
         color: "#cfe8ff",
         align: "center",
       })
       .setOrigin(0.5)
-      .setScrollFactor(0)
       .setDepth(501);
+    this.hudLayer.add(overlay);
+    this.hudLayer.add(closedText);
   }
 }
 

@@ -24,6 +24,7 @@
     "connectedSession": "Connected. Session: {id}",
     "reconnecting": "Connection lost. Reconnecting… (attempt {attempt}/{max})",
     "reconnected": "Reconnected. Session: {id}",
+    "reconnectPaused": "Connection lost. Will retry when you return to this tab.",
     "connectionLost": "Connection lost. Reload the page to play again.",
     "couldNotReconnect": "Could not reconnect. Reload the page to play again.",
     "connectionError": "Connection error: {error}"

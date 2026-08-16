@@ -1,0 +1,393 @@
+name: Apply SpaceMMO ZIP patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "spacemmo_*.zip"
+      - "patches/*.zip"
+
+  workflow_dispatch:
+    inputs:
+      patch_path:
+        description: "Ruta del ZIP dentro del repo"
+        required: true
+        type: string
+      commit_message:
+        description: "Mensaje de commit opcional"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: apply-spacemmo-zip-patch
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Sincronizar main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Detectar ZIP
+        id: patch
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+          INPUT_PATCH: ${{ inputs.patch_path }}
+          INPUT_MESSAGE: ${{ inputs.commit_message }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            PATCH="$INPUT_PATCH"
+            OVERRIDE_MESSAGE="$INPUT_MESSAGE"
+          else
+            mapfile -t PATCHES < <(
+              git diff-tree --no-commit-id --name-only --diff-filter=AM -r "$EVENT_SHA" -- \
+                'spacemmo_*.zip' 'patches/*.zip'
+            )
+
+            if [[ ${#PATCHES[@]} -eq 0 ]]; then
+              mapfile -t PATCHES < <(
+                git show --pretty='' --name-only --diff-filter=AM "$EVENT_SHA" -- \
+                  'spacemmo_*.zip' 'patches/*.zip'
+              )
+            fi
+
+            if [[ ${#PATCHES[@]} -ne 1 ]]; then
+              echo "Se esperaba exactamente un ZIP nuevo/modificado y se encontraron ${#PATCHES[@]}."
+              printf '  %s\n' "${PATCHES[@]:-}"
+              exit 1
+            fi
+
+            PATCH="${PATCHES[0]}"
+            OVERRIDE_MESSAGE=""
+          fi
+
+          case "$PATCH" in
+            spacemmo_*.zip|patches/*.zip) ;;
+            *)
+              echo "Ruta de parche no válida: $PATCH"
+              exit 1
+              ;;
+          esac
+
+          [[ -f "$PATCH" ]] || { echo "No existe el ZIP: $PATCH"; exit 1; }
+
+          echo "patch=$PATCH" >> "$GITHUB_OUTPUT"
+          {
+            echo "override_message<<EOF"
+            echo "$OVERRIDE_MESSAGE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Aplicar ZIP
+        shell: bash
+        env:
+          PATCH_PATH: ${{ steps.patch.outputs.patch }}
+          OVERRIDE_MESSAGE: ${{ steps.patch.outputs.override_message }}
+          MESSAGE_FILE: ${{ runner.temp }}/patch_commit_message.txt
+        run: |
+          set -euo pipefail
+
+          python3 - "$PATCH_PATH" "$GITHUB_WORKSPACE" "$MESSAGE_FILE" "$OVERRIDE_MESSAGE" <<'PY'
+          import json
+          import os
+          import re
+          import shutil
+          import stat
+          import sys
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          zip_arg, repo_arg, message_arg, override = sys.argv[1:5]
+          repo = Path(repo_arg).resolve()
+          zpath = Path(zip_arg)
+          if not zpath.is_absolute():
+              zpath = (repo / zpath).resolve()
+
+          META = {"PATCH.json", "DELETE.txt"}
+          FORBIDDEN = {".git", "patches"}
+
+          def die(msg):
+              print(f"ERROR: {msg}", file=sys.stderr)
+              raise SystemExit(1)
+
+          def norm(name):
+              if "\\" in name or "\x00" in name:
+                  die(f"Nombre ZIP no válido: {name!r}")
+              p = PurePosixPath(name)
+              if p.is_absolute() or ".." in p.parts:
+                  die(f"Ruta insegura: {name!r}")
+              return p
+
+          def safe_target(rel):
+              p = norm(rel)
+              if not p.parts:
+                  die("Ruta vacía")
+              if p.parts[0] in FORBIDDEN:
+                  die(f"No se puede escribir/borrar dentro de {p.parts[0]}/")
+              target = (repo / Path(*p.parts)).resolve()
+              try:
+                  target.relative_to(repo)
+              except ValueError:
+                  die(f"Ruta fuera del repo: {rel}")
+              return target
+
+          def wrapper_for(files):
+              parts = [norm(n).parts for n in files if n and not n.endswith("/")]
+              if not parts:
+                  die("ZIP vacío")
+              first = {p[0] for p in parts}
+              if len(first) == 1 and all(len(p) >= 2 for p in parts):
+                  return next(iter(first)) + "/"
+              return ""
+
+          def root_member(names, wrapper, wanted):
+              target = (wrapper + wanted).lower()
+              return next((n for n in names if n.lower() == target), None)
+
+          def read_text(zf, member):
+              if not member:
+                  return ""
+              try:
+                  return zf.read(member).decode("utf-8")
+              except UnicodeDecodeError:
+                  die(f"{member} debe ser UTF-8")
+
+          def ignored(rel, items):
+              reln = rel.rstrip("/")
+              for item in items:
+                  item = str(item).strip().rstrip("/")
+                  if item and (reln == item or reln.startswith(item + "/")):
+                      return True
+              return False
+
+          def commit_message(manifest, readme):
+              if override.strip():
+                  return override.strip().splitlines()[0][:240]
+
+              msg = str(manifest.get("commit_message", "")).strip()
+              if msg:
+                  return msg.splitlines()[0][:240]
+
+              m = re.search(
+                  r'(?im)^\s*(?:commit message|mensaje de commit)\s*[:=]\s*[`"“”\']?(.+?)[`"“”\']?\s*$',
+                  readme,
+              )
+              if m:
+                  return m.group(1).strip()[:240]
+
+              version = re.search(
+                  r"(v\d+\.\d+\.\d+(?:[-+][A-Za-z0-9._-]+)?)",
+                  zpath.stem,
+                  re.I,
+              )
+              heading = re.search(r"(?m)^#\s+(.+?)\s*$", readme)
+
+              if version and heading:
+                  title = heading.group(1)
+                  if "—" in title:
+                      title = title.split("—", 1)[1].strip()
+                  elif " - " in title:
+                      title = title.split(" - ", 1)[1].strip()
+                  if title:
+                      return f"{version.group(1)}: {title}"[:240]
+
+              if version:
+                  return f"{version.group(1)}: parche ZIP aplicado"
+
+              return f"Aplicar parche {zpath.stem}"[:240]
+
+          if not zpath.is_file():
+              die(f"No existe {zpath}")
+
+          created = replaced = deleted = skipped = 0
+
+          with zipfile.ZipFile(zpath) as zf:
+              infos = zf.infolist()
+              names = [i.filename for i in infos]
+              files = [i.filename for i in infos if not i.is_dir()]
+              wrapper = wrapper_for(files)
+
+              for info in infos:
+                  mode = (info.external_attr >> 16) & 0o177777
+                  if stat.S_ISLNK(mode):
+                      die(f"No se permiten symlinks: {info.filename}")
+                  norm(info.filename)
+
+              readme_name = root_member(names, wrapper, "README.md")
+              manifest_name = root_member(names, wrapper, "PATCH.json")
+              delete_name = root_member(names, wrapper, "DELETE.txt")
+
+              readme = read_text(zf, readme_name)
+              manifest_text = read_text(zf, manifest_name)
+              delete_text = read_text(zf, delete_name)
+
+              manifest = {}
+              if manifest_text.strip():
+                  try:
+                      manifest = json.loads(manifest_text)
+                  except json.JSONDecodeError as exc:
+                      die(f"PATCH.json inválido: {exc}")
+                  if not isinstance(manifest, dict):
+                      die("PATCH.json debe ser un objeto JSON")
+
+              delete_paths = list(manifest.get("delete", []))
+              for raw in delete_text.splitlines():
+                  line = raw.strip()
+                  if line and not line.startswith("#"):
+                      delete_paths.append(line)
+
+              ignore = list(manifest.get("ignore", []))
+              copy_readme = bool(manifest.get("copy_readme", False))
+
+              if not all(isinstance(x, str) for x in delete_paths):
+                  die('"delete" debe ser una lista de rutas')
+              if not all(isinstance(x, str) for x in ignore):
+                  die('"ignore" debe ser una lista de rutas')
+
+              for rel in delete_paths:
+                  if ignored(rel, ignore):
+                      continue
+                  target = safe_target(rel)
+                  if target.is_dir():
+                      shutil.rmtree(target)
+                      deleted += 1
+                      print("DELETE DIR ", rel)
+                  elif target.exists() or target.is_symlink():
+                      target.unlink()
+                      deleted += 1
+                      print("DELETE FILE", rel)
+                  else:
+                      print("DELETE SKIP", rel)
+
+              payload = 0
+
+              for info in infos:
+                  if info.is_dir():
+                      continue
+
+                  rel = info.filename[len(wrapper):] if wrapper else info.filename
+                  if not rel:
+                      continue
+
+                  p = PurePosixPath(rel)
+                  root_only = len(p.parts) == 1
+
+                  if root_only and p.name in META:
+                      skipped += 1
+                      continue
+                  if root_only and p.name.lower() == "readme.md" and not copy_readme:
+                      skipped += 1
+                      continue
+                  if ignored(rel, ignore):
+                      print("IGNORE     ", rel)
+                      skipped += 1
+                      continue
+
+                  target = safe_target(rel)
+                  existed = target.exists()
+
+                  if target.is_dir():
+                      shutil.rmtree(target)
+
+                  target.parent.mkdir(parents=True, exist_ok=True)
+
+                  with zf.open(info, "r") as src, open(target, "wb") as dst:
+                      shutil.copyfileobj(src, dst)
+
+                  mode = (info.external_attr >> 16) & 0o777
+                  if mode:
+                      os.chmod(target, mode)
+
+                  payload += 1
+                  if existed:
+                      replaced += 1
+                      print("REPLACE    ", rel)
+                  else:
+                      created += 1
+                      print("CREATE     ", rel)
+
+              if payload == 0 and deleted == 0:
+                  die("No hay archivos aplicables")
+
+              msg = commit_message(manifest, readme)
+              Path(message_arg).write_text(msg + "\n", encoding="utf-8")
+
+          print(
+              f"Aplicado: {created} creados, {replaced} reemplazados, "
+              f"{deleted} borrados, {skipped} ignorados/metadatos."
+          )
+          print("Commit:", msg)
+          PY
+
+          git rm -f -- "$PATCH_PATH"
+
+      - name: Commit y push
+        id: commit
+        shell: bash
+        env:
+          MESSAGE_FILE: ${{ runner.temp }}/patch_commit_message.txt
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          {
+            echo "## Cambios del parche"
+            echo
+            echo '```text'
+            git status --short
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if git diff --cached --quiet; then
+            echo "No hay cambios."
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          MSG="$(cat "$MESSAGE_FILE")"
+          git commit -m "$MSG"
+
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+          if git diff HEAD^ HEAD --name-only | grep -q '^client/'; then
+            echo "client_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "client_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          git push origin HEAD:main
+
+      - name: Lanzar deploy-pages
+        if: steps.commit.outputs.created == 'true' && steps.commit.outputs.client_changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh workflow run deploy-pages.yml --ref main
+          echo "deploy-pages.yml lanzado." >> "$GITHUB_STEP_SUMMARY"

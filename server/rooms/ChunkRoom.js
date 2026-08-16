@@ -10,6 +10,10 @@ const MINING_RANGE = 80;
 const MINING_RATE = 5; // recurso extraído por tick de minado
 const TICK_RATE = 20; // Hz
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
 class ChunkRoom extends Room {
   onCreate() {
     this.setState(new ChunkState());
@@ -22,6 +26,21 @@ class ChunkRoom extends Room {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
       player.input = input; // se guarda para procesarlo en el loop de simulación
+    });
+
+    // Ping/pong para que el cliente pueda medir su latencia.
+    this.onMessage("ping", (client, timestamp) => {
+      client.send("pong", timestamp);
+    });
+
+    // La conexión puede arrancar en segundo plano con un nombre
+    // provisional mientras el jugador aún está eligiendo personaje en el
+    // cliente — esto permite corregirlo una vez lo confirma.
+    this.onMessage("setName", (client, name) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player || typeof name !== "string") return;
+      const trimmed = name.trim().slice(0, 16);
+      if (trimmed) player.name = trimmed;
     });
 
     this.setSimulationInterval((deltaMs) => this.update(deltaMs), 1000 / TICK_RATE);
@@ -68,6 +87,12 @@ class ChunkRoom extends Room {
         player.x += (dx / len) * SHIP_SPEED * dt;
         player.y += (dy / len) * SHIP_SPEED * dt;
         player.rotation = Math.atan2(dy, dx);
+
+        // Límite del mundo — el servidor es la autoridad, no basta con
+        // dibujar el borde en el cliente. El cliente solo lo pinta.
+        const half = WORLD_SIZE / 2;
+        player.x = clamp(player.x, -half, half);
+        player.y = clamp(player.y, -half, half);
       }
 
       if (input.mining) {

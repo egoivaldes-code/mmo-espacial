@@ -1,6 +1,6 @@
 # [Nombre pendiente] — Documento de Diseño
 
-> Documento vivo. Se amplía sesión a sesión. Última actualización: 15 agosto 2026.
+> Documento vivo. Se amplía sesión a sesión. Última actualización: 16 agosto 2026.
 
 ## 1. Pitch
 
@@ -184,6 +184,28 @@ tamaño en unidades de un chunk, qué pasa con naves/estructuras si un chunk
 se destruye sin jugadores dentro (¿se congela el estado o sigue simulándose
 en segundo plano, ej. ataques a estructuras offline?).
 
+### 5.2 Sincronización cliente-servidor (decidido en el prototipo)
+
+El servidor es siempre la autoridad — el cliente nunca decide la posición
+real de nadie, solo la predice/interpola visualmente:
+
+- **Predicción local**: la propia nave se mueve al instante en pantalla
+  según el input, sin esperar confirmación del servidor. Si la posición
+  predicha se desvía demasiado de la última confirmada por el servidor
+  (paquete perdido, lag puntual), se corrige suavemente en vez de
+  teletransportar de golpe.
+- **Interpolación de jugadores remotos**: se dibujan con un pequeño
+  retraso (~100ms) interpolando entre las dos últimas posiciones reales
+  recibidas del servidor, en vez de saltar bruscamente cada vez que llega
+  un paquete de red (que llega más lento que el framerate de render).
+- **Límite del mundo**: se aplica por clamp de posición en el servidor
+  (autoridad real); el cliente solo dibuja el borde visual.
+- Este enfoque nació resolviendo un bug del prototipo (jugadores viendo
+  posiciones distintas entre sí) pero es la técnica estándar de netcode
+  para cualquier MMO en tiempo real — se mantiene como decisión de
+  arquitectura para cuando exista el sistema de chunks dinámico, no es
+  algo exclusivo del chunk fijo de fase 0.
+
 ### 5.1 Contenido de los chunks vírgenes
 
 Cada chunk sin explorar puede combinar tres tipos de contenido (no son
@@ -255,6 +277,15 @@ vulnerabilidad, timers como en EVE?), costes de mantener territorio
 - Estado en tiempo real de naves, proyectiles, asteroides, NPCs dentro de ese sector
 - Se sincroniza contra Supabase al crear/destruir la room
 
+**Estado actual del prototipo — placeholder sin Supabase todavía:** de
+momento no hay autenticación real. El "personaje" (nombre, hasta 5 por
+jugador) se guarda en `localStorage` del navegador — es decir, por
+dispositivo/navegador, no por cuenta. Es un sustituto temporal para poder
+jugar y probar mientras no existe el backend de Supabase; se perderá al
+borrar datos del navegador o cambiar de dispositivo. Migrar esto a
+Supabase (auth real + tabla de personajes) es parte del roadmap (ver
+sección 13).
+
 ## 8. Mecánicas
 
 - Minado / recolección de recursos (rareza según distancia a la entrada, tipo Avorion)
@@ -314,10 +345,22 @@ destructores, 6 cruceros, 5 cruceroacorazados, 5 acorazados, 3 portanaves,
 (placeholder, pendiente de audio final) para cada uno. Los assets viven en
 `client/public/ships/` (sprites, sonidos, `ships.json`) — es la misma
 carpeta que usa el propio juego para renderizar las naves, no una copia
-de referencia separada: cambiar un archivo ahí cambia el juego. Se
-visualiza con la herramienta `client/public/naveteca/`. Por ahora todo el
-mundo usa la misma nave inicial (FHI Wren, lanzadera) — selección/crafteo
-real de nave queda para cuando exista el sistema de fabricación (8.3).
+de referencia separada: cambiar un archivo ahí cambia el juego. Por ahora
+todo el mundo usa la misma nave inicial (FHI Wren, lanzadera) —
+selección/crafteo real de nave queda para cuando exista el sistema de
+fabricación (8.3).
+
+**Herramienta `client/public/naveteca/` — editor, no solo visor.** Cada
+nave se puede editar desde la propia interfaz (nombre, clase,
+descripción, stats) y se le puede sustituir el sprite o el sonido de
+motor subiendo un archivo. El guardado tiene dos niveles, porque GitHub
+Pages es hosting estático y no puede escribir en el repo por sí solo:
+1. **Local (instantáneo)** — se guarda en `localStorage` del navegador y
+   se ve reflejado al momento tanto en la naveteca como en el juego real
+   (misma clave de almacenamiento, mismo navegador).
+2. **Exportar parche** — genera un `.zip` con el catálogo fusionado y los
+   archivos sustituidos, para aplicarlo al repo (ver sección 14) y que lo
+   vea todo el mundo.
 
 **Pendiente de definir:** armamento y módulos equipables por clase,
 diferencias de rol dentro de una misma clase (algunos modelos priorizan
@@ -399,7 +442,10 @@ jugadores?).
 
 ## 11. Preguntas abiertas (registro)
 
-- Tamaño exacto de un chunk en unidades de juego
+- ~~Tamaño exacto de un chunk en unidades de juego~~ — resuelto *para el
+  prototipo*: 4000 unidades de lado (`WORLD_SIZE` en el código), con
+  límite real aplicado por el servidor. No es necesariamente el tamaño
+  final del sistema de chunks completo, solo el valor de trabajo actual.
 - Mecánica de escaneo para encontrar puntos de salto
 - Qué ocurre con un chunk sin jugadores presentes (¿simulación offline?)
 - Reglas de conquista territorial
@@ -457,25 +503,80 @@ niveles paralelo.
 (no XP, pero sí "cuánto confía CONCORD/una facción NPC en ti", por
 ejemplo) que sea un tracking de comportamiento más que de poder.
 
-## 13. Roadmap — prototipo mínimo jugable
+## 13. Roadmap — estado del prototipo
 
-Objetivo: validar el stack completo (Phaser + Colyseum + Supabase) con la
-pieza más pequeña de gameplay real, no una demo técnica aislada.
+Objetivo original: validar el stack completo (Phaser + Colyseum +
+Supabase) con la pieza más pequeña de gameplay real. El prototipo ha ido
+bastante más allá de la fase 0 original en pulido de cliente, aunque
+sigue siendo un único chunk fijo sin las piezas grandes de mundo/economía
+todavía.
 
-**Fase 0 — incluido:**
-1. Movimiento de nave sincronizado en tiempo real: un jugador se conecta,
-   entra en una room de Colyseum (un único chunk fijo, sin sistema de
-   descubrimiento todavía), mueve su nave; otro jugador conectado lo ve.
-2. Minado básico: asteroides fijos en ese chunk, extracción de un recurso
-   simple, inventario persistido en Supabase.
-3. Combate mínimo: disparo directo simple (sin el sistema híbrido de
-   bloqueo todavía), daño y destrucción de nave, sin pérdida de items aún.
-4. Un único punto de entrada al chunk, sin gradiente de CONCORD todavía.
+**Ya implementado:**
+1. Movimiento de nave sincronizado en tiempo real, con predicción local e
+   interpolación de remotos (ver 5.2) — resuelve el desajuste visual
+   entre jugadores conectados a la vez.
+2. Minado básico: asteroides fijos en el chunk, extracción simple,
+   inventario visible en el HUD.
+3. Combate mínimo: disparo directo, daño y destrucción de nave (sin el
+   apuntado híbrido de 8.4 ni pérdida de items todavía).
+4. Un único chunk fijo con borde/límite real (4000 unidades), sin
+   sistema de descubrimiento ni CONCORD todavía.
+5. Control completo: teclado (WASD) y táctil (joystick que aparece donde
+   tocas + botón de minar), pensado para jugarse desde el móvil.
+6. Cliente robusto: indicador de ping real, reconexión automática si se
+   cae la conexión, aviso de "servidor despertando" (Render free tier).
+7. Dos pantallas antes de entrar: changelog scrolleable con barra de
+   estado fija, y selección/creación de personaje (nombre, hasta 5 —
+   placeholder en `localStorage`, ver sección 7).
+8. Naves reales: 41 modelos catalogados por clase EVE-style con
+   fabricante Fiji Heavy Industries (ver 8.3), con sprite y sonido de
+   motor real en el juego (todavía una única nave inicial para todos).
+   La naveteca (`client/public/naveteca/`) es editor, no solo visor.
+9. Menú de opciones con "Cerrar juego", versión visible en pantalla.
 
-**Fuera del prototipo (fase 1 en adelante):** modo a pie/estaciones,
-crafteo real de naves, sistema de chunks dinámico y descubrimiento,
+**Todavía fuera del prototipo:** modo a pie/estaciones, crafteo real de
+naves (más allá de usar el sprite/stats ya catalogados), selección de
+nave por el jugador, sistema de chunks dinámico y descubrimiento,
 territorio/corporaciones, facciones NPC no-humanas, precursores/ruinas,
-gradiente de CONCORD, pérdida de nave al morir.
+gradiente de CONCORD, pérdida de nave al morir, persistencia real en
+Supabase (sustituir el placeholder de `localStorage`).
 
-**Pendiente de definir:** orden exacto de fase 1 en adelante (¿primero
-crafteo, primero el sistema de chunks dinámico, o primero el modo a pie?).
+**Pendiente de definir:** orden exacto de lo siguiente — candidatos
+fuertes son Supabase (para que los personajes no dependan del navegador)
+y crafteo real, antes de abrir el sistema de chunks dinámico.
+
+## 14. Infraestructura de desarrollo
+
+Decisiones prácticas sobre cómo se despliega y se itera el prototipo —
+no son diseño de juego, pero condicionan cómo de rápido se puede iterar.
+
+### 14.1 Hosting
+
+- **Servidor (Colyseum)**: Render, plan free. Se "duerme" tras
+  inactividad (de ahí el aviso de "servidor despertando" en el cliente).
+- **Cliente (Phaser)**: GitHub Pages, construido con Vite y publicado vía
+  GitHub Actions (`deploy-pages.yml`) en cada cambio dentro de `client/`.
+- Repo: `egoivaldes-code/mmo-espacial` (público).
+
+### 14.2 Flujo de parches
+
+El desarrollo va por parches en `.zip`, no por edición manual del repo.
+Un workflow propio (`.github/workflows/apply-patch.yml`) aplica el parche
+solo: se sube un `spacemmo_*.zip` a la raíz de `main`, el workflow lo
+descomprime, crea/sobreescribe archivos en sus rutas reales, borra el
+zip, hace commit y push, y dispara el deploy de Pages si el cambio tocó
+`client/`. Detalle completo del mecanismo (incluida la protección contra
+zip-slip/symlinks y los metadatos opcionales `PATCH.json`/`DELETE.txt`)
+en el `README.md` del repo.
+
+### 14.3 Política de versionado
+
+- **`v0.0.X`** — parches pequeños: fixes, ajustes de UI, mejoras
+  puntuales de una mecánica existente.
+- **`v0.X`** — parches gordos: una pieza nueva de gameplay o
+  infraestructura de mundo (sistema de chunks dinámico, crafteo real,
+  modo a pie, CONCORD). Al llegar uno de estos, el contador de parches
+  pequeños vuelve a 0.
+- Historial completo en `CHANGELOG.md` (raíz del repo y
+  `client/public/CHANGELOG.md`, esta última es la copia que lee el propio
+  juego en la pantalla de inicio).

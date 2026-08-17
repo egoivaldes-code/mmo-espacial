@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.1.2",
+    "highlights": [
+      "Arreglado el texto borroso de los botones y el menú — ya se ve tan nítido como el resto.",
+      "Tu propio nombre ya no aparece sobre tu nave (solo el de los demás).",
+      "Nueva estela de motor en forma de chorro, más larga cuanto más rápido vas."
+    ]
+  },
+  {
     "version": "v0.1.1",
     "highlights": [
       "Arreglado el parpadeo de la nave durante el warp.",

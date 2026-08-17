@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.1.2",
+    "highlights": [
+      "Fixed blurry text on buttons and the menu — now as sharp as everything else.",
+      "Your own name no longer shows above your ship (only other players').",
+      "New jet-style engine trail, longer the faster you go."
+    ]
+  },
+  {
     "version": "v0.1.1",
     "highlights": [
       "Fixed the ship flickering during warp.",

@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.1.1";
+const GAME_VERSION = "v0.1.2";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -453,11 +453,14 @@ class ChunkScene extends Phaser.Scene {
 
   preload() {
     // Textura de la estela de plasma — un disco suave generado a mano,
-    // sin necesidad de un asset nuevo de arte.
+    // sin necesidad de un asset nuevo de arte. Pequeño a propósito: con
+    // el ángulo de emisión ahora fijo (chorro, no nube — ver
+    // updateEngineTrailPosition), varias partículas finas y seguidas se
+    // leen como un chorro continuo, no como bolas sueltas.
     const trailGfx = this.make.graphics({ x: 0, y: 0, add: false });
     trailGfx.fillStyle(0xffffff, 1);
-    trailGfx.fillCircle(6, 6, 6);
-    trailGfx.generateTexture("plasma-particle", 12, 12);
+    trailGfx.fillCircle(4, 4, 4);
+    trailGfx.generateTexture("plasma-particle", 8, 8);
     trailGfx.destroy();
 
     const base = `${import.meta.env.BASE_URL}ships/`;
@@ -481,6 +484,14 @@ class ChunkScene extends Phaser.Scene {
   async create() {
     this.cameras.main.setBackgroundColor("#05050a");
     this.cameras.main.setZoom(DEFAULT_ZOOM);
+
+    // Los objetos Text de Phaser renderizan su propio bitmap interno a
+    // resolución 1 por defecto, INDEPENDIENTEMENTE del `resolution` del
+    // canvas general — por eso salían borrosos en pantallas de alta
+    // densidad aunque el resto del render ya estuviera nítido. Se aplica
+    // a cada `this.add.text(...)` de la escena. Tope en 3 para no gastar
+    // memoria de más en dispositivos con devicePixelRatio muy alto.
+    this.textResolution = Math.min(window.devicePixelRatio || 1, 3);
 
     // Cámara de HUD dedicada, siempre a zoom 1 y sin scroll. Antes el HUD
     // (menú, versión, botón de minar, joystick) se dibujaba en la cámara
@@ -593,7 +604,11 @@ class ChunkScene extends Phaser.Scene {
       const isMe = sessionId === this.room.sessionId;
       const sprite = this.add.image(0, 0, `ship-${STARTING_SHIP_ID}`).setScale(0.5);
       sprite.setTint(isMe ? 0x9fd6ff : 0xffb090);
-      const label = this.add.text(0, 22, player.name, { fontSize: "10px", color: "#cfe8ff" }).setOrigin(0.5, 0);
+      // El nombre no se muestra sobre la propia nave — solo tiene
+      // sentido para identificar a los demás jugadores en pantalla.
+      const label = this.add
+        .text(0, 22, isMe ? "" : player.name, { fontSize: "10px", color: "#cfe8ff", resolution: this.textResolution })
+        .setOrigin(0.5, 0);
       const container = this.add.container(player.x, player.y, [sprite, label]);
       this.worldLayer.add(container);
 
@@ -604,12 +619,15 @@ class ChunkScene extends Phaser.Scene {
         // Sin "follow": la posición se actualiza a mano cada frame
         // (updateEngineTrailPosition) para poder colocarla detrás de la
         // nave según su orientación real, no un offset fijo en pantalla.
-        lifespan: 260,
-        speed: { min: 10, max: 30 },
-        scale: { start: 0.9, end: 0 },
+        // "angle" y "speed" arrancan con un valor cualquiera — se
+        // sobreescriben nada más crearse la nave, en updateEngineTrailPosition.
+        lifespan: 220,
+        angle: -90,
+        speed: 60,
+        scale: { start: 0.55, end: 0 },
         alpha: { start: 0.85, end: 0 },
         tint: 0x66ccff,
-        frequency: 30,
+        frequency: 18,
         emitting: false,
       });
       this.worldLayer.add(engineTrail);
@@ -631,7 +649,7 @@ class ChunkScene extends Phaser.Scene {
         if (entry.buffer.length > 6) entry.buffer.shift();
         entry.serverX = player.x;
         entry.serverY = player.y;
-        label.setText(player.name);
+        if (!isMe) label.setText(player.name);
 
         if (isMe) {
           this.updateStatusText(player);
@@ -856,7 +874,7 @@ class ChunkScene extends Phaser.Scene {
   // = sprite.rotation + PI/2. Restar PI directamente a sprite.rotation
   // (como estaba antes) deja el offset girado 90° de más — la estela
   // salía por el lateral de la nave en vez de por la cola.
-  updateEngineTrailPosition(entry, isThrusting) {
+  updateEngineTrailPosition(entry, isThrusting, speed = 0) {
     if (!entry.engineTrail) return;
     const back = entry.sprite.rotation + Math.PI / 2;
     const offset = 16;
@@ -864,6 +882,20 @@ class ChunkScene extends Phaser.Scene {
       entry.container.x + Math.cos(back) * offset,
       entry.container.y + Math.sin(back) * offset
     );
+
+    // Chorro estrecho en vez de nube: un ÁNGULO EXACTO (no un rango
+    // {min,max}) actualizado cada frame según hacia dónde apunta la cola.
+    // Phaser tiene un bug conocido (#6688) donde setEmitterAngle con un
+    // rango en tiempo de ejecución da resultados impredecibles — con un
+    // número exacto sí es fiable, y de paso sale un chorro más fino.
+    entry.engineTrail.setEmitterAngle(Phaser.Math.RadToDeg(back));
+
+    // Alarga el chorro según la velocidad real: más rápido, partículas
+    // más veloces, recorren más distancia en el mismo tiempo de vida.
+    // setSpeed se renombró a setParticleSpeed en Phaser 3.60+.
+    const particleSpeed = Phaser.Math.Clamp(60 + speed * 0.6, 60, 900);
+    entry.engineTrail.setParticleSpeed(particleSpeed);
+
     entry.engineTrail.emitting = isThrusting;
   }
 
@@ -913,7 +945,7 @@ class ChunkScene extends Phaser.Scene {
       );
       this.localEntry.sprite.rotation = this.localEntry.facing + Math.PI / 2;
       this.updateEngineSound(true);
-      this.updateEngineTrailPosition(this.localEntry, true);
+      this.updateEngineTrailPosition(this.localEntry, true, warpSpeed);
 
       // Reconciliación por si el servidor decide algo distinto (topó
       // con el borde, por ejemplo) — umbral más generoso que en vuelo
@@ -956,7 +988,6 @@ class ChunkScene extends Phaser.Scene {
     const hasInput = dx !== 0 || dy !== 0;
 
     this.updateEngineSound(hasInput);
-    this.updateEngineTrailPosition(this.localEntry, hasInput);
 
     if (this.localEntry.vx === undefined) {
       this.localEntry.vx = 0;
@@ -990,6 +1021,8 @@ class ChunkScene extends Phaser.Scene {
     const dragFactor = Math.max(0, 1 - DRAG * dt);
     this.localEntry.vx *= dragFactor;
     this.localEntry.vy *= dragFactor;
+
+    this.updateEngineTrailPosition(this.localEntry, hasInput, Math.hypot(this.localEntry.vx, this.localEntry.vy));
 
     const half = WORLD_SIZE / 2;
     this.localEntry.container.x = Phaser.Math.Clamp(
@@ -1048,11 +1081,13 @@ class ChunkScene extends Phaser.Scene {
       entry.sprite.rotation = Phaser.Math.Linear(older.rotation, newer.rotation, tt) + Math.PI / 2;
 
       // No hay input de otros jugadores, así que se infiere "está
-      // acelerando" por la distancia recorrida entre los dos últimos
-      // paquetes del buffer — aproximado, pero suficiente para que la
-      // estela no quede encendida con la nave parada.
+      // acelerando" (y a qué velocidad) por la distancia recorrida entre
+      // los dos últimos paquetes del buffer — aproximado, pero suficiente
+      // para que la estela no quede encendida con la nave parada y para
+      // darle largo acorde a la velocidad real.
       const movedDist = Phaser.Math.Distance.Between(older.x, older.y, newer.x, newer.y);
-      this.updateEngineTrailPosition(entry, movedDist > 2);
+      const estimatedSpeed = movedDist / (span / 1000);
+      this.updateEngineTrailPosition(entry, movedDist > 2, estimatedSpeed);
     });
   }
 
@@ -1072,7 +1107,7 @@ class ChunkScene extends Phaser.Scene {
     this.hudLayer.add(circle);
 
     const label = this.add
-      .text(x, y, t("controls.mine"), { fontSize: "12px", color: "#ffffff" })
+      .text(x, y, t("controls.mine"), { fontSize: "12px", color: "#ffffff", resolution: this.textResolution })
       .setOrigin(0.5)
       .setDepth(101);
     this.hudLayer.add(label);
@@ -1116,7 +1151,7 @@ class ChunkScene extends Phaser.Scene {
     this.hudLayer.add(circle);
 
     const label = this.add
-      .text(x, y, t("controls.warp"), { fontSize: "12px", color: "#ffffff" })
+      .text(x, y, t("controls.warp"), { fontSize: "12px", color: "#ffffff", resolution: this.textResolution })
       .setOrigin(0.5)
       .setDepth(101);
     this.hudLayer.add(label);
@@ -1308,6 +1343,7 @@ class ChunkScene extends Phaser.Scene {
       .text(this.scale.width - 10, 10, GAME_VERSION, {
         fontSize: "12px",
         color: "#7d93b0",
+        resolution: this.textResolution,
       })
       .setOrigin(1, 0)
       .setDepth(200);
@@ -1324,6 +1360,7 @@ class ChunkScene extends Phaser.Scene {
         color: "#cfe8ff",
         backgroundColor: "#141a24",
         padding: { x: 8, y: 6 },
+        resolution: this.textResolution,
       })
       .setOrigin(0.5)
       .setDepth(200)
@@ -1348,13 +1385,15 @@ class ChunkScene extends Phaser.Scene {
     const y = this.scale.height / 2 - h / 2;
 
     const bg = this.add.rectangle(0, 0, w, h, 0x0a0e16, 0.95).setOrigin(0).setStrokeStyle(1, 0x334455);
-    const title = this.add.text(w / 2, 16, t("menu.title"), { fontSize: "14px", color: "#cfe8ff" }).setOrigin(0.5, 0);
+    const title = this.add
+      .text(w / 2, 16, t("menu.title"), { fontSize: "14px", color: "#cfe8ff", resolution: this.textResolution })
+      .setOrigin(0.5, 0);
     const version = this.add
-      .text(w / 2, 38, GAME_VERSION, { fontSize: "11px", color: "#7d93b0" })
+      .text(w / 2, 38, GAME_VERSION, { fontSize: "11px", color: "#7d93b0", resolution: this.textResolution })
       .setOrigin(0.5, 0);
 
     const langLabel = this.add
-      .text(16, 60, t("menu.language"), { fontSize: "11px", color: "#7d93b0" })
+      .text(16, 60, t("menu.language"), { fontSize: "11px", color: "#7d93b0", resolution: this.textResolution })
       .setOrigin(0, 0);
 
     const langButtons = AVAILABLE_LANGUAGES.map((lang, i) => {
@@ -1363,6 +1402,7 @@ class ChunkScene extends Phaser.Scene {
         .text(16, 78 + i * langRowH, `${isCurrent ? "● " : "○ "}${lang.label}`, {
           fontSize: "13px",
           color: isCurrent ? "#66ccff" : "#cfe8ff",
+          resolution: this.textResolution,
         })
         .setOrigin(0, 0)
         .setInteractive({ useHandCursor: true });
@@ -1376,13 +1416,14 @@ class ChunkScene extends Phaser.Scene {
         color: "#ffffff",
         backgroundColor: "#883333",
         padding: { x: 12, y: 8 },
+        resolution: this.textResolution,
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     closeBtn.on("pointerdown", () => this.closeGame());
 
     const dismissBtn = this.add
-      .text(w - 10, 8, "✕", { fontSize: "14px", color: "#889" })
+      .text(w - 10, 8, "✕", { fontSize: "14px", color: "#889", resolution: this.textResolution })
       .setOrigin(1, 0)
       .setInteractive({ useHandCursor: true });
     dismissBtn.on("pointerdown", () => this.toggleOptionsMenu());
@@ -1409,6 +1450,7 @@ class ChunkScene extends Phaser.Scene {
         fontSize: "16px",
         color: "#cfe8ff",
         align: "center",
+        resolution: this.textResolution,
       })
       .setOrigin(0.5)
       .setDepth(501);

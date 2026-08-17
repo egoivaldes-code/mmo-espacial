@@ -14,6 +14,29 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.1.2]
+
+### Corregido
+- **Texto de Phaser borroso** (WARP, MINAR, engranaje, panel de
+  Opciones) mientras el HUD en HTML (`#ui`, arriba a la izquierda) se
+  veía nítido. Causa: los objetos `Text` de Phaser renderizan su propio
+  bitmap interno a resolución 1 por defecto, **independientemente** del
+  `resolution` general del canvas que ya se había fijado en v0.0.6 — cada
+  texto necesita su propio `resolution` en el estilo. Añadido a los 12
+  textos de la escena.
+- **Nombre del jugador ya no aparece sobre la propia nave** — solo tiene
+  sentido para identificar a los demás, no a uno mismo.
+
+### Cambiado
+- **Estela de plasma rediseñada como chorro, no nube**: antes emitía
+  partículas en todas direcciones con velocidad aleatoria (efecto puff).
+  Ahora usa un ángulo de emisión exacto actualizado cada frame según la
+  orientación real de la nave (`setEmitterAngle` con un número, no un
+  rango — Phaser tiene un bug conocido con rangos en tiempo de
+  ejecución), partículas más finas y la velocidad de cada partícula
+  escala con la velocidad real de la nave (`setParticleSpeed`) — el
+  chorro se alarga notablemente en warp.
+
 ## [v0.1.1]
 
 ### Corregido

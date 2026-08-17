@@ -4,7 +4,7 @@ const { Player } = require("../schema/Player");
 const { Asteroid } = require("../schema/Asteroid");
 
 // Ajustes simples del prototipo. Nada de esto es definitivo, es fase 0.
-const WORLD_SIZE = 4000; // el "chunk" es grande en espacio, poco denso
+const WORLD_SIZE = 30000; // el "chunk" es grande en espacio, poco denso — tamaño de diseño (5.5)
 const MINING_RANGE = 80;
 const MINING_RATE = 5; // recurso extraído por tick de minado
 const TICK_RATE = 20; // Hz
@@ -59,7 +59,11 @@ class ChunkRoom extends Room {
     this.setState(new ChunkState());
     this.setPatchRate(1000 / TICK_RATE);
 
-    this.spawnAsteroids(15);
+    // Con WORLD_SIZE=30.000 (56x más área que el valor de prototipo
+    // anterior), 15 asteroides quedarían invisibles la mayor parte del
+    // tiempo. 120 sigue siendo un valor de prototipo, no densidad final
+    // calibrada — solo para que el mundo no se sienta vacío al explorar.
+    this.spawnAsteroids(120);
 
     // Input del cliente: { up, down, left, right, mining }
     this.onMessage("input", (client, input) => {

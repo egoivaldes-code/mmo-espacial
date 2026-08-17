@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.1.1",
+    "highlights": [
+      "Fixed the ship flickering during warp.",
+      "Much sharper image on mobile and high-density screens — used to look blurry/grainy.",
+      "The map is now much bigger, at solar-system scale."
+    ]
+  },
+  {
     "version": "v0.1.0",
     "highlights": [
       "New warp system: charge the drive and rocket forward at 5x speed in a straight line. Green button next to the mining one (E key on PC).",

@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.1.0";
+const GAME_VERSION = "v0.1.1";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -21,8 +21,9 @@ const TURN_RATE = Math.PI; // rad/s
 const ACCELERATION = 300; // unidades/s²
 const MAX_SPEED = 240; // unidades/s
 const DRAG = 0.6;
+const WARP_SPEED_MULTIPLIER = 5; // debe coincidir con el servidor
 
-const WORLD_SIZE = 4000;
+const WORLD_SIZE = 30000;
 
 // Recorta el padding transparente alrededor del sprite real dentro del
 // PNG. Los sprites de naveteca vienen en lienzos de tamaño uniforme con
@@ -123,7 +124,7 @@ function getLocalShipOverride(shipId) {
 
 // Zoom de la cámara — límites razonables para no perder el contexto del
 // mundo ni acercarse tanto que se pixele el sprite.
-const MIN_ZOOM = 0.08;
+const MIN_ZOOM = 0.025; // con WORLD_SIZE=30.000, hace falta esto de bajo para ver el sistema entero
 const MAX_ZOOM = 2.5;
 const DEFAULT_ZOOM = 1;
 
@@ -518,13 +519,13 @@ class ChunkScene extends Phaser.Scene {
   }
 
   starfield() {
-    // Rango ampliado a juego con el nuevo MIN_ZOOM — con el zoom mínimo
-    // se ve mucho más que el mundo jugable actual (WORLD_SIZE), así que
-    // el campo de estrellas tiene que cubrir bastante más para no dejar
-    // un vacío negro alrededor al alejarse del todo.
-    for (let i = 0; i < 500; i++) {
-      const x = Phaser.Math.Between(-12000, 12000);
-      const y = Phaser.Math.Between(-12000, 12000);
+    // Rango ajustado a WORLD_SIZE=30.000 y al nuevo MIN_ZOOM=0.025 — el
+    // campo de estrellas tiene que cubrir más que el propio mundo
+    // jugable para no dejar un vacío negro alrededor al ver el sistema
+    // entero con el zoom mínimo.
+    for (let i = 0; i < 900; i++) {
+      const x = Phaser.Math.Between(-22000, 22000);
+      const y = Phaser.Math.Between(-22000, 22000);
       const star = this.add.circle(x, y, Phaser.Math.Between(1, 2), 0xffffff, Phaser.Math.FloatBetween(0.3, 0.9));
       star.setScrollFactor(0.6);
       this.worldLayer.add(star);
@@ -881,19 +882,68 @@ class ChunkScene extends Phaser.Scene {
     if (!this.localEntry) return;
     const dt = delta / 1000;
 
-    // En warp no hay predicción local ni control manual — el servidor
-    // manda una línea recta a velocidad fija, así que el cliente solo
-    // seguimos la posición real que llega (sin interpolar entre paquetes,
-    // el viaje es corto y llamativo, un poco de discontinuidad no se
-    // nota tanto como en vuelo normal). No se puede girar en warp.
-    if (this.localPlayerState?.warping) {
-      this.localEntry.container.x = this.localEntry.serverX;
-      this.localEntry.container.y = this.localEntry.serverY;
-      this.localEntry.facing = this.localPlayerState.rotation;
+    const isWarping = !!this.localPlayerState?.warping;
+
+    if (isWarping) {
+      if (!this.localEntry.wasWarping) {
+        // Justo al entrar en warp: parte de la posición/rotación reales
+        // del servidor, no de donde estuviera la predicción normal.
+        this.localEntry.container.x = this.localEntry.serverX;
+        this.localEntry.container.y = this.localEntry.serverY;
+        this.localEntry.facing = this.localPlayerState.rotation;
+      }
+      this.localEntry.wasWarping = true;
+
+      // Trayectoria determinista y conocida (línea recta a velocidad
+      // fija) — el cliente la puede predecir exactamente igual que el
+      // servidor, en vez de esperar cada paquete de red. Antes hacía
+      // "snap" directo a la última posición recibida (~20 veces/seg),
+      // que a 1200u/s se notaba como parpadeo/saltos.
+      const warpSpeed = MAX_SPEED * WARP_SPEED_MULTIPLIER;
+      const half = WORLD_SIZE / 2;
+      this.localEntry.container.x = Phaser.Math.Clamp(
+        this.localEntry.container.x + Math.cos(this.localEntry.facing) * warpSpeed * dt,
+        -half,
+        half
+      );
+      this.localEntry.container.y = Phaser.Math.Clamp(
+        this.localEntry.container.y + Math.sin(this.localEntry.facing) * warpSpeed * dt,
+        -half,
+        half
+      );
       this.localEntry.sprite.rotation = this.localEntry.facing + Math.PI / 2;
       this.updateEngineSound(true);
       this.updateEngineTrailPosition(this.localEntry, true);
+
+      // Reconciliación por si el servidor decide algo distinto (topó
+      // con el borde, por ejemplo) — umbral más generoso que en vuelo
+      // normal porque a esta velocidad el margen natural entre paquetes
+      // ya es mayor.
+      const drift = Phaser.Math.Distance.Between(
+        this.localEntry.container.x,
+        this.localEntry.container.y,
+        this.localEntry.serverX,
+        this.localEntry.serverY
+      );
+      if (drift > 300) {
+        this.localEntry.container.x = Phaser.Math.Linear(this.localEntry.container.x, this.localEntry.serverX, 0.3);
+        this.localEntry.container.y = Phaser.Math.Linear(this.localEntry.container.y, this.localEntry.serverY, 0.3);
+      }
       return;
+    }
+
+    if (this.localEntry.wasWarping) {
+      // Justo al salir de warp: la velocidad local predicha (vx/vy) no
+      // se tocó durante el warp, así que no refleja la realidad — se
+      // resetea a 0 (coincide con lo que hace el servidor al cancelar o
+      // topar con el borde) y se encaja la posición exacta para no
+      // arrastrar ningún desfase acumulado.
+      this.localEntry.wasWarping = false;
+      this.localEntry.vx = 0;
+      this.localEntry.vy = 0;
+      this.localEntry.container.x = this.localEntry.serverX;
+      this.localEntry.container.y = this.localEntry.serverY;
+      this.localEntry.facing = this.localPlayerState?.rotation ?? this.localEntry.facing;
     }
 
     const input = this.currentInput();
@@ -1376,6 +1426,14 @@ function launchGame() {
     parent: document.body,
     width: window.innerWidth,
     height: window.innerHeight,
+    // Sin esto, en cualquier pantalla de alta densidad (la mayoría de
+    // móviles a 2x-3x, muchos portátiles a 2x) Phaser renderiza a
+    // resolución de píxeles CSS y el navegador estira el canvas para
+    // llenar los píxeles físicos reales — esa ampliación es exactamente
+    // lo que se veía como borroso/granulado/con velo. Con resolution
+    // igual al devicePixelRatio, Phaser renderiza ya a la resolución
+    // física nativa, nítido de verdad.
+    resolution: window.devicePixelRatio || 1,
     backgroundColor: "#05050a",
     scene: [ChunkScene],
     input: {

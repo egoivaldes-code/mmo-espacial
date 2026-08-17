@@ -14,6 +14,34 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.1.1]
+
+### Corregido
+- **Parpadeo/saltos durante el warp**: el cliente hacía "snap" directo a
+  la última posición confirmada por el servidor cada frame, que solo
+  llega ~20 veces por segundo — a 1200 u/s eso se notaba muchísimo más
+  que en vuelo normal. Ahora el cliente predice la trayectoria del warp
+  localmente (línea recta a velocidad fija, igual que hace el servidor)
+  en vez de esperar cada paquete de red — movimiento suave, con
+  reconciliación de respaldo por si el servidor difiere (p. ej. al topar
+  con el borde del mundo).
+- **Renderizado borroso/granulado en pantallas de alta densidad**: no
+  había ninguna configuración de `resolution` en Phaser, así que en
+  cualquier móvil o portátil con `devicePixelRatio` > 1 (la inmensa
+  mayoría), el juego renderizaba a resolución de píxeles CSS y el
+  navegador estiraba el canvas para llenar los píxeles físicos reales —
+  esa ampliación era el "velo" borroso sobre botones y naves. Corregido
+  con `resolution: window.devicePixelRatio`.
+
+### Cambiado
+- **`WORLD_SIZE` del prototipo sube de 4.000 a 30.000**, el tamaño de
+  chunk ya decidido en el documento de diseño (sección 5.5) — antes solo
+  se aplicaba al diseño, no al código. Asteroides de prototipo subidos de
+  15 a 120 para que el mundo más grande no se sienta vacío (densidad
+  provisional, no calibrada). Zoom mínimo bajado a 0.025 y campo de
+  estrellas ampliado para poder ver el sistema completo con el zoom al
+  mínimo.
+
 ## [v0.1.0]
 
 ### Añadido

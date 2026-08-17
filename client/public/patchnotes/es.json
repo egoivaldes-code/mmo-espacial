@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.1.1",
+    "highlights": [
+      "Arreglado el parpadeo de la nave durante el warp.",
+      "Imagen mucho más nítida en móviles y pantallas de alta densidad — antes se veía borrosa/granulada.",
+      "El mapa ahora es mucho más grande, a escala de sistema solar."
+    ]
+  },
+  {
     "version": "v0.1.0",
     "highlights": [
       "Nuevo sistema de warp: carga el motor y sal disparado a 5x velocidad en línea recta. Botón verde junto al de minar (tecla E en PC).",

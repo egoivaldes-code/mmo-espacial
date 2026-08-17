@@ -1110,9 +1110,9 @@ jugadores?).
   discretos con puntos de salto, grilla como metadato del mapa (5.1)
 - ~~¿Instanciar chunks llenos?~~ — resuelto: no, se degrada bajo carga (5.4)
 - ~~Tamaño exacto de un chunk en unidades de juego~~ — resuelto: **30.000
-  × 30.000 u** para el sistema de chunks completo (5.5), sustituye al
-  valor de prototipo (`WORLD_SIZE = 4000` en el código actual, que queda
-  obsoleto para cuando se implemente el chunk dinámico).
+  × 30.000 u** para el sistema de chunks completo (5.5). Ya aplicado
+  también al prototipo (`WORLD_SIZE = 30000` en el código, antes era
+  `4000` de marcador temporal) — mismo tamaño en ambos ahora.
 - ~~¿Hay velocidad de warp dentro del chunk?~~ — resuelto: sí, 15× la
   velocidad sublight (3.300 u/s), con alineación previa y solo a destinos
   reconocidos (5.7)
@@ -1251,8 +1251,9 @@ todavía.
    inventario visible en el HUD.
 3. Combate mínimo: disparo directo, daño y destrucción de nave (sin el
    apuntado híbrido de 8.4 ni pérdida de items todavía).
-4. Un único chunk fijo con borde/límite real (4000 unidades), sin
-   sistema de descubrimiento ni CONCORD todavía.
+4. Un único chunk fijo con borde/límite real (30.000 unidades, tamaño de
+   diseño definitivo — ver 5.5), sin sistema de descubrimiento ni
+   CONCORD todavía.
 5. Control completo: teclado (WASD) y táctil (joystick que aparece donde
    tocas + botón de minar), pensado para jugarse desde el móvil.
 6. Cliente robusto: indicador de ping real, reconexión automática si se

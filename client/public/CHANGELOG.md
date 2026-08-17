@@ -14,6 +14,45 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.2.0]
+
+### Añadido — arte e iconografía de interfaz
+- **Atlas de 16 iconos** (`client/public/ui/icons.png`, rejilla 4x4 de
+  256 px con transparencia). Una sola descarga de ~107 KB en lugar de 16
+  peticiones, y el mismo archivo se reutiliza en los dos sitios donde
+  hace falta: como máscara CSS en el HUD HTML y como hoja de sprites de
+  Phaser para lo que se dibuja dentro del mundo.
+- Los iconos son **blancos y se tiñen por código** (`background-color` en
+  CSS, `setTint` en Phaser). Un mismo dibujo de nave sirve para amigo,
+  enemigo o neutral sin guardar tres imágenes.
+
+### Añadido — botón de acción contextual
+- El antiguo botón MINAR pasa a ser **un único botón de acción** cuyo
+  significado depende de lo que el jugador tenga a rango: `mine`, `dock`,
+  `gate` (punto de salto) o `loot` (pecio). Cuando no hay nada accionable
+  el botón desaparece en vez de quedarse apagado.
+- **Decide el servidor, no el cliente.** Si lo decidiera el cliente
+  bastaría con manipularlo para "atracar" desde fuera de rango.
+- El cálculo **no viaja por el estado replicado de Colyseus**: si fuera
+  un campo del `Player`, cada cambio se difundiría a todos los jugadores
+  de la sala aunque solo le importe a uno. Se manda como mensaje directo
+  al cliente afectado, a 4 Hz y **solo cuando el resultado cambia** — en
+  vuelo por el vacío no se envía nada.
+- Retícula giratoria sobre el objetivo elegido, para desambiguar cuando
+  hay varios objetos cerca.
+
+### Cambiado
+- Los asteroides usan el icono del atlas (roca irregular) en lugar de un
+  círculo gris dibujado a mano.
+- Minar depende ahora de dos cosas separadas (ver 8.2.1 del documento de
+  diseño): **poder** minar depende del módulo montado, que puede ir en
+  cualquier casco y es lo que hace aparecer el botón; **cuánto** extraes
+  depende del casco, con las naves mineras dedicadas del orden de ×10 por
+  encima. **Provisional:** no existe todavía sistema de módulos ni clase
+  minera, así que hoy todos llevan módulo y todos extraen a ×1.
+- El contador del HUD muestra carga e integridad del casco con icono en
+  lugar de con las palabras "Carga:" y "HP:".
+
 ## [v0.1.4]
 
 ### Cambiado — arreglo de raíz de la nitidez (los dos intentos anteriores eran parches sobre el síntoma)

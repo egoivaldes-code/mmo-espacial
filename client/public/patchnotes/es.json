@@ -1,5 +1,15 @@
 [
   {
+    "version": "v0.2.0",
+    "highlights": [
+      "Nuevos iconos de interfaz: 16 símbolos propios (warp, minar, atracar, punto de salto, asteroide, pecio, ruina…) en una sola imagen que se descarga de golpe.",
+      "El botón de minar pasa a ser un botón de ACCIÓN único que cambia según lo que tengas a rango: minar, atracar, activar punto de salto o abrir un pecio.",
+      "Una retícula giratoria marca en pantalla sobre qué objeto va a actuar el botón.",
+      "Los asteroides se ven ahora como rocas irregulares en vez de círculos grises.",
+      "Minar pasa a depender de un módulo que ocupa ranura y puede montarse en cualquier nave — pero las naves mineras dedicadas extraerán muchísimo más."
+    ]
+  },
+  {
     "version": "v0.1.4",
     "highlights": [
       "Arreglo de raíz de la nitidez: los botones y menús ahora son interfaz nativa del navegador, no dibujo del juego — se ven perfectos en cualquier pantalla."

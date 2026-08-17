@@ -6,7 +6,7 @@ const { Asteroid } = require("../schema/Asteroid");
 // Ajustes simples del prototipo. Nada de esto es definitivo, es fase 0.
 const WORLD_SIZE = 30000; // el "chunk" es grande en espacio, poco denso — tamaño de diseño (5.5)
 const MINING_RANGE = 80;
-const MINING_RATE = 5; // recurso extraído por tick de minado
+const MINING_RATE_BASE = 5; // recurso por tick con multiplicador ×1 (ver 8.2.1)
 const TICK_RATE = 20; // Hz
 const RECONNECT_GRACE_S = 90; // ventana para volver tras un corte de socket
 
@@ -40,6 +40,54 @@ const DRAG = 0.6; // fracción de velocidad perdida por segundo (fricción suave
 const WARP_CHARGE_TIME = 10; // segundos
 const WARP_SPEED_MULTIPLIER = 5; // 500% de MAX_SPEED durante el warp
 const WARP_COOLDOWN = 30; // segundos, empieza a contar al activar la carga
+
+// --- Acción contextual ----------------------------------------------------
+// El HUD tiene UN solo botón de acción, y su significado depende de lo que
+// el jugador tenga a rango: minar un asteroide, atracar en una estación,
+// activar un punto de salto, abrir un pecio. Quien decide cuál toca es el
+// SERVIDOR, no el cliente: si lo decidiera el cliente, bastaría con
+// manipularlo para "atracar" en una estación enemiga desde lejos.
+//
+// El cálculo NO va al estado replicado de Colyseus. Si fuera un campo del
+// Player, cada cambio se enviaría a todos los jugadores de la sala aunque
+// solo le importe a uno. En vez de eso se manda un mensaje directo al
+// cliente afectado, y solo cuando el resultado cambia respecto al anterior:
+// volando por el vacío no se envía absolutamente nada.
+const ACTION_SCAN_HZ = 4; // veces por segundo que se recalcula (20 sería tirar CPU)
+const ACTION_SCAN_INTERVAL = 1000 / ACTION_SCAN_HZ;
+const DOCK_RANGE = 250;
+const GATE_RANGE = 250;
+const LOOT_RANGE = 120;
+
+// --- Minado: quién puede y cuánto (ver 8.2.1 del documento de diseño) ----
+//
+// Dos preguntas distintas, y es importante que estén separadas:
+//
+//   1. ¿PUEDE minar?  -> depende del MÓDULO montado, no del casco.
+//      Cualquier nave puede montar un módulo minero sacrificando una
+//      ranura. Esto es lo que decide si aparece el botón.
+//
+//   2. ¿CUÁNTO extrae? -> depende del CASCO, y la diferencia es de orden
+//      de magnitud (~×10 para una minera dedicada). Un crucero con módulo
+//      minero ve el mismo botón, pero llena la bodega diez veces más
+//      despacio.
+//
+// El bonus va deliberadamente en el casco y no en el módulo: si estuviera
+// en el módulo bastaría con comprar el bueno y montarlo donde fuera, y la
+// nave minera dejaría de tener sentido.
+//
+// PROVISIONAL: no existe todavía sistema de módulos ni clase minera en
+// ships.json, y la lanzadera inicial es la única nave jugable — si le
+// quitamos el minado no queda nada que hacer. Por eso hoy todo el mundo
+// "lleva módulo" y todo el mundo extrae a ×1. Cuando existan módulos y
+// clases, estas dos funciones pasan a consultarlos y no cambia nada más.
+function hasMiningModule(_player) {
+  return true;
+}
+
+function miningMultiplier(_player) {
+  return 1;
+}
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -112,6 +160,10 @@ class ChunkRoom extends Room {
       player.warpCooldownRemaining = WARP_COOLDOWN;
     });
 
+    // sessionId -> última acción notificada, para no reenviar lo mismo.
+    this.lastAction = new Map();
+    this.actionScanAccum = 0;
+
     this.setSimulationInterval((deltaMs) => this.update(deltaMs), 1000 / TICK_RATE);
   }
 
@@ -148,6 +200,10 @@ class ChunkRoom extends Room {
   // segundos para volver. Solo se borra si expira sin que reconecte.
   async onLeave(client, consented) {
     const player = this.state.players.get(client.sessionId);
+
+    // Se olvida la acción contextual cacheada: si vuelve, que se recalcule
+    // desde cero (puede haber minado el asteroide otro mientras no estaba).
+    this.lastAction.delete(client.sessionId);
 
     // Salida explícita (el jugador cerró el juego) — no reservar asiento.
     if (consented) {
@@ -273,13 +329,83 @@ class ChunkRoom extends Room {
         this.tryMine(player);
       }
     });
+
+    // Recalcular qué puede hacer cada jugador, a 4 Hz y no a 20: es
+    // información de interfaz, nadie nota 250 ms de retraso en que se
+    // ilumine un botón, y ahorra el 80% del coste.
+    this.actionScanAccum += deltaMs;
+    if (this.actionScanAccum >= ACTION_SCAN_INTERVAL) {
+      this.actionScanAccum = 0;
+      this.updateContextActions();
+    }
+  }
+
+  // Busca el objeto accionable más cercano al jugador y, si el resultado
+  // cambió desde la última vez, se lo notifica solo a él.
+  //
+  // Rendimiento: hoy recorre los 120 asteroides por jugador, 4 veces por
+  // segundo. Con pocos jugadores es irrelevante. Cuando un chunk tenga
+  // cientos de objetos y decenas de pilotos habrá que meter una rejilla
+  // espacial (dividir el chunk en casillas y mirar solo las 9 casillas
+  // vecinas), pero esa optimización no tiene sentido hacerla todavía:
+  // añade complejidad para resolver un problema que aún no existe.
+  updateContextActions() {
+    this.clients.forEach((client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
+      const action = player.warping ? null : this.findContextAction(player);
+
+      // Firma corta para comparar sin comparar objetos enteros.
+      const signature = action ? `${action.kind}:${action.id}` : "";
+      if (this.lastAction.get(client.sessionId) === signature) return;
+
+      this.lastAction.set(client.sessionId, signature);
+      client.send("action", action);
+    });
+  }
+
+  findContextAction(player) {
+    let best = null;
+
+    // Minado — solo si la nave puede minar. Una nave de combate junto a un
+    // asteroide simplemente no verá el botón.
+    if (hasMiningModule(player)) {
+      for (const [id, asteroid] of this.state.asteroids.entries()) {
+        if (asteroid.amount <= 0) continue;
+        const dist = Math.hypot(asteroid.x - player.x, asteroid.y - player.y);
+        if (dist > MINING_RANGE) continue;
+        if (!best || dist < best.dist) {
+          best = { kind: "mine", id, x: asteroid.x, y: asteroid.y, dist, hold: true };
+        }
+      }
+    }
+
+    // Aquí entrarán, con la misma forma, las demás acciones cuando existan
+    // los objetos correspondientes en el chunk. Se dejan escritas las
+    // constantes de rango (DOCK_RANGE, GATE_RANGE, LOOT_RANGE) para que
+    // añadirlas sea rellenar el bucle, no rediseñar nada:
+    //   "dock"  -> estación atracable       (§3 del documento de diseño)
+    //   "gate"  -> punto de salto activable (§5.5)
+    //   "loot"  -> pecio / contenedor abrible
+    // El criterio de desempate es y seguirá siendo la distancia: gana lo
+    // que tengas más cerca, sin menús ni submenús.
+
+    if (!best) return null;
+    return { kind: best.kind, id: best.id, x: best.x, y: best.y, hold: best.hold };
   }
 
   tryMine(player) {
+    // Segunda comprobación deliberada: el cliente solo enseña el botón si
+    // el servidor le dijo que podía, pero un cliente manipulado puede
+    // mandar `mining: true` sin más. La autoridad está aquí.
+    if (!hasMiningModule(player)) return;
+
     for (const [id, asteroid] of this.state.asteroids.entries()) {
       const dist = Math.hypot(asteroid.x - player.x, asteroid.y - player.y);
       if (dist <= MINING_RANGE && asteroid.amount > 0) {
-        const extracted = Math.min(MINING_RATE, asteroid.amount);
+        const rate = MINING_RATE_BASE * miningMultiplier(player);
+        const extracted = Math.min(rate, asteroid.amount);
         asteroid.amount -= extracted;
         player.cargo += extracted;
         if (asteroid.amount <= 0) {

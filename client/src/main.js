@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.1.4";
+const GAME_VERSION = "v0.2.0";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -289,7 +289,56 @@ const gameHud = document.getElementById("game-hud");
 const versionBadge = document.getElementById("version-badge");
 const optionsGearBtn = document.getElementById("options-gear-btn");
 const warpBtn = document.getElementById("warp-btn");
-const mineBtn = document.getElementById("mine-btn");
+const actionBtn = document.getElementById("action-btn");
+const actionBtnIcon = actionBtn.querySelector(".ui-icon");
+const actionBtnLabel = actionBtn.querySelector(".btn-label");
+const warpBtnLabel = warpBtn.querySelector(".btn-label");
+
+// El CSS necesita saber dónde está el atlas de iconos, pero el juego se
+// publica bajo un subdirectorio (/mmo-espacial/) y esa ruta solo se
+// conoce aquí. Se pasa como variable CSS y el resto de estilos la usan.
+document.documentElement.style.setProperty(
+  "--icons-url",
+  `url(${import.meta.env.BASE_URL}ui/icons.png)`
+);
+
+// Posición de cada icono dentro de la rejilla 4x4 del atlas: [columna, fila].
+// Un solo sitio donde mirar si algún día se reordena la lámina.
+const ICONS = {
+  warp: [0, 0], scan: [1, 0], dock: [2, 0], map: [3, 0],
+  cargo: [0, 1], target: [1, 1], mine: [2, 1], weapon: [3, 1],
+  ship: [0, 2], station: [1, 2], gate: [2, 2], asteroid: [3, 2],
+  container: [0, 3], ruin: [1, 3], lockPending: [2, 3], lockDone: [3, 3],
+};
+
+// El mismo atlas visto como lista lineal (0..15), que es como lo indexa
+// Phaser al cargarlo como hoja de sprites. Se deriva de ICONS para que no
+// puedan quedar desincronizados nunca.
+const ICON_FRAMES = Object.fromEntries(
+  Object.entries(ICONS).map(([name, [col, row]]) => [name, row * 4 + col])
+);
+
+// Devuelve el HTML de un dato del HUD precedido por su icono. El icono se
+// pinta con la misma máscara que los botones, a la altura del texto.
+function statChip(icon, value) {
+  const pos = ICONS[icon];
+  return (
+    `<span class="hud-stat">` +
+    `<i class="ui-icon" style="--ix:${pos[0]}; --iy:${pos[1]};"></i>` +
+    `${escapeHtml(String(value))}</span>`
+  );
+}
+
+function applyIcon(el, name) {
+  const pos = ICONS[name];
+  if (!pos) return;
+  el.style.setProperty("--ix", pos[0]);
+  el.style.setProperty("--iy", pos[1]);
+}
+
+// Qué icono y qué texto corresponden a cada tipo de acción contextual.
+// Añadir una acción nueva es añadir una línea aquí y otra en el servidor.
+const ACTION_ICONS = { mine: "mine", dock: "dock", gate: "gate", loot: "container" };
 const optionsPanel = document.getElementById("options-panel");
 const optionsCloseDismiss = document.getElementById("options-close-dismiss");
 const optionsTitleEl = document.getElementById("options-title");
@@ -308,17 +357,47 @@ function getActiveScene() {
 
 versionBadge.textContent = GAME_VERSION;
 
-mineBtn.addEventListener("pointerdown", (e) => {
-  e.preventDefault();
-  const scene = getActiveScene();
-  if (scene) scene.touchInput.mining = true;
-});
-const releaseMineBtn = () => {
+// --- Botón de acción contextual -------------------------------------------
+// Es un único botón cuyo significado lo dicta el servidor: minar, atracar,
+// activar un punto de salto o abrir un pecio, según lo que haya a rango.
+// El cliente NO decide nada, solo dibuja lo que le dicen y avisa de que se
+// ha pulsado.
+//
+// Hay dos formas de pulsarlo. Minar es "mantener pulsado" (sueltas y para);
+// atracar o saltar son de un toque. El servidor lo indica con `hold`.
+let currentAction = null;
+
+function setContextAction(action) {
+  currentAction = action;
+  if (!action) {
+    actionBtn.classList.add("empty");
+    stopHoldAction();
+    return;
+  }
+  actionBtn.classList.remove("empty", "kind-dock", "kind-gate", "kind-loot");
+  if (action.kind !== "mine") actionBtn.classList.add(`kind-${action.kind}`);
+  applyIcon(actionBtnIcon, ACTION_ICONS[action.kind] || "target");
+  actionBtnLabel.textContent = t(`controls.action.${action.kind}`);
+}
+
+function stopHoldAction() {
   const scene = getActiveScene();
   if (scene) scene.touchInput.mining = false;
-};
-mineBtn.addEventListener("pointerup", releaseMineBtn);
-mineBtn.addEventListener("pointerleave", releaseMineBtn);
+}
+
+actionBtn.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  const scene = getActiveScene();
+  if (!scene || !currentAction) return;
+  if (currentAction.hold) {
+    scene.touchInput.mining = true;
+  } else {
+    scene.room?.send("action", { kind: currentAction.kind, id: currentAction.id });
+  }
+});
+actionBtn.addEventListener("pointerup", stopHoldAction);
+actionBtn.addEventListener("pointerleave", stopHoldAction);
+actionBtn.addEventListener("pointercancel", stopHoldAction);
 
 warpBtn.addEventListener("click", () => {
   getActiveScene()?.room?.send("warpToggle");
@@ -492,8 +571,8 @@ function applyStaticTranslations() {
   charCreateToggleBtn.textContent = t("character.createNewToggle");
   charLimitMsg.textContent = t("character.limitReached");
 
-  mineBtn.textContent = t("controls.mine");
-  warpBtn.textContent = t("controls.warp");
+  warpBtnLabel.textContent = t("controls.warp");
+  if (currentAction) actionBtnLabel.textContent = t(`controls.action.${currentAction.kind}`);
   optionsTitleEl.textContent = t("menu.title");
   optionsVersionEl.textContent = GAME_VERSION;
   optionsLangLabelEl.textContent = t("menu.language");
@@ -537,6 +616,36 @@ class ChunkScene extends Phaser.Scene {
     this.lastPinchDistance = null;
   }
 
+  // Retícula del objetivo de la acción contextual. Se crea una sola vez y
+  // se reutiliza moviéndola y ocultándola: crear y destruir un sprite cada
+  // vez que pasas cerca de un asteroide genera basura de memoria que en
+  // móvil se nota como tironcillos.
+  showActionReticle(action) {
+    if (!this.actionReticle) {
+      this.actionReticle = this.add.image(0, 0, "ui-icons", ICON_FRAMES.lockDone);
+      this.actionReticle.setDisplaySize(90, 90);
+      this.actionReticle.setTint(0xffb066);
+      this.actionReticle.setVisible(false);
+      this.worldLayer?.add(this.actionReticle);
+    }
+    if (!action) {
+      this.actionReticle.setVisible(false);
+      this.actionReticleTarget = null;
+      return;
+    }
+    this.actionReticleTarget = action;
+    this.actionReticle.setPosition(action.x, action.y);
+    this.actionReticle.setVisible(true);
+  }
+
+  // La retícula gira despacio sobre sí misma. Es un detalle mínimo, pero
+  // en una pantalla llena de cosas quietas el movimiento lento es lo que
+  // hace que el ojo la encuentre sin buscarla.
+  updateActionReticle(deltaMs) {
+    if (!this.actionReticle?.visible) return;
+    this.actionReticle.rotation += (deltaMs / 1000) * 0.6;
+  }
+
   preload() {
     // Textura de la estela de plasma — un disco suave generado a mano,
     // sin necesidad de un asset nuevo de arte. Pequeño a propósito: con
@@ -548,6 +657,16 @@ class ChunkScene extends Phaser.Scene {
     trailGfx.fillCircle(4, 4, 4);
     trailGfx.generateTexture("plasma-particle", 8, 8);
     trailGfx.destroy();
+
+    // El mismo atlas de iconos que usa el HUD en HTML, cargado también
+    // como hoja de sprites para lo que se dibuja DENTRO del mundo
+    // (asteroides, retículas, futuros marcadores de estación y pecio).
+    // El navegador lo descarga una sola vez y lo reutiliza en los dos
+    // sitios; en el mundo se tiñe por código igual que en el HUD.
+    this.load.spritesheet("ui-icons", `${import.meta.env.BASE_URL}ui/icons.png`, {
+      frameWidth: 256,
+      frameHeight: 256,
+    });
 
     const base = `${import.meta.env.BASE_URL}ships/`;
     this.load.json("shipsCatalog", `${base}ships.json`);
@@ -763,8 +882,12 @@ class ChunkScene extends Phaser.Scene {
     });
 
     this.room.state.asteroids.onAdd((asteroid, id) => {
-      const circle = this.add.circle(asteroid.x, asteroid.y, 22, 0x8a8a8a);
-      circle.setStrokeStyle(1, 0xcccccc);
+      // Antes era un círculo gris dibujado a mano. Ahora usa el icono de
+      // asteroide del atlas (frame 11), teñido de gris piedra: se lee como
+      // una roca irregular y no como una pelota.
+      const circle = this.add.image(asteroid.x, asteroid.y, "ui-icons", ICON_FRAMES.asteroid);
+      circle.setDisplaySize(56, 56);
+      circle.setTint(0x9aa4ad);
       this.worldLayer.add(circle);
       this.asteroidSprites.set(id, circle);
     });
@@ -773,6 +896,15 @@ class ChunkScene extends Phaser.Scene {
       const circle = this.asteroidSprites.get(id);
       if (circle) circle.destroy();
       this.asteroidSprites.delete(id);
+    });
+
+    // El servidor avisa (solo a este cliente, y solo cuando cambia) de qué
+    // tiene a rango. El HUD cambia el botón y en el mundo se dibuja una
+    // retícula sobre el objeto elegido, para que quede claro sobre QUÉ va
+    // a actuar el botón cuando hay varias cosas cerca.
+    this.room.onMessage("action", (action) => {
+      setContextAction(action);
+      this.showActionReticle(action);
     });
 
     this.room.onMessage("pong", (timestamp) => {
@@ -792,12 +924,14 @@ class ChunkScene extends Phaser.Scene {
     } else if (player.warpCooldownRemaining > 0) {
       warpPart = `  |  ${t("hud.warpCooldown", { s: Math.ceil(player.warpCooldownRemaining) })}`;
     }
-    ui.textContent = t("hud.shipCargoHp", {
-      ship: shipPart,
-      cargo: Math.floor(player.cargo),
-      hp: Math.floor(player.hp),
-      ping: pingPart,
-    }) + warpPart;
+    // Carga y casco se muestran con icono en vez de con la palabra
+    // ("Carga:", "HP:"). Ocupan menos en una pantalla de móvil, se leen de
+    // un vistazo sin tener que procesar texto, y no hay que traducirlos.
+    ui.innerHTML =
+      escapeHtml(shipPart) +
+      statChip("cargo", Math.floor(player.cargo)) +
+      statChip("ship", Math.floor(player.hp)) +
+      escapeHtml(pingPart + warpPart);
 
     updateWarpButtonVisual(player);
   }
@@ -820,6 +954,9 @@ class ChunkScene extends Phaser.Scene {
     this.playerEntities.clear();
     this.asteroidSprites.forEach((circle) => circle.destroy());
     this.asteroidSprites.clear();
+    this.actionReticle?.destroy();
+    this.actionReticle = null;
+    setContextAction(null);
     this.localEntry = null;
     this.localPlayerState = null;
   }
@@ -925,6 +1062,7 @@ class ChunkScene extends Phaser.Scene {
     if (!this.room) return;
     this.predictLocalMovement(delta);
     this.interpolateRemotePlayers();
+    this.updateActionReticle(delta);
   }
 
   // Coloca el emisor de la estela detrás de la nave (en el sentido

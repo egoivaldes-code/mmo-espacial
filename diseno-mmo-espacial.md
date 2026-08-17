@@ -901,6 +901,109 @@ físicamente a qué zonas puede ir un jugador — el riesgo de adentrarse en la
 frontera viene de CONCORD/fauna/otros jugadores, no de un límite técnico de
 resistencia del casco.
 
+#### 8.2.1 Quién puede minar — módulo abierto, rendimiento muy desigual
+
+**Minar requiere un módulo que ocupa ranura, y ese módulo puede montarse
+en cualquier casco.** No hay una lista blanca de naves autorizadas: si
+sacrificas una ranura, minas.
+
+**Pero las naves mineras dedicadas extraen muchísimo más**, no un poco
+más. La diferencia es de orden de magnitud, no de porcentaje. Esa
+magnitud es lo que hace que la decisión signifique algo:
+
+- Si la diferencia fuera pequeña (×2), lo óptimo sería minar siempre con
+  nave de combate: minas casi igual y encima puedes defenderte. La nave
+  minera no existiría en la práctica.
+- Con una diferencia grande (~×10 como cifra de trabajo), minar con un
+  casco genérico es **un apaño**: sirve para rascar un asteroide de paso,
+  para salir de un apuro o para empezar. Extraer en serio obliga a sacar
+  la nave minera, que es lenta, frágil y va cargada.
+
+Ese es justamente el objetivo de diseño. La nave minera es **un blanco**:
+el jugador que quiere producir de verdad tiene que exponerse, y eso crea
+por sí solo la necesidad de escolta, la tentación del robo y el motivo
+para tener territorio seguro. Es contenido social que sale gratis de una
+sola decisión numérica — al contrario que un sistema donde todo el mundo
+mina cómodamente en su nave de combate, que no genera ninguna
+interacción entre jugadores.
+
+Consecuencias que esto obliga a respetar en el resto del diseño:
+
+- **La bodega acompaña al bonus.** Una minera que extrae ×10 pero
+  transporta lo mismo que una fragata no gana nada: haría diez viajes.
+  Bodega y rendimiento de extracción van juntos.
+- **El bonus vive en el casco, no en el módulo.** El mismo módulo montado
+  en una minera rinde mucho más que en un crucero. Si el bonus estuviera
+  en el módulo, bastaría con comprar el módulo bueno y montarlo donde
+  fuera.
+- **Ocupar ranura tiene que doler.** Si un acorazado puede llevar el
+  módulo sin renunciar a nada relevante, la restricción es decorativa.
+
+**Pendiente de definir:** el multiplicador exacto por clase de casco
+(~×10 es cifra de trabajo, no medida); si hay varios niveles de módulo
+minero.
+
+#### 8.2.2 Dos arquetipos de nave minera — autónoma e industrial
+
+No hay una sola "nave minera", hay **dos roles distintos**, y la
+diferencia entre ellos no es de potencia sino de si puedes jugar solo:
+
+**Minera autónoma** — extrae bastante y lleva **bodega de mineral
+propia**, separada del pequeño espacio de carga general de la nave.
+Está pensada para el **minero solitario**: sales, llenas, vuelves, vendes.
+Es autosuficiente. No es la forma más eficiente de extraer, pero es la
+única que funciona sin depender de nadie.
+
+**Minera industrial** — extrae **muchísimo más**, pero con bodega
+ridícula. Se llena en poco tiempo y entonces deja de servir. Es
+deliberadamente **inviable en solitario**: obliga a montar una operación
+con **hauleres y cargueros** que retiren el mineral mientras la minera
+sigue extrayendo.
+
+La lógica de diseño es que el eje de progresión no sea "nave mejor" sino
+**"organización mejor"**. La industrial no es un upgrade de la autónoma
+que se compra y ya: es una nave que solo rinde si tienes gente. Un jugador
+solitario con la nave industrial extrae peor que con la autónoma, aunque
+la industrial mine el triple. Eso convierte a la corporación (§6) en algo
+que sirve para producir, no solo para pelear por territorio.
+
+**La bodega de mineral es un inventario aparte.** No es "más espacio de
+carga": es un compartimento que solo acepta mineral bruto, y convive con
+la bodega general pequeña donde caben módulos, munición y demás. Se
+separan porque si fueran el mismo saco, el jugador podría vaciar la
+bodega general para minar más, y la restricción de la industrial —que es
+todo el punto de su diseño— se esquivaría llevando la nave vacía.
+
+**Pendiente de definir:** cifras concretas de extracción y bodega para
+cada arquetipo; cuántas naves del catálogo de 41 se reasignan a estos
+roles (hoy ninguna es minera); si los gases y los orgánicos usan el mismo
+módulo y la misma bodega o requieren los suyos.
+
+#### 8.2.3 Consecuencia obligatoria — mover mineral entre naves
+
+La minera industrial **no puede existir sin una forma de pasar el mineral
+a otra nave en pleno espacio**, y esa mecánica no existe todavía. Es una
+dependencia dura, no un adorno: sin ella, el arquetipo industrial es
+simplemente una nave peor.
+
+Tres formas posibles, con consecuencias distintas:
+
+| Opción | Cómo funciona | Qué implica |
+|---|---|---|
+| **Contenedor flotante** | La minera suelta el mineral en un bulto que queda en el espacio; el carguero lo recoge | Lo más simple de implementar y ya encaja con la acción `loot` (15.4). **Cualquiera puede robarlo**, incluido un tercero que pase por ahí |
+| **Transferencia directa** | Minera y carguero acercados, el mineral pasa de bodega a bodega | Sin riesgo de robo, pero obliga al carguero a quedarse quieto al lado — se convierte en blanco junto a la minera |
+| **Bodega de flota compartida** | El carguero ofrece un compartimento al que la minera vuelca directamente | Lo más cómodo y lo menos interesante: elimina el momento de vulnerabilidad, que es justamente lo que hace la operación tensa |
+
+El contenedor flotante es el candidato natural porque **reutiliza piezas
+que ya están decididas**: la acción contextual `loot` y su icono ya
+existen, y el robo de carga ajena ya es un acto agresivo definido que
+dispara CONCORD (4.3). Introduce riesgo sin introducir sistemas nuevos.
+
+**Pendiente de decidir:** cuál de las tres, o combinación; si el
+contenedor flotante caduca con el tiempo; si volcar a un contenedor
+propio y que otro se lo lleve cuenta como robo o hay concepto de
+propiedad sobre el bulto.
+
 **Pendiente de definir:** listado concreto de tipos de recursos y sus
 niveles de rareza, si los gases/orgánicos tienen usos distintos a los
 minerales (¿solo crafteo de módulos, o también consumibles/combustible?).
@@ -1123,6 +1226,22 @@ jugadores?).
 - Valores exactos de tiempo de alineación por clase de nave (5.7)
 - Coste (combustible/energía) del warp, y si se puede cancelar en curso (5.7)
 - Proporción de sistemas binarios frente a estrella única (5.6.0)
+- ¿Existe un overview textual tipo EVE, o el HUD se queda solo con
+  marcadores gráficos? (15.6)
+- Cómo se muestran escudo/armadura/casco cuando sean tres capas separadas
+  (15.6)
+- ~~Qué naves llevan capacidad de minado~~ — resuelto: **módulo que ocupa
+  ranura en cualquier casco**, pero las naves mineras dedicadas extraen
+  del orden de ×10 más (8.2.1)
+- Multiplicador exacto de extracción por clase de casco (8.2.1)
+- ¿Gases y orgánicos usan el mismo módulo minero o uno propio, y la misma
+  bodega de mineral? (8.2.1, 8.2.2)
+- **Cómo se mueve el mineral de la minera industrial al carguero**:
+  contenedor flotante, transferencia directa o bodega de flota (8.2.3) —
+  bloquea el arquetipo industrial por completo
+- Cifras de extracción y bodega de cada arquetipo minero (8.2.2)
+- ¿Hay propiedad sobre un contenedor soltado en el espacio, o recogerlo es
+  siempre legítimo? (8.2.3)
 - Si el tipo de estrella influye mecánicamente (radiación, escudos) o es
   solo visual (5.6.0)
 - ~~Mecánica de escaneo para encontrar puntos de salto~~ — resuelta: pulso
@@ -1255,7 +1374,8 @@ todavía.
    diseño definitivo — ver 5.5), sin sistema de descubrimiento ni
    CONCORD todavía.
 5. Control completo: teclado (WASD) y táctil (joystick que aparece donde
-   tocas + botón de minar), pensado para jugarse desde el móvil.
+   tocas + botón de acción contextual), pensado para jugarse desde el
+   móvil.
 6. Cliente robusto: indicador de ping real, reconexión automática si se
    cae la conexión, aviso de "servidor despertando" (Render free tier).
 7. Dos pantallas antes de entrar: changelog scrolleable con barra de
@@ -1266,6 +1386,10 @@ todavía.
    motor real en el juego (todavía una única nave inicial para todos).
    La naveteca (`client/public/naveteca/`) es editor, no solo visor.
 9. Menú de opciones con "Cerrar juego", versión visible en pantalla.
+10. Iconografía propia y botón de acción contextual (ver 15): atlas de 16
+    iconos compartido entre HUD y mundo, un único botón que cambia de
+    significado según lo que haya a rango, decidido por el servidor y
+    enviado por mensaje privado solo al cambiar.
 
 **Todavía fuera del prototipo:** modo a pie/estaciones, crafteo real de
 naves (más allá de usar el sprite/stats ya catalogados), selección de
@@ -1333,3 +1457,168 @@ editor de código en el navegador).
 - Historial completo en `CHANGELOG.md` (raíz del repo y
   `client/public/CHANGELOG.md`, esta última es la copia que lee el propio
   juego en la pantalla de inicio).
+
+---
+
+## 15. Interfaz
+
+Sección añadida al final para no renumerar las anteriores: hay
+referencias cruzadas por todo el documento ("ver 5.7") que se romperían.
+
+### 15.1 Principio — el mundo es el juego, la interfaz estorba
+
+El juego se juega **en móvil, en vertical, con un pulgar**. Esa es la
+restricción que manda sobre todo lo demás: cada elemento permanente de
+interfaz es superficie de pantalla que deja de ser espacio. Por tanto:
+
+- **Nada permanente que no se use constantemente.** Un botón que solo
+  sirve a veces no se queda apagado ocupando sitio: desaparece.
+- **Iconos antes que palabras.** Se leen de un vistazo, ocupan menos y no
+  hay que traducirlos.
+- **Ningún menú anidado en el HUD de vuelo.** Si algo necesita submenús,
+  es un panel aparte (inventario, mapa, gestión de corporación), no parte
+  de la interfaz de pilotar.
+
+### 15.2 Separación mundo / interfaz
+
+Dos capas con tecnologías distintas, decidido en v0.1.4 y confirmado
+aquí:
+
+| Capa | Tecnología | Qué contiene |
+|---|---|---|
+| Mundo | Phaser (canvas) | Naves, asteroides, estrella, estelas, retículas, marcadores sobre objetos |
+| Interfaz | HTML/CSS nativo | Botones, paneles, menús, contadores, texto |
+
+El motivo es la nitidez: el navegador dibuja HTML a la resolución real de
+la pantalla sin configurar nada, mientras que el texto y las formas
+dibujadas dentro del canvas hay que corregirlas a mano y aun así se
+degradan con el zoom. Regla práctica: **si tiene coordenadas en el
+espacio, es Phaser; si está pegado al borde de la pantalla, es HTML.**
+
+### 15.3 Iconografía — un solo archivo, teñido por código
+
+Los iconos viven en **un único atlas** (`client/public/ui/icons.png`,
+rejilla 4×4 de celdas de 256 px, fondo transparente). Dos razones:
+
+1. **Una descarga en vez de dieciséis.** En móvil con conexión mala, esa
+   es la diferencia entre ver el HUD entero de golpe o verlo aparecer a
+   trozos.
+2. **El mismo archivo sirve a las dos capas.** En HTML se usa como
+   *máscara* CSS; en Phaser como hoja de sprites. El navegador lo
+   descarga una sola vez y lo reutiliza.
+
+**Los iconos se dibujan en blanco y se colorean por código**
+(`background-color` en CSS, `setTint` en Phaser). Un solo dibujo de nave
+sirve para amigo, enemigo, neutral y apagado. Guardar una imagen por
+color multiplicaría el peso sin ganar nada, y ataría el color a la
+imagen: los colores de facción y de estado cambiarán mucho durante el
+desarrollo, la forma de una nave no.
+
+Contenido del atlas v0.2.0 (índices 0-15, orden de lectura):
+
+| # | Icono | Uso |
+|---|---|---|
+| 0 | Warp | Botón de warp |
+| 1 | Escanear | Módulo de escaneo direccional (5.5.2) — reservado |
+| 2 | Atracar | Acción contextual: estación |
+| 3 | Mapa | Mapa del sistema / grilla — reservado |
+| 4 | Carga | Contador de bodega en el HUD |
+| 5 | Objetivo | Fijar blanco — reservado |
+| 6 | Minar | Acción contextual: asteroide |
+| 7 | Arma | Combate (8.4) — reservado |
+| 8 | Nave | Integridad del casco en el HUD; marcador de nave |
+| 9 | Estación | Marcador de estación (§3) — reservado |
+| 10 | Punto de salto | Acción contextual: activar salto (5.5) |
+| 11 | Asteroide | Sprite de asteroide en el mundo |
+| 12 | Contenedor | Acción contextual: abrir pecio |
+| 13 | Ruina precursora | Marcador de anomalía (5.6.2) — reservado |
+| 14 | Retícula fijando | Bloqueo en curso |
+| 15 | Retícula fijado | Objetivo de la acción contextual |
+
+Los marcados "reservado" están dibujados pero sin uso hasta que exista la
+mecánica correspondiente. Están de antemano a propósito: el estilo
+gráfico sale coherente cuando los iconos se generan de una tirada, no de
+uno en uno a lo largo de meses.
+
+### 15.4 Botón de acción contextual
+
+**Hay un único botón de acción**, y su significado lo determina lo que el
+jugador tenga a rango:
+
+| Acción | Objeto | Pulsación |
+|---|---|---|
+| `mine` | Asteroide, y solo con módulo de minado montado | Mantener |
+| `dock` | Estación atracable (§3) | Un toque |
+| `gate` | Punto de salto reconocido (5.5) | Un toque |
+| `loot` | Pecio / contenedor | Un toque |
+
+Reglas:
+
+- **Gana lo más cercano.** Sin menús, sin listas, sin desambiguación por
+  parte del jugador. Si hay varias cosas cerca, una **retícula sobre el
+  objeto elegido** dice cuál es; para cambiar de objetivo, te acercas al
+  otro.
+- **Si no hay nada a rango, el botón no existe** — no aparece apagado.
+- **El equipamiento filtra la acción.** Una nave sin módulo de minado
+  montado sencillamente no ve el botón junto a un asteroide (ver 8.2.1).
+  Lo que decide es la ranura ocupada, no la clase de casco: cualquiera
+  puede montar el módulo, pero la clase determina cuánto extrae, y la
+  diferencia es de orden de magnitud.
+- **El botón no comunica el rendimiento.** Un crucero con módulo minero
+  ve exactamente el mismo botón que una minera dedicada; lo que cambia es
+  la velocidad a la que sube el contador de bodega. La interfaz no tiene
+  que avisar de que estás minando mal — el número lo dice solo.
+
+**Qué NO es este botón:** no es una barra de acciones que se vaya
+llenando. Si un objeto admite varias cosas (atracar en una estación y
+además repararse), la acción contextual es solo la principal —
+"atracar" — y el resto vive dentro del panel de la estación, no en el
+HUD de vuelo.
+
+### 15.5 Quién decide la acción — el servidor
+
+El servidor calcula qué acción tiene disponible cada jugador y se lo
+comunica. **El cliente solo dibuja lo que le dicen.** Si lo decidiera el
+cliente, bastaría con manipularlo para atracar desde fuera de rango o
+minar sin nave minera. El servidor vuelve a validar la capacidad al
+ejecutar la acción, no solo al ofrecerla.
+
+**Cómo viaja el dato, y por qué así.** No va por el estado replicado de
+Colyseus. El estado es una pizarra compartida que se difunde a todos los
+jugadores de la sala: poner ahí "este jugador tiene un asteroide a rango"
+haría que ese dato llegue a los otros cuarenta y nueve pilotos del
+sistema, a quienes no les sirve de nada. En su lugar:
+
+- **Mensaje directo** al cliente afectado (`client.send`), no estado
+  compartido.
+- **Solo cuando el resultado cambia** respecto al anterior. Volando por
+  el vacío no se transmite nada en absoluto.
+- **A 4 Hz, no a los 20 Hz del tick de simulación.** Nadie percibe 250 ms
+  de retraso en que se ilumine un botón, y recalcularlo veinte veces por
+  segundo sería tirar el 80% del cálculo a la basura.
+
+Este patrón —*información que solo le importa a un jugador va por mensaje
+privado, con envío por cambio y no por tick*— debería ser la norma para
+todo lo que sea interfaz: avisos, resultados de escaneo, notificaciones
+de corporación. El estado replicado se reserva para lo que de verdad
+tienen que ver todos: posiciones, estructuras, propiedad.
+
+**Deuda técnica reconocida.** La búsqueda de lo que hay a rango recorre
+hoy todos los objetos del chunk por cada jugador. Con pocos pilotos y 120
+asteroides es irrelevante. Cuando un chunk tenga cientos de objetos y
+decenas de naves hará falta una **rejilla espacial** (dividir el chunk en
+casillas y consultar solo las nueve vecinas). No se implementa todavía a
+propósito: añade complejidad para resolver un problema que aún no existe,
+y encaja de forma natural con el trabajo de degradación bajo carga (5.4),
+que necesitará esa misma rejilla para construir el área de interés.
+
+### 15.6 Pendiente de diseñar
+
+- Disposición del HUD en horizontal y en pantallas grandes (hoy todo está
+  pensado para vertical a una mano).
+- Panel de estación: qué se ve al atracar y cómo se navega (§3).
+- Representación de escudo/armadura/casco cuando existan las tres capas
+  (8.4): hoy solo hay un número de integridad.
+- Overview tipo EVE (lista textual de objetos del sistema) — si existe,
+  cómo convive con un HUD pensado para no tener listas.
+- Marcadores en el borde de la pantalla para objetos fuera de vista.

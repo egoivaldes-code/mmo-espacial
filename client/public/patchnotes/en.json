@@ -1,5 +1,15 @@
 [
   {
+    "version": "v0.2.0",
+    "highlights": [
+      "New interface icons: 16 custom symbols (warp, mine, dock, jump point, asteroid, wreck, ruin…) packed into a single image that loads in one go.",
+      "The mine button becomes a single ACTION button that changes with whatever is in range: mine, dock, activate jump point or open a wreck.",
+      "A rotating reticle marks on screen which object the button will act on.",
+      "Asteroids now look like irregular rocks instead of grey circles.",
+      "Mining now depends on a module that takes up a slot and fits any ship — but dedicated mining ships will extract far more."
+    ]
+  },
+  {
     "version": "v0.1.4",
     "highlights": [
       "Sharpness fixed at the root: buttons and menus are now native browser UI instead of game rendering — they look perfect on any screen."

@@ -19,7 +19,6 @@
     "defaultName": "Pilot-{n}"
   },
   "hud": {
-    "shipCargoHp": "{ship}Cargo: {cargo}  |  HP: {hp}{ping}",
     "pingSuffix": "  |  Ping: {ms}ms",
     "connectedSession": "Connected. Session: {id}",
     "reconnecting": "Connection lost. Reconnecting… (attempt {attempt}/{max})",
@@ -40,7 +39,12 @@
     "gameClosedLine2": "Reload the page to play again."
   },
   "controls": {
-    "mine": "MINE",
-    "warp": "WARP"
+    "warp": "WARP",
+    "action": {
+      "mine": "MINE",
+      "dock": "DOCK",
+      "gate": "JUMP",
+      "loot": "OPEN"
+    }
   }
 }

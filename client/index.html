@@ -20,6 +20,12 @@
       font-family: monospace; font-size: clamp(11px, 2.6vw, 14px); z-index: 10;
       pointer-events: none;
     }
+    /* Dato del HUD con su icono delante (carga, integridad del casco). */
+    .hud-stat {
+      display: inline-flex; align-items: center; gap: 4px;
+      margin-right: 12px; vertical-align: middle;
+    }
+    .hud-stat .ui-icon { width: 1.15em; height: 1.15em; opacity: 0.85; }
 
     /* --- Pantallas previas (patch notes + selección de personaje) --- */
     .overlay-screen {
@@ -127,19 +133,62 @@
       display: flex; align-items: center; justify-content: center;
     }
     #options-gear-btn:active { background: #1c2534; }
+    /* --- Iconos de interfaz --------------------------------------------
+       Los 16 iconos viven en UNA sola imagen (ui/icons.png, rejilla 4x4).
+       Una descarga en vez de dieciséis: en móvil con conexión lenta esa
+       es la diferencia entre ver el HUD al instante o verlo aparecer a
+       trozos.
+
+       No se pinta la imagen: se usa como MÁSCARA (mask). La imagen dice
+       "qué forma tiene el icono" y el color lo pone `background-color`,
+       heredado del texto del botón. Así el mismo dibujo de nave sirve
+       para verde (amigo), rojo (enemigo) o gris (apagado) sin guardar
+       tres imágenes distintas.
+
+       --ix / --iy son la columna y fila del icono dentro de la rejilla
+       (0 a 3). La URL la inyecta main.js, porque el juego se publica en
+       un subdirectorio y ahí la ruta correcta solo se conoce en JS. */
+    .ui-icon {
+      display: block;
+      width: 100%; height: 100%;
+      background-color: currentColor;
+      -webkit-mask-image: var(--icons-url); mask-image: var(--icons-url);
+      -webkit-mask-size: 400% 400%; mask-size: 400% 400%;
+      -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+      -webkit-mask-position: calc(var(--ix) * 33.3333%) calc(var(--iy) * 33.3333%);
+      mask-position: calc(var(--ix) * 33.3333%) calc(var(--iy) * 33.3333%);
+    }
+
     #action-buttons {
       position: absolute; right: 20px; bottom: 20px; pointer-events: none;
-      display: flex; gap: 16px;
+      display: flex; gap: 16px; align-items: flex-end;
     }
     .hud-round-btn {
-      pointer-events: auto;
+      pointer-events: auto; position: relative;
       width: clamp(72px, 20vw, 92px); height: clamp(72px, 20vw, 92px);
       border-radius: 50%; border: 2px solid; cursor: pointer;
-      font-family: monospace; font-size: clamp(11px, 2.8vw, 13px);
-      color: #ffffff; display: flex; align-items: center; justify-content: center;
+      color: #ffffff; padding: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2px;
       -webkit-tap-highlight-color: transparent;
+      transition: opacity 120ms linear, transform 80ms linear;
     }
-    #mine-btn { background: rgba(255, 102, 68, 0.3); border-color: rgba(255, 102, 68, 0.8); }
+    .hud-round-btn:active { transform: scale(0.94); }
+    .hud-round-btn .ui-icon { width: 46%; height: 46%; flex-shrink: 0; }
+    .hud-round-btn .btn-label {
+      font-family: monospace; font-size: clamp(8px, 2.1vw, 10px);
+      letter-spacing: 0.5px; line-height: 1; opacity: 0.85;
+    }
+
+    /* El botón de acción es uno solo y cambia de significado según lo que
+       tengas a rango. Cuando no hay nada accionable no se queda ahí
+       apagado ocupando sitio: desaparece y deja de recibir toques. */
+    #action-btn { background: rgba(255, 102, 68, 0.3); border-color: rgba(255, 102, 68, 0.8); }
+    #action-btn.empty { opacity: 0; pointer-events: none; }
+    #action-btn.kind-dock { background: rgba(80, 160, 255, 0.3); border-color: rgba(80, 160, 255, 0.8); }
+    #action-btn.kind-gate { background: rgba(170, 120, 255, 0.3); border-color: rgba(170, 120, 255, 0.8); }
+    #action-btn.kind-loot { background: rgba(230, 190, 90, 0.3); border-color: rgba(230, 190, 90, 0.8); }
+
     #warp-btn { background: rgba(51, 204, 102, 0.3); border-color: rgba(51, 204, 102, 0.8); }
     #warp-btn.charging { background: rgba(208, 160, 48, 0.3); border-color: rgba(208, 160, 48, 0.8); }
     #warp-btn.warping { background: rgba(51, 153, 255, 0.3); border-color: rgba(51, 153, 255, 0.8); }
@@ -213,8 +262,14 @@
     <div id="version-badge"></div>
     <button id="options-gear-btn">⚙</button>
     <div id="action-buttons">
-      <button id="warp-btn" class="hud-round-btn"></button>
-      <button id="mine-btn" class="hud-round-btn"></button>
+      <button id="warp-btn" class="hud-round-btn">
+        <i class="ui-icon" style="--ix:0; --iy:0;"></i>
+        <span class="btn-label"></span>
+      </button>
+      <button id="action-btn" class="hud-round-btn empty">
+        <i class="ui-icon" style="--ix:2; --iy:1;"></i>
+        <span class="btn-label"></span>
+      </button>
     </div>
   </div>
 

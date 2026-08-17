@@ -104,6 +104,86 @@
     @media (min-width: 900px) {
       #character-screen .char-box { width: min(400px, 60vw); }
     }
+
+    /* --- Interfaz de juego en HTML (no Phaser) — botones, menú, versión.
+       Solo el "mundo" (naves, asteroides, estrellas, estela, joystick)
+       vive dentro del canvas; lo que es interfaz pura se renderiza como
+       HTML normal, que el navegador ya sabe pintar nítido en cualquier
+       pantalla sin necesidad de configurar nada. --- */
+    #game-hud {
+      position: fixed; inset: 0; z-index: 15; pointer-events: none;
+      display: none; /* se muestra solo cuando el juego arranca */
+    }
+    #version-badge {
+      position: absolute; top: 10px; right: 10px;
+      font-family: monospace; font-size: clamp(10px, 2.4vw, 12px);
+      color: #7d93b0;
+    }
+    #options-gear-btn {
+      position: absolute; right: 20px; bottom: 150px; pointer-events: auto;
+      width: clamp(44px, 10vw, 52px); height: clamp(44px, 10vw, 52px);
+      border-radius: 8px; border: none; background: #141a24; color: #cfe8ff;
+      font-size: clamp(18px, 4.5vw, 22px); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #options-gear-btn:active { background: #1c2534; }
+    #action-buttons {
+      position: absolute; right: 20px; bottom: 20px; pointer-events: none;
+      display: flex; gap: 16px;
+    }
+    .hud-round-btn {
+      pointer-events: auto;
+      width: clamp(72px, 20vw, 92px); height: clamp(72px, 20vw, 92px);
+      border-radius: 50%; border: 2px solid; cursor: pointer;
+      font-family: monospace; font-size: clamp(11px, 2.8vw, 13px);
+      color: #ffffff; display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #mine-btn { background: rgba(255, 102, 68, 0.3); border-color: rgba(255, 102, 68, 0.8); }
+    #warp-btn { background: rgba(51, 204, 102, 0.3); border-color: rgba(51, 204, 102, 0.8); }
+    #warp-btn.charging { background: rgba(208, 160, 48, 0.3); border-color: rgba(208, 160, 48, 0.8); }
+    #warp-btn.warping { background: rgba(51, 153, 255, 0.3); border-color: rgba(51, 153, 255, 0.8); }
+    #warp-btn.cooldown { background: rgba(85, 85, 85, 0.3); border-color: rgba(85, 85, 85, 0.8); }
+
+    /* Panel de opciones */
+    #options-panel {
+      position: fixed; inset: 0; z-index: 40; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+    }
+    #options-panel .panel-box {
+      background: #0a0e16; border: 1px solid #334455; border-radius: 8px;
+      padding: 20px; width: min(280px, 85vw); position: relative;
+      color: #cfe8ff; font-family: system-ui, sans-serif;
+    }
+    #options-panel h2 { font-size: 15px; margin: 0 0 2px; color: #cfe8ff; }
+    #options-panel .panel-version { font-size: 11px; color: #7d93b0; margin-bottom: 14px; }
+    #options-panel .panel-section-label { font-size: 11px; color: #7d93b0; margin-bottom: 6px; }
+    .lang-option {
+      display: block; width: 100%; text-align: left; padding: 8px 10px;
+      margin-bottom: 4px; background: transparent; border: none;
+      color: #cfe8ff; font-size: 13px; cursor: pointer; border-radius: 6px;
+    }
+    .lang-option.current { color: #66ccff; }
+    .lang-option:active { background: #141a24; }
+    #options-close-dismiss {
+      position: absolute; top: 10px; right: 12px; background: none; border: none;
+      color: #889; font-size: 16px; cursor: pointer;
+    }
+    #close-game-btn {
+      width: 100%; margin-top: 16px; padding: 10px; border-radius: 6px; border: none;
+      background: #883333; color: #ffffff; font-size: 14px; cursor: pointer;
+    }
+    #close-game-btn:active { background: #6e2828; }
+
+    /* Pantalla de "juego cerrado" */
+    #game-closed-overlay {
+      position: fixed; inset: 0; z-index: 50; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, 0.92); color: #cfe8ff;
+      font-family: system-ui, sans-serif; font-size: 16px; text-align: center;
+      white-space: pre-line;
+    }
   </style>
 </head>
 <body>
@@ -128,6 +208,28 @@
       <div id="char-status"></div>
     </div>
   </div>
+
+  <div id="game-hud">
+    <div id="version-badge"></div>
+    <button id="options-gear-btn">⚙</button>
+    <div id="action-buttons">
+      <button id="warp-btn" class="hud-round-btn"></button>
+      <button id="mine-btn" class="hud-round-btn"></button>
+    </div>
+  </div>
+
+  <div id="options-panel">
+    <div class="panel-box">
+      <button id="options-close-dismiss">✕</button>
+      <h2 id="options-title">Opciones</h2>
+      <div class="panel-version" id="options-version"></div>
+      <div class="panel-section-label" id="options-lang-label">Idioma</div>
+      <div id="lang-options"></div>
+      <button id="close-game-btn">Cerrar juego</button>
+    </div>
+  </div>
+
+  <div id="game-closed-overlay"></div>
 
   <div id="ui">Conectando…</div>
   <script type="module" src="/src/main.js"></script>

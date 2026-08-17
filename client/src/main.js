@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.1.2";
+const GAME_VERSION = "v0.1.4";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -277,6 +277,84 @@ const introContinueBtn = document.getElementById("intro-continue-btn");
 const introScreen = document.getElementById("intro-screen");
 const characterScreen = document.getElementById("character-screen");
 
+// ============================================================================
+// HUD de juego en HTML — botones, engranaje, panel de opciones, versión,
+// pantalla de cierre. Todo lo que es interfaz pura (no "mundo del juego")
+// vive aquí, no en el canvas de Phaser — el navegador ya sabe renderizar
+// HTML nítido en cualquier pantalla sin configuración especial, cosa que
+// Phaser no garantiza igual de bien para texto/formas dibujadas a mano.
+// ============================================================================
+
+const gameHud = document.getElementById("game-hud");
+const versionBadge = document.getElementById("version-badge");
+const optionsGearBtn = document.getElementById("options-gear-btn");
+const warpBtn = document.getElementById("warp-btn");
+const mineBtn = document.getElementById("mine-btn");
+const optionsPanel = document.getElementById("options-panel");
+const optionsCloseDismiss = document.getElementById("options-close-dismiss");
+const optionsTitleEl = document.getElementById("options-title");
+const optionsVersionEl = document.getElementById("options-version");
+const optionsLangLabelEl = document.getElementById("options-lang-label");
+const langOptionsEl = document.getElementById("lang-options");
+const closeGameBtn = document.getElementById("close-game-btn");
+const gameClosedOverlay = document.getElementById("game-closed-overlay");
+
+// La escena activa de Phaser expone `room` y `touchInput` — los botones
+// HTML necesitan llegar hasta ahí para mandar mensajes / marcar minado
+// continuo, sin acoplarse a los internos del resto del juego.
+function getActiveScene() {
+  return gameInstance?.scene?.getScene("chunk") || null;
+}
+
+versionBadge.textContent = GAME_VERSION;
+
+mineBtn.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  const scene = getActiveScene();
+  if (scene) scene.touchInput.mining = true;
+});
+const releaseMineBtn = () => {
+  const scene = getActiveScene();
+  if (scene) scene.touchInput.mining = false;
+};
+mineBtn.addEventListener("pointerup", releaseMineBtn);
+mineBtn.addEventListener("pointerleave", releaseMineBtn);
+
+warpBtn.addEventListener("click", () => {
+  getActiveScene()?.room?.send("warpToggle");
+});
+
+function renderLangOptions() {
+  langOptionsEl.innerHTML = "";
+  AVAILABLE_LANGUAGES.forEach((lang) => {
+    const isCurrent = lang.code === currentLang;
+    const btn = document.createElement("button");
+    btn.className = "lang-option" + (isCurrent ? " current" : "");
+    btn.textContent = `${isCurrent ? "● " : "○ "}${lang.label}`;
+    btn.addEventListener("click", () => setLanguage(lang.code));
+    langOptionsEl.appendChild(btn);
+  });
+}
+
+function toggleOptionsPanel() {
+  optionsPanel.style.display = optionsPanel.style.display === "flex" ? "none" : "flex";
+}
+optionsGearBtn.addEventListener("click", toggleOptionsPanel);
+optionsCloseDismiss.addEventListener("click", toggleOptionsPanel);
+
+closeGameBtn.addEventListener("click", () => {
+  getActiveScene()?.closeGame();
+});
+
+// Refleja en el botón de warp el estado real que manda el servidor —
+// listo/cargando/viajando/enfriando — con solo cambiar una clase CSS.
+function updateWarpButtonVisual(player) {
+  warpBtn.classList.remove("charging", "warping", "cooldown");
+  if (player.warping) warpBtn.classList.add("warping");
+  else if (player.warpCharging) warpBtn.classList.add("charging");
+  else if (player.warpCooldownRemaining > 0) warpBtn.classList.add("cooldown");
+}
+
 onStatusChange((text) => {
   loadStatusEl.textContent = text;
 });
@@ -413,6 +491,14 @@ function applyStaticTranslations() {
   charCreateBtn.textContent = t("character.createButton");
   charCreateToggleBtn.textContent = t("character.createNewToggle");
   charLimitMsg.textContent = t("character.limitReached");
+
+  mineBtn.textContent = t("controls.mine");
+  warpBtn.textContent = t("controls.warp");
+  optionsTitleEl.textContent = t("menu.title");
+  optionsVersionEl.textContent = GAME_VERSION;
+  optionsLangLabelEl.textContent = t("menu.language");
+  closeGameBtn.textContent = t("menu.closeGame");
+  renderLangOptions();
 }
 
 // ============================================================================
@@ -485,14 +571,6 @@ class ChunkScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#05050a");
     this.cameras.main.setZoom(DEFAULT_ZOOM);
 
-    // Los objetos Text de Phaser renderizan su propio bitmap interno a
-    // resolución 1 por defecto, INDEPENDIENTEMENTE del `resolution` del
-    // canvas general — por eso salían borrosos en pantallas de alta
-    // densidad aunque el resto del render ya estuviera nítido. Se aplica
-    // a cada `this.add.text(...)` de la escena. Tope en 3 para no gastar
-    // memoria de más en dispositivos con devicePixelRatio muy alto.
-    this.textResolution = Math.min(window.devicePixelRatio || 1, 3);
-
     // Cámara de HUD dedicada, siempre a zoom 1 y sin scroll. Antes el HUD
     // (menú, versión, botón de minar, joystick) se dibujaba en la cámara
     // principal con scrollFactor(0) + un setScale(1/zoom) manual por
@@ -523,7 +601,7 @@ class ChunkScene extends Phaser.Scene {
     this.drawWorldBorder();
     this.setupInput();
     this.setupZoom();
-    this.createTopBarUI();
+    gameHud.style.display = "block"; // el HUD (versión, engranaje, botones) es HTML normal
     this.setupVisibilityRetry();
 
     await this.connectToServer();
@@ -607,7 +685,7 @@ class ChunkScene extends Phaser.Scene {
       // El nombre no se muestra sobre la propia nave — solo tiene
       // sentido para identificar a los demás jugadores en pantalla.
       const label = this.add
-        .text(0, 22, isMe ? "" : player.name, { fontSize: "10px", color: "#cfe8ff", resolution: this.textResolution })
+        .text(0, 22, isMe ? "" : player.name, { fontSize: "10px", color: "#cfe8ff" })
         .setOrigin(0.5, 0);
       const container = this.add.container(player.x, player.y, [sprite, label]);
       this.worldLayer.add(container);
@@ -721,19 +799,7 @@ class ChunkScene extends Phaser.Scene {
       ping: pingPart,
     }) + warpPart;
 
-    this.updateWarpButtonVisual(player);
-  }
-
-  // El botón de warp cambia de color según el estado real que manda el
-  // servidor: verde normal, ámbar cargando, azul viajando, gris enfriando.
-  updateWarpButtonVisual(player) {
-    if (!this.warpButtonCircle) return;
-    let color = 0x33cc66; // listo
-    if (player.warping) color = 0x3399ff;
-    else if (player.warpCharging) color = 0xd0a030;
-    else if (player.warpCooldownRemaining > 0) color = 0x555555;
-    this.warpButtonCircle.setFillStyle(color, 0.3);
-    this.warpButtonCircle.setStrokeStyle(2, color, 0.8);
+    updateWarpButtonVisual(player);
   }
 
   startPingLoop() {
@@ -833,8 +899,6 @@ class ChunkScene extends Phaser.Scene {
     this.input.keyboard.on("keydown-E", () => this.room?.send("warpToggle"));
 
     if (this.sys.game.device.input.touch) {
-      this.setupMiningButton();
-      this.setupWarpButton();
       this.setupTouchMovementAndZoom();
     }
 
@@ -1091,96 +1155,19 @@ class ChunkScene extends Phaser.Scene {
     });
   }
 
-  // ---- Controles táctiles: botón de minar, joystick, y pellizco de zoom ----
-
-  setupMiningButton() {
-    const margin = 70;
-    const radius = 45;
-    const x = this.scale.width - margin;
-    const y = this.scale.height - margin;
-
-    const circle = this.add
-      .circle(x, y, radius, 0xff6644, 0.3)
-      .setDepth(100)
-      .setStrokeStyle(2, 0xff6644, 0.8)
-      .setInteractive({ useHandCursor: true });
-    this.hudLayer.add(circle);
-
-    const label = this.add
-      .text(x, y, t("controls.mine"), { fontSize: "12px", color: "#ffffff", resolution: this.textResolution })
-      .setOrigin(0.5)
-      .setDepth(101);
-    this.hudLayer.add(label);
-
-    // Margen de exclusión para que un toque cerca del botón (no exacto)
-    // no dispare un joystick que lo tape visualmente. 15px era poco para
-    // un pulgar real; con 40 el radio de exclusión (85px) queda por
-    // encima del radio del propio joystick (60px), así que un joystick
-    // que nazca justo fuera de la zona de exclusión ya no llega a
-    // solaparse con el botón.
-    this.miningButtonBounds = { x, y, radius: radius + 40 };
-
-    circle.on("pointerdown", (pointer) => {
-      this.touchInput.mining = true;
-      this.touchPurpose.set(pointer.id, "mining");
-    });
-    const releaseMining = (pointer) => {
-      this.touchInput.mining = false;
-      if (this.touchPurpose.get(pointer.id) === "mining") this.touchPurpose.delete(pointer.id);
-    };
-    circle.on("pointerup", releaseMining);
-    circle.on("pointerout", releaseMining);
-  }
-
-  // Botón verde de warp, justo a la izquierda del de minar. El estado
-  // real (cargando/viajando/enfriando) lo decide el servidor — este
-  // botón solo manda "warpToggle" y refleja lo que diga player.onChange.
-  setupWarpButton() {
-    const marginX = 70;
-    const marginY = 70;
-    const radius = 45;
-    const gap = 110; // separación entre centros, mismo criterio que el resto de botones
-    const x = this.scale.width - marginX - gap;
-    const y = this.scale.height - marginY;
-
-    const circle = this.add
-      .circle(x, y, radius, 0x33cc66, 0.3)
-      .setDepth(100)
-      .setStrokeStyle(2, 0x33cc66, 0.8)
-      .setInteractive({ useHandCursor: true });
-    this.hudLayer.add(circle);
-
-    const label = this.add
-      .text(x, y, t("controls.warp"), { fontSize: "12px", color: "#ffffff", resolution: this.textResolution })
-      .setOrigin(0.5)
-      .setDepth(101);
-    this.hudLayer.add(label);
-
-    this.warpButtonCircle = circle;
-    this.warpButtonBounds = { x, y, radius: radius + 40 };
-
-    circle.on("pointerdown", (pointer) => {
-      this.touchPurpose.set(pointer.id, "warp");
-      this.room?.send("warpToggle");
-    });
-    const releaseWarp = (pointer) => {
-      if (this.touchPurpose.get(pointer.id) === "warp") this.touchPurpose.delete(pointer.id);
-    };
-    circle.on("pointerup", releaseWarp);
-    circle.on("pointerout", releaseWarp);
-  }
-
-  // Un único listener de pointerdown/move/up gestiona tres cosas a la vez:
-  // el joystick (primer dedo libre), el pellizco de zoom (dos dedos libres
-  // que no sean ni el joystick ni el botón de minar), y limpieza al soltar.
-  // Un único listener de pointerdown/move/up gestiona tres cosas: el botón
-  // de minar (aparte, en setupMiningButton), el joystick, y el pellizco de
-  // zoom. El truco para que no se disparen a la vez: el primer dedo NO se
-  // compromete al joystick al instante — espera un margen corto
-  // (JOYSTICK_COMMIT_DELAY) por si llega un segundo dedo, en cuyo caso el
-  // gesto se reinterpreta como pellizco en vez de arrancar el joystick.
+  // ---- Controles táctiles: joystick y pellizco de zoom ----
+  // (El botón de minar y el de warp ahora son HTML normal, ver
+  // #mine-btn/#warp-btn en index.html — solo el joystick necesita vivir
+  // dentro del canvas, porque tiene que aparecer justo donde se toca.)
+  //
+  // Un único listener de pointerdown/move/up gestiona el joystick y el
+  // pellizco de zoom a la vez. El truco para que no se disparen juntos:
+  // el primer dedo NO se compromete al joystick al instante — espera un
+  // margen corto (JOYSTICK_COMMIT_DELAY) por si llega un segundo dedo, en
+  // cuyo caso el gesto se reinterpreta como pellizco en vez de arrancar
+  // el joystick.
   setupTouchMovementAndZoom() {
-    this.touchPurpose = new Map(); // pointer.id -> "joystick" | "mining" | "pinch"
+    this.touchPurpose = new Map(); // pointer.id -> "joystick" | "pinch"
     const maxRadius = 60;
     const deadzone = maxRadius * 0.2;
     const JOYSTICK_COMMIT_DELAY = 120; // ms
@@ -1190,11 +1177,6 @@ class ChunkScene extends Phaser.Scene {
     let joystickPointerId = null;
     let pendingJoystickPointer = null; // { id, x, y } — a la espera de confirmación
     let pendingTimer = null;
-
-    const insideAnyButton = (x, y) => {
-      const bounds = [this.miningButtonBounds, this.warpButtonBounds, this.gearButtonBounds];
-      return bounds.some((b) => b && Phaser.Math.Distance.Between(x, y, b.x, b.y) <= b.radius);
-    };
 
     const resetDirections = () => {
       this.touchInput.up = false;
@@ -1241,7 +1223,10 @@ class ChunkScene extends Phaser.Scene {
     };
 
     this.input.on("pointerdown", (pointer) => {
-      if (insideAnyButton(pointer.x, pointer.y)) return; // lo gestiona el botón correspondiente
+      // Ya no hace falta comprobar si el toque cae sobre un botón — los
+      // botones de minar/warp/opciones son HTML normal, colocados por
+      // encima del canvas; un toque sobre ellos ni siquiera llega hasta
+      // aquí (el navegador se lo entrega al botón, no al canvas debajo).
 
       // Ya hay un joystick confirmado o un pellizco en marcha — no se
       // reconoce un tercer gesto simultáneo, se ignora este dedo extra.
@@ -1336,103 +1321,7 @@ class ChunkScene extends Phaser.Scene {
     });
   }
 
-  // ---- UI: versión, ping, menú de opciones (con selector de idioma) ----
-
-  createTopBarUI() {
-    this.versionText = this.add
-      .text(this.scale.width - 10, 10, GAME_VERSION, {
-        fontSize: "12px",
-        color: "#7d93b0",
-        resolution: this.textResolution,
-      })
-      .setOrigin(1, 0)
-      .setDepth(200);
-    this.hudLayer.add(this.versionText);
-
-    // Engranaje de opciones, abajo a la derecha — encima del botón de
-    // minar, no al lado, para no competir en la misma fila que
-    // minar/warp.
-    const gearX = this.scale.width - 70;
-    const gearY = this.scale.height - 170;
-    this.menuBtn = this.add
-      .text(gearX, gearY, "⚙", {
-        fontSize: "22px",
-        color: "#cfe8ff",
-        backgroundColor: "#141a24",
-        padding: { x: 8, y: 6 },
-        resolution: this.textResolution,
-      })
-      .setOrigin(0.5)
-      .setDepth(200)
-      .setInteractive({ useHandCursor: true });
-    this.hudLayer.add(this.menuBtn);
-    this.gearButtonBounds = { x: gearX, y: gearY, radius: 40 };
-
-    this.menuBtn.on("pointerdown", () => this.toggleOptionsMenu());
-  }
-
-  toggleOptionsMenu() {
-    if (this.optionsMenu) {
-      this.optionsMenu.destroy();
-      this.optionsMenu = null;
-      return;
-    }
-
-    const w = 240;
-    const langRowH = 30;
-    const h = 140 + AVAILABLE_LANGUAGES.length * langRowH;
-    const x = this.scale.width / 2 - w / 2;
-    const y = this.scale.height / 2 - h / 2;
-
-    const bg = this.add.rectangle(0, 0, w, h, 0x0a0e16, 0.95).setOrigin(0).setStrokeStyle(1, 0x334455);
-    const title = this.add
-      .text(w / 2, 16, t("menu.title"), { fontSize: "14px", color: "#cfe8ff", resolution: this.textResolution })
-      .setOrigin(0.5, 0);
-    const version = this.add
-      .text(w / 2, 38, GAME_VERSION, { fontSize: "11px", color: "#7d93b0", resolution: this.textResolution })
-      .setOrigin(0.5, 0);
-
-    const langLabel = this.add
-      .text(16, 60, t("menu.language"), { fontSize: "11px", color: "#7d93b0", resolution: this.textResolution })
-      .setOrigin(0, 0);
-
-    const langButtons = AVAILABLE_LANGUAGES.map((lang, i) => {
-      const isCurrent = lang.code === currentLang;
-      const btn = this.add
-        .text(16, 78 + i * langRowH, `${isCurrent ? "● " : "○ "}${lang.label}`, {
-          fontSize: "13px",
-          color: isCurrent ? "#66ccff" : "#cfe8ff",
-          resolution: this.textResolution,
-        })
-        .setOrigin(0, 0)
-        .setInteractive({ useHandCursor: true });
-      btn.on("pointerdown", () => setLanguage(lang.code));
-      return btn;
-    });
-
-    const closeBtn = this.add
-      .text(w / 2, h - 34, t("menu.closeGame"), {
-        fontSize: "14px",
-        color: "#ffffff",
-        backgroundColor: "#883333",
-        padding: { x: 12, y: 8 },
-        resolution: this.textResolution,
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    closeBtn.on("pointerdown", () => this.closeGame());
-
-    const dismissBtn = this.add
-      .text(w - 10, 8, "✕", { fontSize: "14px", color: "#889", resolution: this.textResolution })
-      .setOrigin(1, 0)
-      .setInteractive({ useHandCursor: true });
-    dismissBtn.on("pointerdown", () => this.toggleOptionsMenu());
-
-    this.optionsMenu = this.add
-      .container(x, y, [bg, title, version, langLabel, ...langButtons, closeBtn, dismissBtn])
-      .setDepth(300);
-    this.hudLayer.add(this.optionsMenu);
-  }
+  // ---- Cierre del juego (el resto del HUD ya es HTML, ver arriba) ----
 
   closeGame() {
     this.manualLeave = true;
@@ -1441,21 +1330,10 @@ class ChunkScene extends Phaser.Scene {
     this.time.removeAllEvents();
     this.scene.pause();
 
-    const overlay = this.add
-      .rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.92)
-      .setOrigin(0)
-      .setDepth(500);
-    const closedText = this.add
-      .text(this.scale.width / 2, this.scale.height / 2, `${t("menu.gameClosedLine1")}\n${t("menu.gameClosedLine2")}`, {
-        fontSize: "16px",
-        color: "#cfe8ff",
-        align: "center",
-        resolution: this.textResolution,
-      })
-      .setOrigin(0.5)
-      .setDepth(501);
-    this.hudLayer.add(overlay);
-    this.hudLayer.add(closedText);
+    gameHud.style.display = "none";
+    optionsPanel.style.display = "none";
+    gameClosedOverlay.textContent = `${t("menu.gameClosedLine1")}\n${t("menu.gameClosedLine2")}`;
+    gameClosedOverlay.style.display = "flex";
   }
 }
 
@@ -1464,7 +1342,13 @@ let gameInstance = null;
 function launchGame() {
   if (gameInstance) return;
   gameInstance = new Phaser.Game({
-    type: Phaser.AUTO,
+    // Forzado a WebGL en vez de Phaser.AUTO — con AUTO, algunos
+    // navegadores/dispositivos caen en el renderer de Canvas2D, que tiene
+    // un historial largo de bugs justo con esto (resolution/nitidez en
+    // pantallas de alta densidad). WebGL lo soporta de forma fiable desde
+    // Phaser 3.60 en adelante. Prácticamente todo móvil/portátil moderno
+    // soporta WebGL, así que no se pierde compatibilidad real.
+    type: Phaser.WEBGL,
     parent: document.body,
     width: window.innerWidth,
     height: window.innerHeight,

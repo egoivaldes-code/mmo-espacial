@@ -14,6 +14,52 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.1.4]
+
+### Cambiado — arreglo de raíz de la nitidez (los dos intentos anteriores eran parches sobre el síntoma)
+- **Toda la interfaz que no es "mundo del juego" pasa de Phaser a HTML/CSS
+  normal**: botones de WARP/MINAR, engranaje de opciones, panel de
+  opciones (con selector de idioma), insignia de versión, pantalla de
+  "juego cerrado". Solo se queda en el canvas lo que de verdad necesita
+  vivir ahí — naves, asteroides, estrellas, la estela de plasma, y el
+  joystick (tiene que aparecer justo donde se toca, eso sí es "mundo").
+- Motivo: el HTML lo renderiza el navegador de forma nativa, que ya sabe
+  gestionar pantallas de alta densidad sin configuración — es exactamente
+  por lo que el HUD (`#ui`, arriba a la izquierda) siempre se vio nítido
+  mientras todo lo dibujado a mano en Phaser (texto, formas) daba
+  problemas. En vez de seguir peleando con la configuración de
+  resolución/renderer de Phaser (intentos de v0.1.2 y v0.1.3), se quita
+  el problema de raíz moviendo esa UI a donde nunca iba a tenerlo.
+- Efecto colateral bueno: ya no hace falta la lógica de "zonas de
+  exclusión" para que el joystick no se dispare al tocar un botón — un
+  botón HTML encima del canvas capta el toque él solo, sin que llegue
+  nunca al canvas de abajo. Código de `setupTouchMovementAndZoom` más
+  simple.
+
+## [v0.1.3]
+
+### Corregido (intento 2 — el de v0.1.2 lo empeoró)
+- El arreglo de nitidez de v0.1.2 (`resolution` en cada texto de Phaser)
+  **empeoró el problema** en vez de arreglarlo — según el reporte, tanto
+  el texto como las formas de los botones se veían peor. Diagnóstico:
+  `type: Phaser.AUTO` puede caer en el renderer de Canvas2D en vez de
+  WebGL según navegador/dispositivo, y Canvas2D tiene un historial largo
+  de bugs específicamente con `resolution`/nitidez en pantallas de alta
+  densidad (varios issues abiertos en el repo de Phaser desde 2018, con
+  reportes similares aún en 2025). Además, aplicar `resolution` por
+  separado en cada texto ENCIMA del `resolution` general del canvas
+  probablemente causaba una escala duplicada, agravando el problema en
+  vez de resolverlo.
+  - Revertido: ya no se fija `resolution` en cada `Text` individual.
+  - Nuevo: `type: Phaser.WEBGL` forzado en vez de `Phaser.AUTO`, para
+    garantizar el renderer donde `resolution` funciona de forma fiable
+    desde Phaser 3.60+.
+  - **Nota de transparencia**: esto no se ha podido verificar en un
+    dispositivo real de alta densidad antes de publicarlo (sin acceso a
+    ese hardware) — es el intento más fundamentado según la
+    documentación y los issues conocidos de Phaser, pero necesita
+    confirmación real tras desplegar.
+
 ## [v0.1.2]
 
 ### Corregido

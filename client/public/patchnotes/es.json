@@ -1,5 +1,17 @@
 [
   {
+    "version": "v0.1.4",
+    "highlights": [
+      "Arreglo de raíz de la nitidez: los botones y menús ahora son interfaz nativa del navegador, no dibujo del juego — se ven perfectos en cualquier pantalla."
+    ]
+  },
+  {
+    "version": "v0.1.3",
+    "highlights": [
+      "Segundo intento de arreglar la nitidez — el cambio anterior lo empeoró en vez de solucionarlo. Dinos si esta vez sí se ve bien."
+    ]
+  },
+  {
     "version": "v0.1.2",
     "highlights": [
       "Arreglado el texto borroso de los botones y el menú — ya se ve tan nítido como el resto.",

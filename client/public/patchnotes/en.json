@@ -1,5 +1,17 @@
 [
   {
+    "version": "v0.1.4",
+    "highlights": [
+      "Sharpness fixed at the root: buttons and menus are now native browser UI instead of game rendering — they look perfect on any screen."
+    ]
+  },
+  {
+    "version": "v0.1.3",
+    "highlights": [
+      "Second attempt at fixing sharpness — the previous change made it worse instead of better. Let us know if it looks right this time."
+    ]
+  },
+  {
     "version": "v0.1.2",
     "highlights": [
       "Fixed blurry text on buttons and the menu — now as sharp as everything else.",

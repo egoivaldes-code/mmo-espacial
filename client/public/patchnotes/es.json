@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.1.0",
+    "highlights": [
+      "Nuevo sistema de warp: carga el motor y sal disparado a 5x velocidad en línea recta. Botón verde junto al de minar (tecla E en PC).",
+      "Puedes alejar mucho más la vista con el zoom, para ver el mapa a lo grande.",
+      "El botón de opciones ahora es un engranaje, abajo a la derecha."
+    ]
+  },
+  {
     "version": "v0.0.11",
     "highlights": [
       "Arreglada la estela del motor, que salía por el lateral de la nave en vez de por detrás."

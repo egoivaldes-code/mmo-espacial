@@ -27,7 +27,10 @@
     "reconnectPaused": "Connection lost. Will retry when you return to this tab.",
     "connectionLost": "Connection lost. Reload the page to play again.",
     "couldNotReconnect": "Could not reconnect. Reload the page to play again.",
-    "connectionError": "Connection error: {error}"
+    "connectionError": "Connection error: {error}",
+    "warpCharging": "Charging warp drive…{s}s",
+    "warping": "Warping — press WARP to cancel",
+    "warpCooldown": "Warp cooling down: {s}s"
   },
   "menu": {
     "title": "Options",
@@ -37,6 +40,7 @@
     "gameClosedLine2": "Reload the page to play again."
   },
   "controls": {
-    "mine": "MINE"
+    "mine": "MINE",
+    "warp": "WARP"
   }
 }

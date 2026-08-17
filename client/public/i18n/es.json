@@ -27,7 +27,10 @@
     "reconnectPaused": "Conexión perdida. Se reintentará al volver a esta pestaña.",
     "connectionLost": "Conexión perdida. Recarga la página para volver a jugar.",
     "couldNotReconnect": "No se pudo reconectar. Recarga la página para volver a jugar.",
-    "connectionError": "Error de conexión: {error}"
+    "connectionError": "Error de conexión: {error}",
+    "warpCharging": "Cargando motor warp…{s}s",
+    "warping": "En warp — pulsa WARP para cancelar",
+    "warpCooldown": "Warp enfriándose: {s}s"
   },
   "menu": {
     "title": "Opciones",
@@ -37,6 +40,7 @@
     "gameClosedLine2": "Recarga la página para volver a jugar."
   },
   "controls": {
-    "mine": "MINAR"
+    "mine": "MINAR",
+    "warp": "WARP"
   }
 }

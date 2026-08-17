@@ -3,7 +3,7 @@ import { Client } from "colyseus.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.0.11";
+const GAME_VERSION = "v0.1.0";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -123,7 +123,7 @@ function getLocalShipOverride(shipId) {
 
 // Zoom de la cámara — límites razonables para no perder el contexto del
 // mundo ni acercarse tanto que se pixele el sprite.
-const MIN_ZOOM = 0.5;
+const MIN_ZOOM = 0.08;
 const MAX_ZOOM = 2.5;
 const DEFAULT_ZOOM = 1;
 
@@ -518,9 +518,13 @@ class ChunkScene extends Phaser.Scene {
   }
 
   starfield() {
-    for (let i = 0; i < 200; i++) {
-      const x = Phaser.Math.Between(-2500, 2500);
-      const y = Phaser.Math.Between(-2500, 2500);
+    // Rango ampliado a juego con el nuevo MIN_ZOOM — con el zoom mínimo
+    // se ve mucho más que el mundo jugable actual (WORLD_SIZE), así que
+    // el campo de estrellas tiene que cubrir bastante más para no dejar
+    // un vacío negro alrededor al alejarse del todo.
+    for (let i = 0; i < 500; i++) {
+      const x = Phaser.Math.Between(-12000, 12000);
+      const y = Phaser.Math.Between(-12000, 12000);
       const star = this.add.circle(x, y, Phaser.Math.Between(1, 2), 0xffffff, Phaser.Math.FloatBetween(0.3, 0.9));
       star.setScrollFactor(0.6);
       this.worldLayer.add(star);
@@ -683,12 +687,34 @@ class ChunkScene extends Phaser.Scene {
   updateStatusText(player) {
     const pingPart = this.latencyMs !== null ? t("hud.pingSuffix", { ms: this.latencyMs }) : "";
     const shipPart = this.shipMeta ? `${this.shipMeta.name} — ` : "";
+    let warpPart = "";
+    if (player.warpCharging) {
+      warpPart = `  |  ${t("hud.warpCharging", { s: Math.ceil(player.warpChargeRemaining) })}`;
+    } else if (player.warping) {
+      warpPart = `  |  ${t("hud.warping")}`;
+    } else if (player.warpCooldownRemaining > 0) {
+      warpPart = `  |  ${t("hud.warpCooldown", { s: Math.ceil(player.warpCooldownRemaining) })}`;
+    }
     ui.textContent = t("hud.shipCargoHp", {
       ship: shipPart,
       cargo: Math.floor(player.cargo),
       hp: Math.floor(player.hp),
       ping: pingPart,
-    });
+    }) + warpPart;
+
+    this.updateWarpButtonVisual(player);
+  }
+
+  // El botón de warp cambia de color según el estado real que manda el
+  // servidor: verde normal, ámbar cargando, azul viajando, gris enfriando.
+  updateWarpButtonVisual(player) {
+    if (!this.warpButtonCircle) return;
+    let color = 0x33cc66; // listo
+    if (player.warping) color = 0x3399ff;
+    else if (player.warpCharging) color = 0xd0a030;
+    else if (player.warpCooldownRemaining > 0) color = 0x555555;
+    this.warpButtonCircle.setFillStyle(color, 0.3);
+    this.warpButtonCircle.setStrokeStyle(2, color, 0.8);
   }
 
   startPingLoop() {
@@ -783,8 +809,13 @@ class ChunkScene extends Phaser.Scene {
   setupInput() {
     this.keys = this.input.keyboard.addKeys("W,A,S,D,SPACE");
 
+    // Tecla de warp para escritorio — acción puntual, no mantenida como
+    // WASD, así que va por evento de tecla en vez de leerse cada frame.
+    this.input.keyboard.on("keydown-E", () => this.room?.send("warpToggle"));
+
     if (this.sys.game.device.input.touch) {
       this.setupMiningButton();
+      this.setupWarpButton();
       this.setupTouchMovementAndZoom();
     }
 
@@ -849,6 +880,21 @@ class ChunkScene extends Phaser.Scene {
   predictLocalMovement(delta) {
     if (!this.localEntry) return;
     const dt = delta / 1000;
+
+    // En warp no hay predicción local ni control manual — el servidor
+    // manda una línea recta a velocidad fija, así que el cliente solo
+    // seguimos la posición real que llega (sin interpolar entre paquetes,
+    // el viaje es corto y llamativo, un poco de discontinuidad no se
+    // nota tanto como en vuelo normal). No se puede girar en warp.
+    if (this.localPlayerState?.warping) {
+      this.localEntry.container.x = this.localEntry.serverX;
+      this.localEntry.container.y = this.localEntry.serverY;
+      this.localEntry.facing = this.localPlayerState.rotation;
+      this.localEntry.sprite.rotation = this.localEntry.facing + Math.PI / 2;
+      this.updateEngineSound(true);
+      this.updateEngineTrailPosition(this.localEntry, true);
+      return;
+    }
 
     const input = this.currentInput();
     let dx = 0;
@@ -1001,6 +1047,44 @@ class ChunkScene extends Phaser.Scene {
     circle.on("pointerout", releaseMining);
   }
 
+  // Botón verde de warp, justo a la izquierda del de minar. El estado
+  // real (cargando/viajando/enfriando) lo decide el servidor — este
+  // botón solo manda "warpToggle" y refleja lo que diga player.onChange.
+  setupWarpButton() {
+    const marginX = 70;
+    const marginY = 70;
+    const radius = 45;
+    const gap = 110; // separación entre centros, mismo criterio que el resto de botones
+    const x = this.scale.width - marginX - gap;
+    const y = this.scale.height - marginY;
+
+    const circle = this.add
+      .circle(x, y, radius, 0x33cc66, 0.3)
+      .setDepth(100)
+      .setStrokeStyle(2, 0x33cc66, 0.8)
+      .setInteractive({ useHandCursor: true });
+    this.hudLayer.add(circle);
+
+    const label = this.add
+      .text(x, y, t("controls.warp"), { fontSize: "12px", color: "#ffffff" })
+      .setOrigin(0.5)
+      .setDepth(101);
+    this.hudLayer.add(label);
+
+    this.warpButtonCircle = circle;
+    this.warpButtonBounds = { x, y, radius: radius + 40 };
+
+    circle.on("pointerdown", (pointer) => {
+      this.touchPurpose.set(pointer.id, "warp");
+      this.room?.send("warpToggle");
+    });
+    const releaseWarp = (pointer) => {
+      if (this.touchPurpose.get(pointer.id) === "warp") this.touchPurpose.delete(pointer.id);
+    };
+    circle.on("pointerup", releaseWarp);
+    circle.on("pointerout", releaseWarp);
+  }
+
   // Un único listener de pointerdown/move/up gestiona tres cosas a la vez:
   // el joystick (primer dedo libre), el pellizco de zoom (dos dedos libres
   // que no sean ni el joystick ni el botón de minar), y limpieza al soltar.
@@ -1022,10 +1106,9 @@ class ChunkScene extends Phaser.Scene {
     let pendingJoystickPointer = null; // { id, x, y } — a la espera de confirmación
     let pendingTimer = null;
 
-    const insideMiningButton = (x, y) => {
-      if (!this.miningButtonBounds) return false;
-      const { x: bx, y: by, radius } = this.miningButtonBounds;
-      return Phaser.Math.Distance.Between(x, y, bx, by) <= radius;
+    const insideAnyButton = (x, y) => {
+      const bounds = [this.miningButtonBounds, this.warpButtonBounds, this.gearButtonBounds];
+      return bounds.some((b) => b && Phaser.Math.Distance.Between(x, y, b.x, b.y) <= b.radius);
     };
 
     const resetDirections = () => {
@@ -1073,7 +1156,7 @@ class ChunkScene extends Phaser.Scene {
     };
 
     this.input.on("pointerdown", (pointer) => {
-      if (insideMiningButton(pointer.x, pointer.y)) return; // lo gestiona el botón
+      if (insideAnyButton(pointer.x, pointer.y)) return; // lo gestiona el botón correspondiente
 
       // Ya hay un joystick confirmado o un pellizco en marcha — no se
       // reconoce un tercer gesto simultáneo, se ignora este dedo extra.
@@ -1180,16 +1263,23 @@ class ChunkScene extends Phaser.Scene {
       .setDepth(200);
     this.hudLayer.add(this.versionText);
 
+    // Engranaje de opciones, abajo a la derecha — encima del botón de
+    // minar, no al lado, para no competir en la misma fila que
+    // minar/warp.
+    const gearX = this.scale.width - 70;
+    const gearY = this.scale.height - 170;
     this.menuBtn = this.add
-      .text(10, 10, "☰", {
-        fontSize: "20px",
+      .text(gearX, gearY, "⚙", {
+        fontSize: "22px",
         color: "#cfe8ff",
         backgroundColor: "#141a24",
-        padding: { x: 8, y: 4 },
+        padding: { x: 8, y: 6 },
       })
+      .setOrigin(0.5)
       .setDepth(200)
       .setInteractive({ useHandCursor: true });
     this.hudLayer.add(this.menuBtn);
+    this.gearButtonBounds = { x: gearX, y: gearY, radius: 40 };
 
     this.menuBtn.on("pointerdown", () => this.toggleOptionsMenu());
   }

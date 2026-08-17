@@ -1,6 +1,6 @@
 # [Nombre pendiente] — Documento de Diseño
 
-> Documento vivo. Se amplía sesión a sesión. Última actualización: 16 agosto 2026.
+> Documento vivo. Se amplía sesión a sesión. Última actualización: 17 agosto 2026.
 
 ## 1. Pitch
 
@@ -45,11 +45,70 @@ Las ruinas y anomalías precursoras (ver 5.1) son el rastro físico de estos
 seres superiores — restos de tecnología o estructuras que ni humanos ni las
 otras razas NPC terminan de entender del todo.
 
-**Pendiente de definir:** cuántas facciones NPC no-humanas existen y cómo
-se comportan (¿territoriales y hostiles por defecto, o hay margen para
-diplomacia/comercio?), si hay diferencias de tecnología/estilo visual entre
-ellas, si alguna es más hostil que otra según cercanía a su zona de
-influencia.
+#### 1.1.2 Cuántas facciones y cómo se comportan
+
+**Decisión: tres facciones definidas en el lore, una implementada primero.**
+
+El número está limitado por arte, no por diseño. Cada facción cuesta línea
+de naves, arte de estación, IA, tabla de botín y vía de reputación propia —
+y la naveteca humana ya lleva 41 naves FHI para dar idea de la escala. Tres
+es el mínimo para que existan rivalidades entre ellas (con dos solo hay un
+eje) sin que el coste de arte se dispare. Se escriben las tres desde el
+principio para que el universo se sienta poblado, pero **el modelo de datos
+se hace para N y se construye una entera antes de empezar la segunda**.
+
+Cada una define una **forma distinta de interactuar**, no solo un aspecto
+distinto:
+
+| Facción | Postura | Función en el juego |
+|---|---|---|
+| **Territorial** | Hostil dentro de su radio de influencia, indiferente fuera | El muro: bloquea zonas de botín alto. Peligro puro |
+| **Mercante** | Neutral por defecto, con estaciones atracables | La zanahoria: vende tecnología no crafteable, con acceso limitado por reputación |
+| **Errante** | Sin territorio fijo, flotas que se desplazan | El clima: no se puede planificar ni farmear con comodidad |
+
+Hay **una rivalidad** entre la territorial y la mercante: subir reputación
+con una la baja con la otra. La errante queda fuera del eje, para que no
+todo el sistema social sea una única barra con dos extremos.
+
+#### 1.1.3 Diferencias visuales y tecnológicas
+
+Regla: **una silueta, una paleta y un rasgo mecánico** por facción, no
+árboles tecnológicos completos. En un top-down 2D con zoom variable (5.7),
+lo que hace falta es reconocer de un vistazo quién está disparando.
+
+- **Territorial** — angular y pesada, paleta oscura, mucho blindaje y poca
+  velocidad.
+- **Mercante** — formas redondeadas y luminosas, escudos y apoyo antes que
+  daño bruto.
+- **Errante** — siluetas asimétricas u orgánicas, muy rápidas, movimiento
+  errático.
+
+#### 1.1.4 ¿Se expanden?
+
+**Decisión: la presión va en un solo sentido — los jugadores empujan, las
+facciones no avanzan solas.**
+
+Una expansión real de imperios NPC exigiría simulación de mundo en segundo
+plano, que es justo lo que 5.4.1 prohíbe (y es, por sí sola, una
+funcionalidad de la escala de *Stellaris*). En su lugar:
+
+- Cada chunk tiene un valor de **influencia** de facción derivado de la
+  semilla (5.5.1).
+- Destruir sus estructuras y flotas **baja esa influencia**, y la bajada se
+  guarda como delta en Supabase. Los jugadores pueden expulsar a una
+  facción de una zona.
+- La influencia **se regenera con el tiempo**, calculada de forma perezosa
+  al despertar el chunk a partir del último timestamp — mismo patrón que la
+  regeneración de recursos (5.4.1). Si dejas de presionar, vuelven.
+
+Coste de implementación: prácticamente nulo. Sensación resultante: bastante
+parecida a la de un mundo que reacciona.
+
+**Pendiente de definir:** nombres y lore concreto de las tres; cuál se
+implementa primero (la territorial es la más barata: no necesita interiores
+de estación atracables ni interfaz de comercio); ritmo de regeneración de
+influencia; si la reputación con facciones NPC es independiente de la de
+CONCORD (4.3.3) o comparten sistema.
 
 **Decisión tomada:** no tienen zonas fijas reservadas en el mapa — están
 **dispersas y se descubren** igual que el resto de la frontera (recursos,
@@ -85,33 +144,6 @@ preexistente.
 | Frontera / espacio abierto | Sin ley | Total | Dominio territorial 100% de jugadores/corps/alianzas. Aquí vive todo el sandbox territorial. |
 | Frontera inexplorada | N/A | N/A | Chunks vírgenes, revelados vía descubrimiento (ver sección 5). |
 
-### 4.3 CONCORD — mecánica de respuesta
-
-La seguridad no es una frontera dura (no hay una línea donde "aquí sí,
-aquí no") sino un **gradiente continuo según distancia al wormhole de
-entrada**:
-
-- **Junto al wormhole**: respuesta instantánea ante cualquier agresión
-  (disparar a otro jugador sin motivo, robar carga/mineral ajeno, destruir
-  estructuras ajenas — cualquier acto agresivo activa la intervención).
-- **A medida que te alejas**: la respuesta se vuelve más lenta y más
-  débil — tarda más en llegar y la fuerza que manda es menor (más fácil de
-  superar en número por un grupo organizado).
-- **Pasado cierto punto**: CONCORD deja de responder por completo. No hay
-  una distancia fija anunciada al jugador — se siente jugando, no se lee en
-  un mapa con colores.
-
-Esto significa que un grupo de jugadores organizado y numeroso puede, en
-teoría, **imponerse a CONCORD por número** en las zonas donde su presencia
-ya es débil — no son invencibles en todas partes, solo cerca del punto de
-entrada.
-
-**Pendiente de definir:** fórmula exacta de degradación (¿lineal con la
-distancia, por zonas escalonadas, dependiente también del número de
-atacantes?), qué manda CONCORD exactamente (naves, o algo más letal e
-instantáneo tipo EVE), si hay reputación/flag que siga al jugador agresor
-más allá del momento del ataque.
-
 ### 4.1 Spawn de jugadores nuevos
 
 Los jugadores nuevos no aparecen todos en el mismo punto fijo: aparecen en
@@ -120,9 +152,32 @@ rota/asigna el punto de spawn según la carga de cada zona (para no
 saturar una sola room de Colyseum con todos los jugadores nuevos del
 servidor). Cada punto de spawn tiene su propia presencia CONCORD.
 
-**Pendiente de definir:** cuántos puntos de spawn simultáneos, criterio
-exacto de rotación (¿número de jugadores en la room? ¿tiempo?), si CONCORD
-patrulla activamente o solo interviene si detecta agresión.
+#### 4.1.1 Puntos de spawn — cuántos y cómo rotan
+
+**Decisión: 3 puntos activos, rotación por número de jugadores, no por
+tiempo.** Rotar por tiempo metería a gente en zonas vacías o las
+saturaría según la hora sin motivo real; rotar por carga es la misma
+lógica que ya rige toda la escalera de 5.4 — la ocupación es la señal, no
+el reloj.
+
+- **3 puntos simultáneos** — el mínimo para repartir sin fragmentar en
+  exceso el onboarding, y coherente con que solo hay una facción humana
+  (1.1.2): tres puntos NPC humanos, no tres por facción.
+- **Umbral de asignación: ~15 jugadores por punto.** Por debajo, todo
+  spawn nuevo va al punto con menos gente; al llegar al umbral, el
+  siguiente jugador se reasigna al próximo punto con hueco. Mismo
+  disparador que la tabla de 5.4, así que se recalibran juntos.
+- Cada punto es su **propia room** de Colyseum, con su propia presencia
+  CONCORD — no son sub-zonas de una room compartida. Es lo que evita
+  saturar una sola room con todo el onboarding del servidor.
+- **No rotan geográficamente.** Son 3 ubicaciones fijas en el chunk de
+  entrada, no puntos que se mueven. "Rotar" es a qué punto fijo se asigna
+  al jugador nuevo, no que los puntos cambien de sitio.
+
+**Pendiente de definir:** si el umbral de 15 se ajusta por telemetría real
+una vez haya jugadores; si un jugador puede elegir manualmente su punto de
+spawn (p. ej. para reunirse con amigos que ya están dentro) o es siempre
+automático.
 
 ### 4.2 Estación hub inicial (a pie)
 
@@ -153,38 +208,593 @@ sector, la estación solo se ve como un casco/estructura; lo de dentro
 igual que un chunk pero a escala humana. Aplica tanto al hub NPC inicial
 como a futuras estaciones construidas por jugadores.
 
-**Pendiente de definir:** qué pasa con la nave mientras el jugador está
-dentro (¿queda "aparcada" visible en el sector, o desaparece hasta que
-sale?), si la transición tiene una animación/carga o es instantánea, cómo
-se gestiona la instancia si varias personas atracan en la misma estación a
-la vez (¿todas comparten la misma room interior, o hay límite de
-capacidad?).
+#### 4.2.1 La nave mientras estás a pie — depende del tamaño de estación
+
+**Decisión:** no hay una regla única. El tamaño de la estación determina
+cuán segura queda tu nave, y eso convierte "dónde atraco" en una decisión
+táctica real en vez de un trámite.
+
+| Tamaño | Dónde queda la nave | Seguridad |
+|---|---|---|
+| Pequeña | Fuera, a la vista en el chunk | Vulnerable — atracar aquí es asumir riesgo |
+| Mediana | Fuera, en el perímetro de la estación | Protegida parcialmente |
+| Grande | Dentro, en hangar interior | Invulnerable, no existe como objeto en el chunk |
+
+Consecuencias de diseño que esto abre:
+
+- Las estaciones grandes son **puerto seguro** de verdad. Eso las convierte
+  en objetivo estratégico y da sentido a construirlas en territorio propio
+  (sección 6).
+- En la frontera, si solo hay estaciones pequeñas, bajar a pie es
+  arriesgado — coherente con el gradiente de riesgo del resto del juego.
+- **Desconexión:** la vulnerabilidad aplica solo con el jugador conectado.
+  Al desconectar, la nave pasa a estado guardado en esa estación sea cual
+  sea su tamaño. Es lo coherente con 5.4.1 (nada se simula sin jugadores
+  delante) y evita el destrozo de reputación que supone perder la nave
+  estando offline.
+
+**Pendiente de definir:** qué clasifica una estación como pequeña, mediana
+o grande (¿coste, módulos, tamaño construido?); qué significa exactamente
+"protegida parcialmente" en las medianas — la propuesta es **torretas de
+la propia estructura** que disparan al agresor, en vez de una reducción
+abstracta de daño: es legible, se puede equipar/mejorar, y un grupo
+suficientemente grande puede superarlas (coherente con la filosofía del
+gradiente de CONCORD, 4.3). Falta también decidir qué pasa con las naves
+guardadas dentro de una estación grande si esa estación es destruida o
+conquistada (¿se pierden, hay custodia de activos tipo EVE?).
+
+#### 4.2.2 Transición y capacidad
+
+**Transición nave → estación: fundido corto (~1s).** Sin secuencia de
+atraque jugable ni pantalla de carga explícita. Matiz técnico: el fundido
+de salida dura ~1s fijo, pero la entrada **espera a que el join a la room
+interior se complete**. Si tarda más de la cuenta (Render free tier
+despertando, ver 14.1), se mantiene el fundido con un texto discreto de
+"atracando" en vez de dejar la pantalla congelada sin explicación.
+
+**Capacidad: una sola room por estación, con cola si se llena.** No se
+instancian copias del interior. La cola no bloquea al jugador en una
+pantalla de espera: sigue volando en el chunk con un indicador de
+"solicitando acceso" y entra cuando se libera plaza.
+
+**Pendiente de definir:** capacidad numérica de una room interior (empezar
+por un valor de trabajo e instrumentar, igual que en 5.4). Y una excepción
+a valorar: el **hub inicial** es donde aparece todo jugador nuevo (4.1);
+si se llena y encola, el bloqueo cae justo en el peor momento posible del
+onboarding. Como el hub no tiene territorio en juego, entra dentro de lo
+que 5.4 sí permite instanciar — conviene decidir si se le aplica esa
+excepción.
+
+#### 4.2.3 Clases de estación
+
+**Decisión: tres clases discretas por plano de construcción**, no tamaño
+libre ni derivado del número de módulos.
+
+| Clase | Nave al bajar a pie | Interior | Rol |
+|---|---|---|---|
+| **Puesto** (pequeña) | Fuera, vulnerable | Mínimo: hangar + un par de salas | Avanzadilla barata, desechable, frontera |
+| **Estación** (mediana) | Fuera, con torretas | Medio | Base operativa de un grupo pequeño |
+| **Bastión** (grande) | Dentro, invulnerable | Amplio, varias zonas | Puerto seguro y ancla de territorio |
+
+El motivo de que sean discretas y no libres es técnico y decisivo: **cada
+interior es una room con un mapa que hay que autorizar y construir**. Con
+tres clases se diseñan tres interiores; con tamaño libre habría que generar
+interiores proceduralmente para cada estructura del universo, que es un
+proyecto en sí mismo.
+
+La sensación sandbox se mantiene con **módulos como mejoras dentro de la
+clase** (torretas, mercado, refinería, capacidad de hangar, fabricación),
+no como algo que cambie la clase. Una estación mediana bien equipada puede
+ser más útil que un bastión pelado, pero nunca dará hangar interior.
+
+El hub NPC inicial (4.2) es, por definición, un bastión.
+
+**Pendiente de definir:** si un puesto puede *ascender* a estación pagando
+la diferencia, o hay que construir una nueva desde cero (lo primero es más
+amable, lo segundo hace que la elección inicial pese más).
+
+#### 4.2.4 Pérdida de una estación — custodia de activos
+
+Qué pasa con las naves y la carga guardadas dentro cuando una estación es
+destruida o conquistada:
+
+- **Una parte se pierde como botín.** Un porcentaje de lo almacenado (valor
+  de partida a calibrar, del orden del 20%) cae como restos saqueables por
+  el atacante. Sin esto, atacar una estación no compensa y nadie ataca.
+- **El resto entra en custodia.** Reaparece en la estación amiga o NPC más
+  cercana tras una demora en tiempo real y pagando una comisión. No se
+  pierde, pero recuperarlo cuesta tiempo y dinero.
+- **La custodia es dato con fecha**, no simulación: una fila en Supabase
+  con destino y timestamp de disponibilidad, evaluada al abrirla (5.4.1).
+
+Esto es viable *porque* la destrucción de una estación no es instantánea:
+con ventanas de vulnerabilidad y timers de refuerzo (ver 6.2 y 5.4.1) el
+defensor tiene aviso y ventana para evacuar. Perderlo todo sin previo aviso
+sería otra cosa; perder un 20% tras haber tenido oportunidad de sacar lo
+importante es riesgo asumible.
+
+Efecto lateral útil: la comisión de custodia es un **sumidero de créditos**
+natural, que ayuda con la pregunta abierta de la economía (sección 9).
+
+**Pendiente de definir:** porcentaje exacto de botín, duración de la demora
+y cuantía de la comisión; si la custodia aplica igual en conquista pacífica
+(cambio de dueño sin destruir) que en destrucción total.
+
+### 4.3 CONCORD — mecánica de respuesta
+
+La seguridad no es una frontera dura (no hay una línea donde "aquí sí,
+aquí no") sino un **gradiente continuo según distancia al wormhole de
+entrada**:
+
+- **Junto al wormhole**: respuesta instantánea ante cualquier agresión
+  (disparar a otro jugador sin motivo, robar carga/mineral ajeno, destruir
+  estructuras ajenas — cualquier acto agresivo activa la intervención).
+- **A medida que te alejas**: la respuesta se vuelve más lenta y más
+  débil — tarda más en llegar y la fuerza que manda es menor (más fácil de
+  superar en número por un grupo organizado).
+- **Pasado cierto punto**: CONCORD deja de responder por completo. No hay
+  una distancia fija anunciada al jugador — se siente jugando, no se lee en
+  un mapa con colores.
+
+Esto significa que un grupo de jugadores organizado y numeroso puede, en
+teoría, **imponerse a CONCORD por número** en las zonas donde su presencia
+ya es débil — no son invencibles en todas partes, solo cerca del punto de
+entrada.
+
+#### 4.3.1 Fórmula de degradación
+
+**La distancia se mide en saltos, no en unidades.** El universo son chunks
+discretos conectados por puntos de salto (5.1): dos coordenadas contiguas
+de la grilla pueden no estar conectadas entre sí. Lo que importa es
+`d` = número de saltos desde el chunk del wormhole de entrada.
+
+Dos variables degradan de forma distinta, y a propósito:
+
+| Variable | Curva | Valores de partida |
+|---|---|---|
+| **Retardo** de llegada | Lineal con `d` | `2s + 8s × d` |
+| **Fuerza** enviada | Geométrica con `d` | `F0 × k^d`, con `F0` = 8 naves y `k` = 0.6 |
+
+Con esos valores la fuerza cae 8 → 4.8 → 2.9 → 1.7 → 1.0 → 0.6, es decir
+**CONCORD deja de responder alrededor del quinto salto**, sin que en ningún
+momento se le anuncie al jugador dónde está esa línea. El retardo lineal se
+percibe como "la ayuda viene, pero tarda"; la caída geométrica de la fuerza
+hace que la burbuja segura tenga un borde práctico nítido aunque no
+declarado. Todo el radio de seguridad del juego se calibra con dos números,
+`F0` y `k`.
+
+**La respuesta no escala con el número de atacantes.** Es deliberado: si
+CONCORD siempre iguala a quien agrede, es invencible en todas partes y se
+rompe la premisa ya tomada de que un grupo organizado puede superarla. Con
+fuerza fija por distancia, un grupo puede *calcular* cuántas naves necesita
+— y eso es contenido emergente, no un fallo.
+
+#### 4.3.2 Qué manda CONCORD
+
+**Naves NPC reales que llegan, combaten y pueden ser destruidas.** No un
+golpe instantáneo e inevitable tipo EVE. Esto no es preferencia estética:
+viene forzado por la decisión ya tomada de que CONCORD es superable por
+número. Un instakill no se puede superar por número, solo evitar.
+
+Ventaja práctica: reutiliza el sistema de combate existente (8.4) en vez de
+exigir una mecánica aparte.
+
+**Nota de rendimiento:** las naves de CONCORD son entidades NPC dentro de
+la room, justo lo que la escalera de degradación de 5.4 intenta limitar. Un
+tumulto grande en un chunk lleno es el peor caso posible. Hace falta un
+**tope absoluto de naves CONCORD simultáneas por room**, independiente de
+lo que diga la fórmula.
+
+#### 4.3.3 Flag y reputación
+
+Dos capas, con horizontes temporales distintos:
+
+- **Flag de combate** — corto, del orden de minutos. Se activa al cometer
+  un acto agresivo. Mientras dura: CONCORD y las torretas de estructuras
+  (4.2.1) disparan a la vista, y no se puede atracar en estaciones NPC. Se
+  enfría solo. Implementado como timestamp (5.4.1), no como tick.
+- **Reputación** — persistente. Baja rápido al agredir y sube muy despacio.
+  Efectos: precios y acceso en el hub NPC (4.2), y **pasado cierto umbral
+  el jugador es proscrito**: CONCORD le dispara sin necesidad de que agreda,
+  con lo que la zona de entrada deja de ser habitable para él.
+
+La reputación tiene que ser **recuperable, pero lentamente**. Si es
+irreversible es un baneo encubierto; si se recupera fácil no significa
+nada.
+
+Efecto emergente que conviene aceptar como diseño y no como problema: el
+umbral de proscrito **empuja a los agresores reincidentes hacia la
+frontera**, generando de forma natural una población de forajidos en el
+exterior sin necesidad de facciones asignadas.
+
+#### 4.3.4 CONCORD no patrulla
+
+**Decisión:** CONCORD solo responde a agresiones; no hay patrullas
+recorriendo chunks. Motivos: unas patrullas permanentes serían entidades
+NPC ardiendo CPU en cada chunk de la zona de entrada, justo contra 5.4; y
+además hacen que la zona segura se sienta *vigilada* en vez de
+*cubierta*, que es un tono distinto del que busca el juego.
+
+Única excepción: el chunk del hub tiene presencia estática visible, como
+ambientación y señal de que ahí la respuesta es inmediata.
+
+**Pendiente de definir:** calibración fina de `F0`, `k` y el retardo con
+jugadores reales; qué clase de naves manda CONCORD y si varía con `d`;
+duración exacta del flag de combate; umbral de proscrito y ritmo de
+recuperación de reputación; si robar carga pesa igual que disparar.
 
 ## 5. Sistema de chunks
 
-- El universo es una grilla de coordenadas `(x, y)`, en la línea de Avorion.
-- **Cada chunk = una Colyseum room.** Se instancia bajo demanda cuando entra
-  el primer jugador, se destruye cuando sale el último (guardando su estado
-  en Supabase antes de cerrar).
-- Los chunks son grandes en **espacio** (scroll libre, miles de unidades),
-  no en **densidad de entidades simultáneas** — el límite técnico real de
-  Colyseum es cuántas entidades sincronizadas soporta una room sin degradar
-  el tickrate, no el tamaño del mapa. Se gestiona con culling: solo se
-  simula con detalle lo que está cerca de jugadores; el resto queda dormido.
+### 5.1 Modelo espacial — sistemas discretos, no mosaico continuo
+
+**Decisión:** la grilla `(x, y)` es **metadato del mapa**, no una superficie
+jugable continua. Cada chunk es un espacio cerrado del que se sale por un
+punto de salto; no se cruza el borde navegando.
+
+Razones:
+
+- **El borde es lo caro.** En un mosaico continuo, un jugador cerca del
+  límite tendría que ver a los del chunk vecino. Eso obliga a replicar
+  entidades entre rooms (proxies fantasma, sincronía room↔room, autoridad
+  ambigua sobre quién simula un proyectil que cruza) o a poner una pared
+  invisible — y con la pared ya no hay continuidad, con lo que no se gana
+  nada frente a un salto explícito. EVE usa puertas exactamente por esto.
+- **Fragmentar va contra el objetivo de población.** Las rooms de Colyseum
+  son objetos dentro del mismo proceso Node: 40 rooms con 2 jugadores
+  rinden peor que 4 con 20 (cada room paga su coste fijo de simulation
+  loop, diffing y encoding) y además el juego *parece* vacío. Con población
+  baja, concentrar es rendimiento **y** sensación de mundo vivo.
+
+La grilla no se pierde: sigue dando coordenadas reales para el mapa
+estelar, cálculo de distancias, semillas de generación procedural y el
+gradiente de CONCORD (ver 4.3). Lo que cambia es que el espacio entre
+chunks no es transitable a motor — es un salto.
+
+### 5.2 Granularidad — qué merece room propia
+
+Criterio: se separa en room propia cuando **la simulación es distinta**, no
+cuando el espacio es distinto.
+
+| Elemento | ¿Room propia? | Motivo |
+|---|---|---|
+| Chunk / sistema espacial | Sí, 1:1 | Unidad base de simulación |
+| Interior de estación (a pie) | Sí | Otro tickrate, otra física, pocas entidades → barato, y saca jugadores del sim espacial |
+| Planeta, cinturón de asteroides, ruina precursora | No | Misma simulación y mismo espacio: son POIs *dentro* de la room del chunk |
+
+### 5.3 Ciclo de vida de las rooms
+
+- Se instancia bajo demanda al entrar el primer jugador.
+- **No se destruye al salir el último.** Se aplica histéresis: `autoDispose`
+  desactivado y temporizador propio de **3 minutos**. Sin esto, dos
+  jugadores cruzándose en un punto de salto provocan un ciclo
+  crear → volcar a Supabase → destruir → recrear que cuesta más que
+  mantener la room viva.
+- **El volcado a Supabase no espera al temporizador.** Se persiste en el
+  momento en que la room se queda vacía. Motivo: en Render free tier el
+  servicio entero se duerme por inactividad y puede llevarse por delante
+  una room dormida sin avisar; la histéresis solo sirve para no recrear el
+  objeto en memoria, nunca como ventana de persistencia.
+- Mientras está vacía, la room **duerme**: simulation interval parado del
+  todo (no reducido). Una room dormida es prácticamente gratis.
+- Al expirar el temporizador, se destruye. El estado ya está guardado.
+
+### 5.4 Carga: degradar, no instanciar
+
+**Decisión:** no se crean copias de un chunk lleno. Instanciar espacio
+disputable rompe el sandbox territorial — si un chunk con 150 jugadores se
+parte en dos, bloquear un punto de salto deja de significar nada, y lo
+mismo con emboscadas y asedios. Todo el dominio de territorio (sección 6)
+depende de que **haya un solo lugar físico**. EVE prefiere degradar el
+tiempo antes que duplicar el espacio, por esta razón exacta.
+
+Instanciar sí es legítimo donde no hay territorio en juego: interiores de
+estación, misiones cerradas, anomalías personales.
+
+Escalera de degradación cuando un chunk satura, en este orden:
+
+1. **Bajar `patchRate` progresivamente** con la ocupación. Requiere primero
+   **desacoplar simulación de patch**: hoy `TICK_RATE = 20` hace de las dos
+   cosas. La simulación se queda fija en 20 Hz y el patch arranca en 15.
+   Con la interpolación de 5.7 apenas se nota y es donde más CPU se
+   recupera.
+2. **Estrechar el radio de AoI** (área de interés): con 150 naves alrededor
+   no hace falta ver a 3000 unidades.
+3. **Congelar lo no crítico**: asteroides y NPCs pasan a dormidos; solo
+   naves y proyectiles siguen a tick completo.
+4. **Cola en el punto de salto**, presentada de forma diegética
+   ("esperando autorización de salto"), no como error.
+
+Valores de partida, por ocupación de la room:
+
+| Jugadores | `patchRate` | Radio AoI | Extra |
+|---|---|---|---|
+| ≤ 20 | 15 Hz | 3000 u | — |
+| 21-50 | 12 Hz | 2000 u | — |
+| 51-100 | 10 Hz | 1200 u | Asteroides y NPC dormidos fuera de AoI |
+| > 100 | 8 Hz | 900 u | Cola en el punto de salto |
+
+Son valores de arranque, no definitivos: hay que **instrumentar el tiempo
+real de tick** del servidor y recalibrar con datos. El número de jugadores
+es el disparador porque es simple y predecible, pero el coste real depende
+también del número de entidades activas.
+
+**Nota técnica:** partir una room en dos solo aporta CPU si se puede crear
+en **otro proceso u otra máquina**. En el hosting actual (Render free tier,
+un único proceso Node — ver 14.1) no la aporta: añade overhead. El escalado
+real por rooms exige multi-proceso + proxy, y eso implica salir del free
+tier. Hasta entonces las palancas son AoI y `patchRate`, no el número de
+rooms.
+
+**Filtrado por interés — decisión: migrar a Colyseum 0.16 antes de
+construir el AoI.** El servidor usa hoy `0.15.x` con `@colyseus/schema`
+2.x, donde el filtrado por cliente son decoradores `@filter`, evaluados por
+cliente y por campo — justo lo que interesa que sea barato. Construir el
+AoI sobre 0.15 significaría rehacerlo al migrar. La migración se hace como
+**bump aislado** (`v0.1`, sin ningún otro cambio dentro), para que si algo
+se rompe se sepa exactamente qué lo rompió.
+
+### 5.4.1 Estado offline — todo es dato con fecha, no simulación
+
+**Regla general: nada se simula en segundo plano.** Un chunk dormido está
+congelado; su estado se recalcula al despertar a partir de marcas de tiempo
+guardadas en Supabase.
+
+- **Ataques a estructuras offline:** la pregunta se disuelve sola. Si
+  alguien ataca una estructura, ese alguien está dentro del chunk, luego la
+  room existe y está viva. No hay caso "combate en chunk vacío".
+- **Asedios largos / timers de refuerzo** (tipo EVE): no requieren
+  simulación. Se guardan como timestamps (cuándo empezó, cuándo vence la
+  ventana de vulnerabilidad) y el resultado se evalúa al cargar la room.
+- **Regeneración de recursos:** tiempo transcurrido × tasa, calculado en el
+  momento de despertar el chunk.
+
+Esto vale también como criterio para mecánicas futuras: si algo tiene que
+"ocurrir" sin jugadores delante, se modela como fecha y evaluación
+perezosa, nunca como tick en segundo plano.
+
+### 5.5 Descubrimiento y puntos de salto
+
 - **Descubrimiento**: es global, no individual. Al revelarse un chunk queda
   marcado en una tabla de Supabase (`discovered_chunks`) y visible para
   todos los jugadores desde ese momento.
-- **Puntos de salto**: pueden ser fijos (conocidos, entre sistemas ya
+- **Puntos de salto**: pueden ser fijos (conocidos, entre chunks ya
   descubiertos) o anomalías que solo aparecen escaneando cerca del borde de
   lo explorado — esto incentiva la exploración activa en vez de revelar el
   mapa de golpe.
+- Los chunks son grandes en **espacio** (scroll libre, miles de unidades),
+  no en **densidad de entidades simultáneas**. El límite técnico real es
+  cuántas entidades sincronizadas soporta una room sin degradar el
+  tickrate. Se gestiona con culling: solo se simula con detalle lo que está
+  cerca de jugadores; el resto queda dormido.
 
-**Pendiente de definir:** mecánica exacta de escaneo/detección de anomalías,
-tamaño en unidades de un chunk, qué pasa con naves/estructuras si un chunk
-se destruye sin jugadores dentro (¿se congela el estado o sigue simulándose
-en segundo plano, ej. ataques a estructuras offline?).
+#### 5.5.1 Universo determinista por semilla
 
-### 5.2 Sincronización cliente-servidor (decidido en el prototipo)
+**Decisión previa y necesaria:** el contenido de un chunk no se genera al
+descubrirlo — se **deriva de una semilla global + sus coordenadas
+`(x, y)`**. El chunk existe matemáticamente desde el día uno; descubrirlo
+solo lo revela.
+
+Por qué no hay alternativa razonable:
+
+- Dos jugadores escaneando en la misma dirección tienen que encontrar lo
+  mismo. Con generación en el momento del descubrimiento, el resultado
+  dependería de quién llegó primero.
+- No hay que guardar en Supabase los chunks no descubiertos: son función
+  pura de la semilla. Solo se persisten los **deltas** (asteroides ya
+  minados, estructuras construidas, propiedad, nombre).
+- Es la misma filosofía de 5.4.1: evaluación perezosa a partir de un dato
+  fijo, en vez de estado precalculado y almacenado.
+
+#### 5.5.2 Escaneo — cómo se encuentran los puntos de salto
+
+**Mecánica: pulso direccional y triangulación.** Un solo botón, pensado
+para funcionar igual en teclado y en táctil (ver 13):
+
+1. La nave lleva un **módulo de escáner** que ocupa slot. Ese es el coste
+   real: quien explora renuncia a armas o a minería, lo que hace del
+   explorador un rol especializado y vulnerable — bueno para el sandbox.
+2. Al pulsar, emite un pulso con cooldown. Devuelve **dirección y distancia
+   aproximada** de la firma no descubierta más cercana del chunk, dibujada
+   como arco/blip en el HUD. Nunca una posición exacta.
+3. El jugador se desplaza y vuelve a pulsar: los arcos se cortan y la
+   posición se estrecha. Es triangulación clásica, sin minijuego ni UI
+   propia.
+4. Tras varios pulsos acertados la firma **se estabiliza** y el punto de
+   salto pasa a ser un objeto permanente y visible del chunk **para todos**
+   (el descubrimiento es global, ver 5.5).
+
+Dos reglas que le dan sentido al conjunto:
+
+- **La dificultad de la firma escala con la distancia a la entrada.** Los
+  chunks profundos exigen mejores módulos de escáner. Da una razón concreta
+  de progresión que no es "más daño".
+- **No todos los chunks tienen salida sin descubrir.** Hay callejones sin
+  salida. Sin esto la frontera se expande de forma trivial e infinita y
+  deja de sentirse como frontera.
+
+**Recompensa al descubridor: el nombre del chunk.** Quien estabiliza el
+punto de salto bautiza el chunk de destino, y ese nombre queda en el mapa
+para todos, con su autoría. Es barato de implementar, no desequilibra nada
+y genera lore de comunidad — el tipo de recompensa que sobrevive años.
+
+Al descubrirse, la fila que se escribe en Supabase es mínima: coordenadas,
+descubridor, fecha y nombre. El contenido del chunk ya estaba en la semilla
+(5.5.1).
+
+**Tamaño de chunk: 30.000 × 30.000 u.** No lo decide el aburrimiento de
+cruzarlo — eso lo resuelve el warp (5.8), en el que un cruce en diagonal
+son ~13s. Lo decide que quepan varios puntos de interés separados por más
+que el AoI máximo (3000u, tabla de 5.4) y que el radio de un futuro
+scrambler de interdicción, para que un enganche en un punto no arrastre a
+los vecinos.
+
+**Pendiente de definir:** cuántos pulsos acertados hacen falta para
+estabilizar una firma; si el escáner ocupa slot alto o medio (ver 8.3);
+proporción de callejones sin salida; si los nombres puestos por jugadores
+pasan por algún filtro o moderación.
+
+### 5.6 Contenido de los chunks vírgenes
+
+#### 5.6.0 El centro del chunk es siempre la estrella
+
+**Decisión: cada chunk tiene una estrella (o dos, sistema binario) fija en
+el centro exacto de la grilla de 30.000×30.000u.** No es solo lore — es la
+referencia geométrica de la que cuelga todo lo demás:
+
+- Es el **punto de origen natural para el resto de coordenadas** del chunk:
+  planetas, campos de asteroides y estaciones se generan a distancias
+  orbitales de la estrella, no en posiciones sueltas — coherente con que
+  todo sale de la semilla (5.5.1).
+- **Sistema binario:** dos estrellas orbitándose cerca del centro en vez de
+  una sola. Se decide por semilla igual que cualquier otro rasgo del chunk
+  — no hace falta una tabla nueva, es una probabilidad más dentro de la
+  generación ya existente.
+- La estrella **no es navegable ni destructible**, es geometría de fondo y
+  referencia — no ocupa slot de contenido de los tres tipos de 5.6.
+- Efecto de diseño colateral bueno: le da a cada chunk una **identidad
+  visual instantánea** en el minimapa y en el mapa estelar, sin coste de
+  arte extra por chunk — es la misma estrella reescalada/recoloreada según
+  semilla, no un asset por sistema.
+
+**Pendiente de definir:** proporción de sistemas binarios frente a
+estrella única; si el tipo de estrella (color/tamaño) influye en algo
+mecánico (p. ej. radiación que afecta a escudos) o es puramente visual.
+
+Cada chunk sin explorar puede combinar tres tipos de contenido (no son
+mutuamente excluyentes — un mismo chunk puede tener las tres cosas):
+
+- **Recursos minables** — asteroides con materiales de distinta rareza
+  (más raros cuanto más lejos de la entrada, en la línea de Avorion).
+- **Ruinas / anomalías precursoras** — restos de los seres superiores que
+  crearon los wormholes (ver 1.1.1), con propósito desconocido y que ni
+  humanos ni las demás civilizaciones NPC terminan de entender. Es el
+  vehículo del misterio narrativo permanente ("quién hizo esto y para qué")
+  y una fuente de loot/lore único, no repetible por minería normal.
+- **Fauna espacial hostil** — vida alienígena que ataca, no es solo "otros
+  jugadores" el peligro de la frontera.
+
+#### 5.6.1 Cómo se mezclan los tres elementos por chunk
+
+**Decisión: tablas de rareza ponderadas por distancia, con la semilla
+(5.5.1) como única fuente de aleatoriedad.** No biomas con nombre propio —
+son más trabajo de diseño (definir y ilustrar cada bioma) para el mismo
+resultado funcional, y en un juego de descubrimiento progresivo por
+triangulación (5.5.2) nadie ve el chunk completo de golpe para apreciar un
+bioma como conjunto.
+
+El peso de cada elemento se deriva de `d` (saltos desde el wormhole, ya
+usado en CONCORD, 4.3.1) y de un valor de aspereza propio del chunk
+(también determinista por semilla):
+
+- **Recursos minables**: presentes en casi todo chunk, con la rareza
+  máxima disponible escalando con `d` — misma curva de progresión que ya
+  gobierna CONCORD y el escáner (5.5.2), coherencia entre sistemas gratis.
+- **Ruinas**: raras y con probabilidad plana, no creciente con `d`. Si
+  solo aparecieran lejos, el misterio se convertiría en otra recompensa de
+  final de progresión en vez de en algo que se puede tropezar temprano.
+- **Fauna hostil**: probabilidad creciente con `d`, y ella sí ligada al
+  valor de aspereza del chunk — así hay chunks profundos tranquilos y
+  chunks intermedios ya peligrosos, evitando que "peligro" sea 1:1 con
+  "lejos".
+
+#### 5.6.2 Las ruinas dan pistas, nunca la respuesta
+
+**Decisión: sí dan pistas progresivas, con dos reglas que protegen el
+misterio permanente ya decidido en 1.1.1:**
+
+- Cada ruina explorada entrega un **fragmento** — imagen, dato o
+  artefacto — que se archiva en un **compendio de servidor compartido**
+  entre todos los jugadores, no una barra de progreso individual. Encaja
+  con la filosofía de "descubrimiento global" ya usada en puntos de salto
+  (5.5) y facciones (1.1.4).
+- **Los fragmentos generan más preguntas de las que cierran.** Nunca
+  convergen hacia una explicación única y verificable. Es la única forma
+  de que la mecánica sea compatible con la decisión ya tomada de que el
+  misterio no se resuelve nunca del todo (1.1.1) — si los fragmentos
+  sumaran a una respuesta completa, la comunidad acabaría por completarla
+  y el contenido se agotaría, que es justo lo que se quería evitar.
+
+**Pendiente de definir:** valores exactos de las tablas de rareza; cadencia
+de publicación de fragmentos nuevos (¿generados de antemano y liberados por
+hitos de la comunidad, o descubribles desde el día uno?); si hay algún tipo
+de recompensa mecánica (no solo lore) por fragmento.
+
+### 5.7 Warp — desplazamiento intra-chunk
+
+**Velocidad de warp: 15× la velocidad sublight**, es decir 220 × 15 =
+**3.300 u/s** sobre el `SHIP_SPEED` ya fijado en código (`server/rooms/ChunkRoom.js`,
+`client/src/main.js`). A 30.000u de lado (5.5), cruzar el chunk en
+diagonal en warp son ~13s.
+
+**Solo se puede saltar a un destino reconocido**, no a cualquier
+coordenada libre: punto de salto, estación, campo de asteroides, ruina, o
+una nave sobre la que ya tengas lock. Es una simplificación deliberada
+frente al "warp a cualquier celestial" de EVE — con un universo generado
+por semilla y POIs discretos (5.5.1, 5.6.1) no existe "espacio vacío" al
+que merezca la pena saltar, así que no hace falta soportarlo.
+
+**Secuencia de warp:**
+
+1. **Alineación.** Unos segundos acelerando hacia el rumbo del destino
+   elegido, a velocidad sublight normal (220u/s). Durante este tramo el
+   jugador es un blanco legítimo — es la ventana de vulnerabilidad que le
+   da sentido a interceptar a alguien.
+2. **Duración de alineación por clase de nave**, no un valor fijo:
+   cazadores/interceptores ~1,5-2s, naves grandes ~5-8s. Diferenciación de
+   rol gratuita dentro de la naveteca FHI (41 naves ya catalogadas), sin
+   tocar armamento — mismo principio que ya se aplicó con el tamaño de
+   estación (4.2.1): la elección de nave pesa antes de que empiece el
+   combate.
+3. **Warp.** Una vez completada la alineación, la nave es intocable e
+   inintervenible hasta llegar al destino (como en EVE). Interrumpir el
+   viaje solo es posible **antes** de que la alineación termine, nunca
+   durante el warp en sí.
+
+**Pendiente de definir — interdicción.** Sin nada que impida iniciar la
+alineación, la ventana de vulnerabilidad del punto 1 es la única
+oportunidad de CONCORD (4.3) o de un perseguidor: puede ser suficiente
+para el diseño, pero es una decisión pendiente, no una omisión. Falta
+decidir si existe un módulo tipo scrambler/disruptor de corto alcance que
+impida entrar en warp dentro de su radio, y si ese radio se calibra contra
+el tamaño de chunk (5.5) para que un enganche no arrastre a los POIs
+vecinos.
+
+**Otras pendientes:** valores exactos de tiempo de alineación por clase de
+nave; si hay algún coste (combustible/energía) por salto o es gratuito una
+vez alineado; si se puede cancelar un warp ya en curso desde el propio
+piloto (p. ej. para abortar si el destino resulta hostil) o es siempre
+hasta llegar.
+
+### 5.7.1 Estado actual del prototipo — versión simplificada, no el diseño final
+
+Lo que hay implementado en el código ahora mismo **no es** el modelo de
+"lock a un destino reconocido + alineación" descrito arriba — es una
+versión mucho más simple, pensada como peldaño intermedio mientras no
+existen POIs/destinos reconocibles en el chunk fijo de fase 0:
+
+- No hay destino elegido. El warp es un **impulso en la dirección actual
+  de vuelo** (el vector velocidad en el momento de completarse la carga),
+  no un viaje dirigido a un punto.
+- **Carga por tiempo fijo** (10s en la única nave que existe ahora, FHI
+  Wren) en vez de alineación proporcional a la distancia al destino — no
+  hay destino del que calcular una distancia todavía.
+- Requiere velocidad ya distinta de cero para activarse (si la nave está
+  parada al completarse la carga, no pasa nada — sin dirección de vuelo no
+  hay hacia dónde impulsarse).
+- Al activarse: invulnerabilidad + velocidad = 500% de la máxima, sin
+  control manual (ni giro ni empuje) hasta cancelar a mano o topar con el
+  borde del mundo.
+- Enfriamiento de 30s tras iniciar la carga (no tras completarla).
+- Botón dedicado en el HUD (verde, junto al de minar) + tecla `E`.
+
+**Por qué esta diferencia es temporal, no una decisión definitiva:** el
+modelo de destino+alineación necesita POIs reconocibles (5.5.1/5.6.1) que
+todavía no existen como objetos en el chunk fijo del prototipo. En cuanto
+haya destinos reales a los que apuntar, este impulso direccional debería
+evolucionar hacia (o convivir con) el modelo completo de esta sección —
+no se ha descartado nada, solo se ha aplazado por dependencia técnica.
+
+### 5.8 Sincronización cliente-servidor (decidido en el prototipo)
 
 El servidor es siempre la autoridad — el cliente nunca decide la posición
 real de nadie, solo la predice/interpola visualmente:
@@ -205,55 +815,8 @@ real de nadie, solo la predice/interpola visualmente:
   para cualquier MMO en tiempo real — se mantiene como decisión de
   arquitectura para cuando exista el sistema de chunks dinámico, no es
   algo exclusivo del chunk fijo de fase 0.
-
-### 5.3 Física de vuelo (decidido en el prototipo)
-
-**Modelo tipo Asteroids/Newtoniano, no "velocidad instantánea en la
-dirección del input".** El input marca el rumbo *deseado*, no la
-velocidad directa:
-
-- La nave gira el morro hacia el rumbo deseado a una velocidad angular
-  limitada (`TURN_RATE`) — no salta a esa dirección de golpe.
-- El empuje (`ACCELERATION`) se aplica en la dirección hacia la que la
-  nave está físicamente orientada *en ese instante*, no hacia el rumbo
-  deseado. Girar rápido yendo a alta velocidad produce deriva real —
-  intentar orbitar algo sin corregir constantemente el rumbo da elipses,
-  no círculos perfectos, tal y como se pidió en el diseño original.
-- Fricción suave (`DRAG`) constante: sin empuje, la nave frena sola en
-  un par de segundos en vez de derivar para siempre o parar en seco.
-- Movimiento libre a 360°, no direcciones fijas.
-- Simulado en el servidor (autoridad) y replicado exactamente en el
-  cliente para la predicción local — mismas constantes en ambos sitios
-  (`server/rooms/ChunkRoom.js` y `client/src/main.js`).
-
-**Valores actuales del prototipo** están calibrados para la única nave
-que existe en el juego (FHI Wren, lanzadera — nave nimble por diseño).
-Cuando exista selección real de nave, cada clase debería tener sus
-propios valores derivados de sus stats (más grande/pesada = giro y
-aceleración más bajos, tirando de `ships.json` en
-`client/public/ships/`) — de momento son globales para toda nave.
-
-### 5.1 Contenido de los chunks vírgenes
-
-Cada chunk sin explorar puede combinar tres tipos de contenido (no son
-mutuamente excluyentes — un mismo chunk puede tener las tres cosas):
-
-- **Recursos minables** — asteroides con materiales de distinta rareza
-  (más raros cuanto más lejos de la entrada, en la línea de Avorion).
-- **Ruinas / anomalías precursoras** — restos de los seres superiores que
-  crearon los wormholes (ver 1.1.1), con propósito desconocido y que ni
-  humanos ni las demás civilizaciones NPC terminan de entender. Es el
-  vehículo del misterio narrativo permanente ("quién hizo esto y para qué")
-  y una fuente de loot/lore único, no repetible por minería normal.
-- **Fauna espacial hostil** — vida alienígena que ataca, no es solo "otros
-  jugadores" el peligro de la frontera.
-
-**Pendiente de definir:** cómo se genera la mezcla de estos tres elementos
-por chunk (¿tablas de rareza, biomas, aleatorio puro?), si las ruinas dan
-pistas progresivas sobre el misterio central o son solo flavor/loot. El
-misterio de los precursores está pensado para **no resolverse nunca del
-todo** (ver 1.1.1) — evita que se agote como contenido una vez la
-comunidad "lo resuelva".
+- Es además el requisito que hace viable bajar `patchRate` bajo carga
+  (5.4): sin interpolación, menos parches se notarían como tirones.
 
 ## 6. Territorio y organizaciones
 
@@ -423,6 +986,80 @@ otros jugadores.
 
 
 
+### 8.4.1 Automatización y tareas offline
+
+**Decisión: tres niveles de la misma mecánica, con el modelo matemático
+puro (no simulación física) como base de los tres.**
+
+| Nivel | Cuándo | Eficiencia | Requiere |
+|---|---|---|---|
+| Manual | Jugando activamente | 100% | Nada nuevo |
+| Piloto automático online | Conectado, sin intervenir | ~65% | Nada nuevo — corre en el `update()` que ya existe |
+| Tarea offline | Desconectado | ~40% | Persistencia real (Supabase, ver 14) |
+
+**El modelo es siempre el mismo: orden persistente + evaluación
+perezosa, nunca una nave simulándose sola en segundo plano.** El jugador
+da una orden ("minar en el cinturón X hasta llenar bodega y volver") y el
+servidor guarda `orden`, `nave usada`, `hora de inicio` y las stats
+relevantes de esa nave en ese momento. No hay nada moviéndose de verdad
+mientras tanto — es el mismo patrón ya usado para regeneración de
+recursos y asedios (5.4.1): al jugador reconectar (o al consultarse la
+orden), el servidor calcula cuánto tiempo ha pasado y resuelve el
+resultado de golpe (viaje + minado + vuelta, con los tiempos de la propia
+simulación existente).
+
+**Por qué el piloto automático online no necesita nada nuevo.** A
+diferencia de la tarea offline, la room ya está viva y el bucle de
+simulación del servidor (`update()` en `ChunkRoom.js`) ya corre a tick
+completo. Automatizar es sustituir el origen del input: en vez de leer el
+input del jugador, la nave sigue una pequeña máquina de estados (ir a
+destino → minar → volver) que empuja por ese mismo `update()`. Es, con
+diferencia, la pieza más barata de las tres — se puede construir **antes**
+de tener Supabase, y de hecho conviene por ese orden: sirve como el primer
+tramo de la máquina de estados que luego reutiliza la tarea offline
+completa.
+
+**Los tres niveles no son un ajuste fino, son la palanca central de todo
+el sistema** — mismo principio que ya rige `F0`/`k` en CONCORD (4.3.1) o
+la estrella central del chunk (5.6.0): un número pequeño de parámetros
+controla toda la sensación de balance. Aquí concretamente protege el
+incentivo de jugar activamente sin quitarle progreso a quien no puede
+estar pendiente de la pantalla — que es exactamente el público de un
+juego pensado también para móvil.
+
+**Descartado para esta fase: materializar la tarea offline como nave
+física, interactuable/atacable, cuando un jugador real entra en el
+chunk.** Se consideró como capa visual — un "fantasma" calculado por
+posición + tiempo, dibujado solo cuando la room ya está despierta por
+otro motivo — y ahí el coste adicional es casi cero, porque la room ya
+está pagada por quien la despertó. El problema no está en pintarlo, está
+en hacerlo interactuable: eso obliga a construir de golpe tres piezas que
+hoy no existen —
+
+- **Combate contra un jugador ausente**, con hitbox y resolución de daño
+  reales, reutilizando el sistema de CONCORD (4.3.2) pero contra una
+  nave que su dueño no puede defender ni ver.
+- **Persistencia en caliente**: un impacto tiene que escribirse en el
+  momento en que ocurre, no esperar a que el dueño se reconecte para
+  resolver la tarea de una vez — rompe justo el patrón de escritura
+  diferida que sostiene 5.4.1.
+- **Equidad de pérdida**, del mismo tipo que ya existe para estaciones
+  (custodia parcial, 4.2.4): sin ella, desconectarse para trabajar puede
+  significar perder la nave sin haber podido reaccionar ni consentirlo.
+
+Ninguna de las tres es un interruptor — son subsistemas enteros. Se deja
+como expansión futura posible, no descartada para siempre, pero fuera del
+alcance de la primera versión de esta mecánica.
+
+**Pendiente de definir:** catálogo de órdenes disponibles por clase de
+nave (¿una lanzadera solo admite una orden simple, una minera dedicada
+encadena varias?); si existen mejoras (módulos, tripulación, skills) que
+suban la eficiencia offline por encima del 40% base; tope de fantasmas
+visuales simultáneos por chunk al despertar, mismo patrón que el tope de
+naves CONCORD (4.3.2); si el piloto automático online se puede activar
+con el jugador mirando otra pantalla del juego (mercado, fabricación) o
+exige minimizar/salir del modo vuelo.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo
@@ -469,31 +1106,99 @@ jugadores?).
 
 ## 11. Preguntas abiertas (registro)
 
-- ~~Tamaño exacto de un chunk en unidades de juego~~ — resuelto *para el
-  prototipo*: 4000 unidades de lado (`WORLD_SIZE` en el código), con
-  límite real aplicado por el servidor. No es necesariamente el tamaño
-  final del sistema de chunks completo, solo el valor de trabajo actual.
-- Mecánica de escaneo para encontrar puntos de salto
-- Qué ocurre con un chunk sin jugadores presentes (¿simulación offline?)
+- ~~¿Mosaico continuo o sistemas discretos?~~ — resuelto: sistemas
+  discretos con puntos de salto, grilla como metadato del mapa (5.1)
+- ~~¿Instanciar chunks llenos?~~ — resuelto: no, se degrada bajo carga (5.4)
+- ~~Tamaño exacto de un chunk en unidades de juego~~ — resuelto: **30.000
+  × 30.000 u** para el sistema de chunks completo (5.5), sustituye al
+  valor de prototipo (`WORLD_SIZE = 4000` en el código actual, que queda
+  obsoleto para cuando se implemente el chunk dinámico).
+- ~~¿Hay velocidad de warp dentro del chunk?~~ — resuelto: sí, 15× la
+  velocidad sublight (3.300 u/s), con alineación previa y solo a destinos
+  reconocidos (5.7)
+- ~~Estructura del centro del chunk~~ — resuelto: siempre hay una estrella
+  (o dos, binario) fija en el centro exacto de la grilla (5.6.0)
+- Interdicción del warp: ¿existe scrambler/disruptor que impida alinear?
+  (5.7)
+- Valores exactos de tiempo de alineación por clase de nave (5.7)
+- Coste (combustible/energía) del warp, y si se puede cancelar en curso (5.7)
+- Proporción de sistemas binarios frente a estrella única (5.6.0)
+- Si el tipo de estrella influye mecánicamente (radiación, escudos) o es
+  solo visual (5.6.0)
+- ~~Mecánica de escaneo para encontrar puntos de salto~~ — resuelta: pulso
+  direccional + triangulación, con módulo que ocupa slot (5.5.2)
+- ~~¿El mundo se genera al descubrirlo o está pregenerado?~~ — resuelto:
+  determinista por semilla + coordenadas, solo se persisten deltas (5.5.1)
+- Cuántos pulsos acertados estabilizan una firma (5.5.2)
+- ~~Cuántos puntos de spawn y criterio de rotación~~ — resuelto: 3 puntos
+  fijos, rotación por ocupación (~15 jugadores/punto), no por tiempo (4.1.1)
+- ~~Mezcla de recursos/ruinas/fauna por chunk~~ — resuelto: tablas de
+  rareza ponderadas por distancia y aspereza, sin biomas con nombre (5.6.1)
+- ~~¿Las ruinas dan pistas o son solo flavor?~~ — resuelto: pistas vía
+  compendio compartido que nunca converge en respuesta (5.6.2)
+- Si el umbral de spawn (15) se ajusta con telemetría real (4.1.1)
+- Si el jugador puede elegir su punto de spawn manualmente (4.1.1)
+- Valores exactos de las tablas de rareza por chunk (5.6.1)
+- Cadencia de publicación de fragmentos de ruinas (5.6.2)
+- Si el escáner ocupa slot alto o medio (5.5.2)
+- Proporción de chunks sin salida sin descubrir (5.5.2)
+- Si los nombres de chunk puestos por jugadores se moderan (5.5.2)
+- ~~Qué ocurre con un chunk dormido~~ — resuelto: congelado, estado como
+  timestamps y evaluación perezosa al despertar (5.4.1)
+- ~~Duración de la histéresis antes de destruir una room vacía~~ —
+  resuelto: 3 minutos, con volcado a Supabase al vaciarse (5.3)
+- ~~Umbrales de la escalera de degradación~~ — resueltos como valores de
+  partida, pendientes de recalibrar con tiempo de tick medido (5.4)
+- ~~¿Migrar a Colyseum 0.16?~~ — resuelto: sí, como bump aislado y antes de
+  construir el AoI (5.4)
 - Reglas de conquista territorial
 - Cuántos puntos de spawn simultáneos y criterio de rotación por carga
-- Si CONCORD patrulla activamente o solo interviene ante agresión
+- Catálogo de órdenes de automatización por clase de nave (8.4.1)
+- Mejoras que suben la eficiencia offline por encima del 40% base (8.4.1)
+- Tope de fantasmas visuales offline simultáneos por chunk (8.4.1)
+- Si el piloto automático online exige salir del modo vuelo o no (8.4.1)
+- ~~¿CONCORD patrulla o solo responde?~~ — resuelto: solo responde, salvo
+  presencia estática en el chunk del hub (4.3.4)
 - Cómo se genera la mezcla recursos/ruinas/fauna por chunk
 - Si las ruinas cuentan una progresión de misterio o son solo flavor/loot
 - Catálogo exacto de la tienda NPC del hub inicial
-- Qué pasa con la nave mientras el jugador está dentro de una estación
-- Si la transición nave→estación tiene carga/animación o es instantánea
-- Capacidad de la instancia interior de una estación (¿todos comparten la
-  misma room, o hay límite y se crean varias?)
-- Cuántas facciones NPC no-humanas existen y cómo se comportan
-  (¿territoriales/hostiles por defecto, o hay diplomacia/comercio posible?)
-- Diferencias visuales/tecnológicas entre las distintas civilizaciones NPC
-- Si estas facciones pueden establecer territorio propio *a partir* de
-  jugarse la partida (p. ej. expandirse tras ser descubiertas), o se quedan
-  fijas donde aparecen
-- Fórmula exacta de degradación de la respuesta de CONCORD con la distancia
-- Qué manda CONCORD exactamente al intervenir (naves normales, algo más letal/instantáneo)
-- Si queda reputación/flag en el jugador agresor tras el ataque
+- ~~Qué pasa con la nave mientras el jugador está dentro de una estación~~
+  — resuelto: depende del tamaño de la estación (4.2.1)
+- ~~Transición nave→estación~~ — resuelto: fundido corto de ~1s (4.2.2)
+- ~~Capacidad de la instancia interior~~ — resuelto: una sola room con
+  cola, sin instanciar (4.2.2)
+- ~~Qué clasifica una estación como pequeña, mediana o grande~~ —
+  resuelto: tres clases discretas por plano (Puesto / Estación / Bastión),
+  con módulos como mejora dentro de la clase (4.2.3)
+- Qué es exactamente la "protección parcial" de una estación mediana
+  (propuesta: torretas de la estructura) (4.2.1)
+- ~~Qué pasa con las naves guardadas si destruyen la estación~~ —
+  resuelto: ~20% cae como botín, el resto entra en custodia con demora y
+  comisión (4.2.4)
+- Si un puesto puede ascender de clase o hay que reconstruir (4.2.3)
+- Calibración de la custodia: % de botín, demora, comisión, y si aplica
+  igual en conquista pacífica que en destrucción (4.2.4)
+- Capacidad numérica de la room interior, y si el hub inicial es excepción
+  y sí se instancia (4.2.2)
+- ~~Cuántas facciones NPC y cómo se comportan~~ — resuelto: tres
+  (territorial / mercante / errante), una implementada primero (1.1.2)
+- ~~Diferencias visuales y tecnológicas~~ — resuelto: silueta + paleta +
+  un rasgo mecánico por facción, sin árboles completos (1.1.3)
+- ~~¿Se expanden las facciones NPC?~~ — resuelto: no avanzan solas; los
+  jugadores bajan su influencia y ésta se regenera de forma perezosa (1.1.4)
+- Nombres y lore de las tres facciones, y cuál se implementa primero (1.1.2)
+- Ritmo de regeneración de influencia de facción (1.1.4)
+- Si la reputación con facciones NPC es independiente de la de CONCORD (1.1.4)
+- ~~Fórmula de degradación de CONCORD~~ — resuelta: distancia en saltos,
+  retardo lineal y fuerza geométrica, sin escalar con nº de atacantes (4.3.1)
+- ~~Qué manda CONCORD al intervenir~~ — resuelto: naves NPC reales y
+  destruibles, con tope por room (4.3.2)
+- ~~¿Queda flag/reputación tras agredir?~~ — resuelto: flag de combate
+  corto + reputación persistente con umbral de proscrito (4.3.3)
+- Calibración de `F0`, `k` y retardo con jugadores reales (4.3.1)
+- Qué clase de naves manda CONCORD y si varía con la distancia (4.3.2)
+- Duración del flag, umbral de proscrito y ritmo de recuperación (4.3.3)
+- Si robar carga pesa lo mismo que disparar en la reputación (4.3.3)
 - Si hay pod/cápsula de escape al perder la nave, o respawn sin nada
 - Si existe seguro/reembolso parcial por pérdida de nave
 - Cómo funciona el looteo de restos de una nave destruida
@@ -571,6 +1276,10 @@ Supabase (sustituir el placeholder de `localStorage`).
 **Pendiente de definir:** orden exacto de lo siguiente — candidatos
 fuertes son Supabase (para que los personajes no dependan del navegador)
 y crafteo real, antes de abrir el sistema de chunks dinámico.
+
+Dos tareas técnicas ya decididas que encajan aquí: **desacoplar
+simulación de `patchRate`** (5.4) y el **bump a Colyseum 0.16** (5.4),
+este último obligatorio antes de construir el AoI.
 
 ## 14. Infraestructura de desarrollo
 

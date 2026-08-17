@@ -14,6 +14,34 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.1.0]
+
+### Añadido
+- **Sistema de warp** — nueva mecánica de gameplay, no un ajuste. Botón
+  verde "WARP" junto al de minar (tecla `E` en escritorio):
+  - Al activarlo empieza una cuenta atrás de carga ("Cargando motor
+    warp…Xs"), con la nave todavía bajo control normal durante la carga.
+  - Al completarse, si la nave tenía velocidad distinta de cero, se
+    vuelve invulnerable y sale disparada en línea recta (en la dirección
+    en la que ya iba, no hacia donde apunte el jugador) al 500% de la
+    velocidad máxima. Si estaba parada, la carga no tiene efecto.
+  - Durante el warp no se puede girar ni acelerar manualmente — viaja en
+    línea recta hasta cancelarse (pulsando el botón otra vez, para en
+    seco donde esté) o hasta topar con el borde del mundo.
+  - Enfriamiento de 30s tras activar la carga (se cuenta desde que se
+    pulsa, no desde que termina el viaje).
+  - Todo lo decide el servidor (carga, velocidad, colisión con el borde,
+    cancelación) — el cliente solo manda el botón y refleja el estado
+    sincronizado.
+  - Tiempo de carga (10s) calibrado para la única nave del juego ahora
+    mismo; debería variar por clase cuando exista selección real de nave.
+- Zoom mínimo ampliado mucho más (de 0.5 a 0.08) para poder alejarse
+  hasta ver el mapa a escala de sistema, no solo la nave — pensado de
+  cara a puntos de interés/salto cuando existan. Campo de estrellas
+  ampliado a juego para que no se vea vacío al zoom mínimo.
+- Botón de opciones cambiado de hamburguesa arriba-izquierda a engranaje
+  abajo-derecha, encima del botón de minar.
+
 ## [v0.0.11]
 
 ### Corregido

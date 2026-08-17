@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.1.0",
+    "highlights": [
+      "New warp system: charge the drive and rocket forward at 5x speed in a straight line. Green button next to the mining one (E key on PC).",
+      "You can zoom out much further now to see the map at a larger scale.",
+      "The options button is now a gear icon, bottom-right."
+    ]
+  },
+  {
     "version": "v0.0.11",
     "highlights": [
       "Fixed the engine trail, which was coming out of the ship's side instead of behind it."

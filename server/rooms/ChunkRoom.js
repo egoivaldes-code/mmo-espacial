@@ -29,6 +29,18 @@ const ACCELERATION = 300; // unidades/s²
 const MAX_SPEED = 240; // unidades/s
 const DRAG = 0.6; // fracción de velocidad perdida por segundo (fricción suave)
 
+// Sistema de warp — pensado como "impulso" en la dirección actual de
+// vuelo, no como salto a un punto elegido (eso se dejó para más
+// adelante). Necesitas ya estar en movimiento para poder activarlo.
+//
+// WARP_CHARGE_TIME es el tiempo de carga de la única nave que hay en el
+// juego ahora mismo (FHI Wren). Cuando exista selección real de nave,
+// debería variar por clase (más grande/pesada = carga más lenta) — ver
+// ships.json en client/public/ships/.
+const WARP_CHARGE_TIME = 10; // segundos
+const WARP_SPEED_MULTIPLIER = 5; // 500% de MAX_SPEED durante el warp
+const WARP_COOLDOWN = 30; // segundos, empieza a contar al activar la carga
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -69,6 +81,31 @@ class ChunkRoom extends Room {
       if (!player || typeof name !== "string") return;
       const trimmed = name.trim().slice(0, 16);
       if (trimmed) player.name = trimmed;
+    });
+
+    // Un único mensaje conmuta los tres estados del warp: si está
+    // inactivo (y sin enfriamiento) arranca la carga; si está cargando o
+    // ya viajando, lo cancela y para la nave en seco donde esté. Toda la
+    // decisión vive en el servidor — el cliente solo pulsa el botón.
+    this.onMessage("warpToggle", (client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
+      if (player.warpCharging || player.warping) {
+        player.warpCharging = false;
+        player.warpChargeRemaining = 0;
+        player.warping = false;
+        player.invulnerable = false;
+        player.vx = 0;
+        player.vy = 0;
+        return;
+      }
+
+      if (player.warpCooldownRemaining > 0) return; // todavía enfriando
+
+      player.warpCharging = true;
+      player.warpChargeRemaining = WARP_CHARGE_TIME;
+      player.warpCooldownRemaining = WARP_COOLDOWN;
     });
 
     this.setSimulationInterval((deltaMs) => this.update(deltaMs), 1000 / TICK_RATE);
@@ -136,44 +173,74 @@ class ChunkRoom extends Room {
         player.vy = 0;
       }
 
-      const input = player.input;
-      let dx = 0;
-      let dy = 0;
-      if (input) {
-        if (input.up) dy -= 1;
-        if (input.down) dy += 1;
-        if (input.left) dx -= 1;
-        if (input.right) dx += 1;
+      // --- Enfriamiento del warp — cuenta siempre, cargando o no ---
+      if (player.warpCooldownRemaining > 0) {
+        player.warpCooldownRemaining = Math.max(0, player.warpCooldownRemaining - dt);
       }
-      const hasInput = dx !== 0 || dy !== 0;
 
-      if (hasInput) {
-        // Gira el morro hacia el rumbo deseado, limitado por TURN_RATE —
-        // no salta directamente a esa dirección.
-        const desiredAngle = Math.atan2(dy, dx);
-        const diff = angleDiff(player.rotation, desiredAngle);
-        const maxStep = TURN_RATE * dt;
-        player.rotation += Math.abs(diff) <= maxStep ? diff : Math.sign(diff) * maxStep;
+      // --- Cuenta atrás de carga ---
+      if (player.warpCharging) {
+        player.warpChargeRemaining -= dt;
+        if (player.warpChargeRemaining <= 0) {
+          player.warpCharging = false;
+          player.warpChargeRemaining = 0;
 
-        // El empuje va en la dirección hacia la que la nave está
-        // orientada AHORA, no hacia el rumbo deseado — por eso hay deriva
-        // al girar rápido sin haber terminado de orientarse.
-        player.vx += Math.cos(player.rotation) * ACCELERATION * dt;
-        player.vy += Math.sin(player.rotation) * ACCELERATION * dt;
-
-        const speed = Math.hypot(player.vx, player.vy);
-        if (speed > MAX_SPEED) {
-          player.vx = (player.vx / speed) * MAX_SPEED;
-          player.vy = (player.vy / speed) * MAX_SPEED;
+          const currentSpeed = Math.hypot(player.vx, player.vy);
+          if (currentSpeed > 0.01) {
+            // Activa el warp: impulso en la dirección actual de vuelo,
+            // no hacia donde mires — necesitas ya estar en movimiento.
+            const dirX = player.vx / currentSpeed;
+            const dirY = player.vy / currentSpeed;
+            const warpSpeed = MAX_SPEED * WARP_SPEED_MULTIPLIER;
+            player.vx = dirX * warpSpeed;
+            player.vy = dirY * warpSpeed;
+            player.rotation = Math.atan2(dirY, dirX);
+            player.warping = true;
+            player.invulnerable = true;
+          }
+          // Si la velocidad era ~0, la carga termina sin efecto (no hay
+          // dirección de vuelo en la que impulsarse) — se pierde el
+          // intento pero el enfriamiento ya se aplicó igualmente.
         }
       }
 
-      // Fricción suave, siempre activa (con o sin input) — sin esto la
-      // nave derivaría para siempre; con ella conserva inercia real pero
-      // acaba frenándose sola en un par de segundos sin empuje.
-      const dragFactor = Math.max(0, 1 - DRAG * dt);
-      player.vx *= dragFactor;
-      player.vy *= dragFactor;
+      // --- Movimiento: en warp no hay control manual (ni giro ni
+      // empuje ni fricción) — viaja en línea recta a velocidad fija
+      // hasta que se cancela o topa con el borde del mundo. Fuera de
+      // warp, la física normal de giro+empuje+fricción de siempre. ---
+      const input = player.input;
+
+      if (!player.warping) {
+        let dx = 0;
+        let dy = 0;
+        if (input) {
+          if (input.up) dy -= 1;
+          if (input.down) dy += 1;
+          if (input.left) dx -= 1;
+          if (input.right) dx += 1;
+        }
+        const hasInput = dx !== 0 || dy !== 0;
+
+        if (hasInput) {
+          const desiredAngle = Math.atan2(dy, dx);
+          const diff = angleDiff(player.rotation, desiredAngle);
+          const maxStep = TURN_RATE * dt;
+          player.rotation += Math.abs(diff) <= maxStep ? diff : Math.sign(diff) * maxStep;
+
+          player.vx += Math.cos(player.rotation) * ACCELERATION * dt;
+          player.vy += Math.sin(player.rotation) * ACCELERATION * dt;
+
+          const speed = Math.hypot(player.vx, player.vy);
+          if (speed > MAX_SPEED) {
+            player.vx = (player.vx / speed) * MAX_SPEED;
+            player.vy = (player.vy / speed) * MAX_SPEED;
+          }
+        }
+
+        const dragFactor = Math.max(0, 1 - DRAG * dt);
+        player.vx *= dragFactor;
+        player.vy *= dragFactor;
+      }
 
       if (Math.abs(player.vx) > 0.01 || Math.abs(player.vy) > 0.01) {
         const half = WORLD_SIZE / 2;
@@ -182,14 +249,23 @@ class ChunkRoom extends Room {
         const clampedX = clamp(nextX, -half, half);
         const clampedY = clamp(nextY, -half, half);
         // Si topó con el borde del mundo, anula la velocidad en ese eje
-        // en vez de dejar que siga acelerando contra la pared.
+        // en vez de dejar que siga acelerando contra la pared. Si iba en
+        // warp, esto también lo termina (ver justo debajo).
         if (clampedX !== nextX) player.vx = 0;
         if (clampedY !== nextY) player.vy = 0;
         player.x = clampedX;
         player.y = clampedY;
       }
 
-      if (input?.mining) {
+      // El warp termina solo si la velocidad se anuló por chocar con el
+      // borde del mundo — el resto del tiempo sigue hasta cancelarse a
+      // mano (mensaje warpToggle) o hasta el próximo tope de borde.
+      if (player.warping && Math.abs(player.vx) < 0.01 && Math.abs(player.vy) < 0.01) {
+        player.warping = false;
+        player.invulnerable = false;
+      }
+
+      if (input?.mining && !player.warping) {
         this.tryMine(player);
       }
     });

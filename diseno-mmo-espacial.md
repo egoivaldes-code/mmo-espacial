@@ -1289,10 +1289,15 @@ no son diseño de juego, pero condicionan cómo de rápido se puede iterar.
 
 ### 14.1 Hosting
 
-- **Servidor (Colyseum)**: Render, plan free. Se "duerme" tras
-  inactividad (de ahí el aviso de "servidor despertando" en el cliente).
+- **Servidor (Colyseum)**: Render, plan free, servicio `mmo-espacial-server-eu`,
+  región **Frankfurt** (antes Oregon — se migró por latencia: ~190ms desde
+  España bajaron a ~60ms). Se "duerme" tras inactividad (de ahí el aviso de
+  "servidor despertando" en el cliente). Render no permite cambiar la
+  región de un servicio existente — mover de región siempre implica crear
+  uno nuevo y migrar la URL, no hay otra forma.
 - **Cliente (Phaser)**: GitHub Pages, construido con Vite y publicado vía
-  GitHub Actions (`deploy-pages.yml`) en cada cambio dentro de `client/`.
+  GitHub Actions (`deploy-pages.yml`) en cada cambio dentro de `client/`,
+  con `VITE_SERVER_URL` apuntando al servidor de Render de arriba.
 - Repo: `egoivaldes-code/mmo-espacial` (público).
 
 ### 14.2 Flujo de parches
@@ -1305,6 +1310,17 @@ zip, hace commit y push, y dispara el deploy de Pages si el cambio tocó
 `client/`. Detalle completo del mecanismo (incluida la protección contra
 zip-slip/symlinks y los metadatos opcionales `PATCH.json`/`DELETE.txt`)
 en el `README.md` del repo.
+
+**Limitación conocida — archivos dentro de `.github/workflows/`.**
+GitHub bloquea por diseño que el `GITHUB_TOKEN` automático de un workflow
+modifique otros archivos de workflow (así un workflow nunca puede
+ampliarse permisos a sí mismo sin que quede a la vista) — no depende de
+los permisos que se activen en Settings, es una restricción de
+plataforma. Por tanto `apply-patch.yml` **no puede aplicarse a sí mismo
+ni a `deploy-pages.yml`**: cualquier cambio a un archivo dentro de
+`.github/workflows/` hay que subirlo a mano vía "Add file → Upload
+files" en la propia web de GitHub (funciona bien en móvil, evita el
+editor de código en el navegador).
 
 ### 14.3 Política de versionado
 

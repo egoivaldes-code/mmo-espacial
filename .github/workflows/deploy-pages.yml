@@ -34,7 +34,7 @@ jobs:
 
       - run: npm run build
         env:
-          VITE_SERVER_URL: wss://mmo-espacial-server.onrender.com
+          VITE_SERVER_URL: wss://mmo-espacial-server-eu.onrender.com
 
       - uses: actions/upload-pages-artifact@v3
         with:

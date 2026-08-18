@@ -1897,13 +1897,15 @@ el navegador, `client/public/naveteca/`) incorpora dos pestañas nuevas:
 
 Existe ya un catálogo de fábrica en `client/public/turrets/`
 (`turrets.json` + `sprites/`) con **32 torretas** recortadas de las
-hojas de referencia: 8 cinéticas (autocañón/railgun), 8 iónicas v1, 8
-iónicas v2 (variante de arte más fina — ambas conviven; se puede ocultar
-la que no se quiera usar) y 8 radiológicas (proyector de neutrones/cañón
-gamma), todas en tamaños S/M/L/C. Cada una lleva un pivote por defecto
-(estimado, cerca de la base) pensado para revisar a mano. Falta la
-familia térmica (plasma/láser) y falta EWAR/minado si se arman como
-"torretas" propias más adelante.
+hojas de referencia, con las 4 familias de daño de 8.4.5 ya
+representadas: 8 cinéticas (autocañón/railgun), 8 iónicas (cañón
+iónico/acelerador de partículas — una única variante de arte válida;
+una primera versión con errores se descartó y se quitó del catálogo),
+8 radiológicas (proyector de neutrones/cañón gamma) y 8 térmicas
+(cañón de plasma/láser), todas en tamaños S/M/L/C. Cada una lleva un
+pivote por defecto (estimado, cerca de la base) pensado para revisar a
+mano. Falta EWAR/minado si se arman como "torretas" propias más
+adelante.
 
 El resultado se exporta como `turret-slots.json` (posición de cada slot
 por nave, en píxeles nativos del sprite, con su grupo de simetría y qué

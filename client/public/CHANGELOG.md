@@ -14,6 +14,22 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.6]
+
+### Corregido — iónica v1 fuera, halo magenta eliminado
+- Se retira del catálogo la variante "iónica v1" (arte con errores);
+  solo queda la versión buena, ahora sin el "(v2)" en el nombre.
+- Se reprocesaron con un recorte más estricto (umbral de color más alto
+  + erosión de 1-2px en el borde) las torretas iónicas y las
+  radiológicas, que se veían con un halo magenta residual del fondo
+  chroma-key. Ya no queda rastro.
+
+### Añadido — familia térmica (plasma/láser)
+- 8 torretas nuevas: Cañón de Plasma (corto) y Láser (largo), en
+  S/M/L/C. Con esto ya están las 4 familias de daño del documento de
+  diseño (8.4.5) representadas: cinética, iónica, radiológica y
+  térmica — 32 torretas en total.
+
 ## [v0.5.5]
 
 ### Añadido — 32 torretas reales integradas en la Naveteca

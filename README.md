@@ -1,25 +1,27 @@
-# v0.5.5 — Catálogo real de torretas + mejoras en la Naveteca
+# v0.5.6 — Quita iónica v1, limpia el halo magenta, añade térmica
 
-- 32 torretas recortadas (fondo transparente) de las hojas de
-  referencia: cinéticas, iónicas v1, iónicas v2 y radiológicas, en
-  S/M/L/C. Nueva carpeta `client/public/turrets/` (`turrets.json` +
-  `sprites/`) que la Naveteca carga sola.
-- "Slots de torretas": ahora también con ajuste fino por coordenadas
-  x/y, y una recomendación orientativa de nº de torretas según la clase
-  de la nave elegida.
-- "Eje de rotación": las torretas de fábrica se pueden ocultar/mostrar y
-  renombrar/reajustar el pivote localmente (overrides), sin perder el
-  original; las subidas a mano siguen funcionando igual que antes.
-- Probado de extremo a extremo en navegador (Playwright): carga de
-  naves y torretas, simetría, asignación con vista previa girada,
-  ajuste fino y ocultar/restaurar.
+- Se borran las 8 torretas "iónica v1" (arte con errores, según lo
+  confirmado). Solo queda la versión buena (antes "v2"), renombrada sin
+  el sufijo.
+- Se reprocesaron iónicas y radiológicas con un recorte más estricto
+  (umbral de color más alto + erosión de borde) para quitar el halo
+  magenta residual que quedaba del fondo chroma-key.
+- Se añaden las 8 torretas térmicas (Cañón de Plasma / Láser, S/M/L/C)
+  recortadas igual de limpias desde el principio.
+- Catálogo final: 32 torretas, 4 familias completas (cinética, iónica,
+  radiológica, térmica).
 
-Ver detalle en `client/public/CHANGELOG.md` (v0.5.5) y
+Ver detalle en `client/public/CHANGELOG.md` (v0.5.6) y
 `diseno-mmo-espacial.md` (8.4.12, actualizada).
 
 ## Archivos de este parche
-- `client/public/naveteca/index.html` — Naveteca con catálogo base + overrides.
-- `client/public/turrets/turrets.json` y `client/public/turrets/sprites/*.png` — catálogo de 32 torretas.
-- `client/src/main.js` — versión subida a v0.5.5.
-- `client/public/CHANGELOG.md` — entrada v0.5.5.
+- `client/public/turrets/turrets.json` — catálogo actualizado (32 torretas).
+- `client/public/turrets/sprites/ionico_v2_*.png` — iónicas limpias.
+- `client/public/turrets/sprites/radiologico_*.png` — radiológicas limpias (reemplazo).
+- `client/public/turrets/sprites/thermal_*.png` — térmicas nuevas.
+- `client/src/main.js` — versión subida a v0.5.6.
+- `client/public/CHANGELOG.md` — entrada v0.5.6.
 - `diseno-mmo-espacial.md` — 8.4.12 actualizada.
+
+El PATCH.json de este zip también borra los 8 archivos de la iónica v1
+inválida (`client/public/turrets/sprites/ionico_v1_*.png`).

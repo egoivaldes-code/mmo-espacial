@@ -104,112 +104,8 @@
     }
   },
   {
-    "id": "ionico_v1_corto_s",
-    "name": "Cañón Iónico S (corto)",
-    "file": "sprites/ionico_v1_corto_s.png",
-    "size": {
-      "w": 112,
-      "h": 244
-    },
-    "pivot": {
-      "x": 56.0,
-      "y": 200.1
-    }
-  },
-  {
-    "id": "ionico_v1_corto_m",
-    "name": "Cañón Iónico M (corto)",
-    "file": "sprites/ionico_v1_corto_m.png",
-    "size": {
-      "w": 135,
-      "h": 336
-    },
-    "pivot": {
-      "x": 67.5,
-      "y": 275.5
-    }
-  },
-  {
-    "id": "ionico_v1_corto_l",
-    "name": "Cañón Iónico L (corto)",
-    "file": "sprites/ionico_v1_corto_l.png",
-    "size": {
-      "w": 145,
-      "h": 383
-    },
-    "pivot": {
-      "x": 72.5,
-      "y": 314.1
-    }
-  },
-  {
-    "id": "ionico_v1_corto_c",
-    "name": "Cañón Iónico C (corto)",
-    "file": "sprites/ionico_v1_corto_c.png",
-    "size": {
-      "w": 167,
-      "h": 456
-    },
-    "pivot": {
-      "x": 83.5,
-      "y": 373.9
-    }
-  },
-  {
-    "id": "ionico_v1_largo_s",
-    "name": "Acelerador de Partículas S (largo)",
-    "file": "sprites/ionico_v1_largo_s.png",
-    "size": {
-      "w": 105,
-      "h": 277
-    },
-    "pivot": {
-      "x": 52.5,
-      "y": 227.1
-    }
-  },
-  {
-    "id": "ionico_v1_largo_m",
-    "name": "Acelerador de Partículas M (largo)",
-    "file": "sprites/ionico_v1_largo_m.png",
-    "size": {
-      "w": 133,
-      "h": 357
-    },
-    "pivot": {
-      "x": 66.5,
-      "y": 292.7
-    }
-  },
-  {
-    "id": "ionico_v1_largo_l",
-    "name": "Acelerador de Partículas L (largo)",
-    "file": "sprites/ionico_v1_largo_l.png",
-    "size": {
-      "w": 146,
-      "h": 429
-    },
-    "pivot": {
-      "x": 73.0,
-      "y": 351.8
-    }
-  },
-  {
-    "id": "ionico_v1_largo_c",
-    "name": "Acelerador de Partículas C (largo)",
-    "file": "sprites/ionico_v1_largo_c.png",
-    "size": {
-      "w": 167,
-      "h": 464
-    },
-    "pivot": {
-      "x": 83.5,
-      "y": 380.5
-    }
-  },
-  {
     "id": "ionico_v2_corto_s",
-    "name": "Cañón Iónico (v2) S (corto)",
+    "name": "Cañón Iónico S (corto)",
     "file": "sprites/ionico_v2_corto_s.png",
     "size": {
       "w": 113,
@@ -222,7 +118,7 @@
   },
   {
     "id": "ionico_v2_corto_m",
-    "name": "Cañón Iónico (v2) M (corto)",
+    "name": "Cañón Iónico M (corto)",
     "file": "sprites/ionico_v2_corto_m.png",
     "size": {
       "w": 136,
@@ -235,7 +131,7 @@
   },
   {
     "id": "ionico_v2_corto_l",
-    "name": "Cañón Iónico (v2) L (corto)",
+    "name": "Cañón Iónico L (corto)",
     "file": "sprites/ionico_v2_corto_l.png",
     "size": {
       "w": 149,
@@ -248,7 +144,7 @@
   },
   {
     "id": "ionico_v2_corto_c",
-    "name": "Cañón Iónico (v2) C (corto)",
+    "name": "Cañón Iónico C (corto)",
     "file": "sprites/ionico_v2_corto_c.png",
     "size": {
       "w": 187,
@@ -261,7 +157,7 @@
   },
   {
     "id": "ionico_v2_largo_s",
-    "name": "Acelerador de Partículas (v2) S (largo)",
+    "name": "Acelerador de Partículas S (largo)",
     "file": "sprites/ionico_v2_largo_s.png",
     "size": {
       "w": 117,
@@ -274,7 +170,7 @@
   },
   {
     "id": "ionico_v2_largo_m",
-    "name": "Acelerador de Partículas (v2) M (largo)",
+    "name": "Acelerador de Partículas M (largo)",
     "file": "sprites/ionico_v2_largo_m.png",
     "size": {
       "w": 140,
@@ -287,7 +183,7 @@
   },
   {
     "id": "ionico_v2_largo_l",
-    "name": "Acelerador de Partículas (v2) L (largo)",
+    "name": "Acelerador de Partículas L (largo)",
     "file": "sprites/ionico_v2_largo_l.png",
     "size": {
       "w": 157,
@@ -300,7 +196,7 @@
   },
   {
     "id": "ionico_v2_largo_c",
-    "name": "Acelerador de Partículas (v2) C (largo)",
+    "name": "Acelerador de Partículas C (largo)",
     "file": "sprites/ionico_v2_largo_c.png",
     "size": {
       "w": 183,
@@ -413,6 +309,110 @@
     "pivot": {
       "x": 85.5,
       "y": 383.8
+    }
+  },
+  {
+    "id": "thermal_corto_s",
+    "name": "Cañón de Plasma S (corto)",
+    "file": "sprites/thermal_corto_s.png",
+    "size": {
+      "w": 117,
+      "h": 231
+    },
+    "pivot": {
+      "x": 58.5,
+      "y": 189.4
+    }
+  },
+  {
+    "id": "thermal_corto_m",
+    "name": "Cañón de Plasma M (corto)",
+    "file": "sprites/thermal_corto_m.png",
+    "size": {
+      "w": 145,
+      "h": 350
+    },
+    "pivot": {
+      "x": 72.5,
+      "y": 287.0
+    }
+  },
+  {
+    "id": "thermal_corto_l",
+    "name": "Cañón de Plasma L (corto)",
+    "file": "sprites/thermal_corto_l.png",
+    "size": {
+      "w": 165,
+      "h": 412
+    },
+    "pivot": {
+      "x": 82.5,
+      "y": 337.8
+    }
+  },
+  {
+    "id": "thermal_corto_c",
+    "name": "Cañón de Plasma C (corto)",
+    "file": "sprites/thermal_corto_c.png",
+    "size": {
+      "w": 213,
+      "h": 489
+    },
+    "pivot": {
+      "x": 106.5,
+      "y": 401.0
+    }
+  },
+  {
+    "id": "thermal_largo_s",
+    "name": "Láser S (largo)",
+    "file": "sprites/thermal_largo_s.png",
+    "size": {
+      "w": 113,
+      "h": 341
+    },
+    "pivot": {
+      "x": 56.5,
+      "y": 279.6
+    }
+  },
+  {
+    "id": "thermal_largo_m",
+    "name": "Láser M (largo)",
+    "file": "sprites/thermal_largo_m.png",
+    "size": {
+      "w": 151,
+      "h": 428
+    },
+    "pivot": {
+      "x": 75.5,
+      "y": 351.0
+    }
+  },
+  {
+    "id": "thermal_largo_l",
+    "name": "Láser L (largo)",
+    "file": "sprites/thermal_largo_l.png",
+    "size": {
+      "w": 151,
+      "h": 488
+    },
+    "pivot": {
+      "x": 75.5,
+      "y": 400.2
+    }
+  },
+  {
+    "id": "thermal_largo_c",
+    "name": "Láser C (largo)",
+    "file": "sprites/thermal_largo_c.png",
+    "size": {
+      "w": 186,
+      "h": 513
+    },
+    "pivot": {
+      "x": 93.0,
+      "y": 420.7
     }
   }
 ]

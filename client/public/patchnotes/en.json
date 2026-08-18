@@ -1,5 +1,14 @@
 [
   {
+    "version": "v0.3.0",
+    "highlights": [
+      "You can now sign in with your email: you get a link, no passwords needed.",
+      "Your pilots no longer live in the browser — they belong to your account and work from any device.",
+      "Progress is saved: when you come back, your ship is where you left it, with its cargo and hull.",
+      "Max 5 pilots per account and unique names, now enforced by the server."
+    ]
+  },
+  {
     "version": "v0.2.0",
     "highlights": [
       "New interface icons: 16 custom symbols (warp, mine, dock, jump point, asteroid, wreck, ruin…) packed into a single image that loads in one go.",

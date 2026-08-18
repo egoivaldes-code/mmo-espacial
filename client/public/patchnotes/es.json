@@ -1,5 +1,14 @@
 [
   {
+    "version": "v0.3.0",
+    "highlights": [
+      "Ya puedes entrar con tu correo: te llega un enlace y listo, sin contraseñas.",
+      "Tus pilotos dejan de vivir en el navegador y pasan a tu cuenta — puedes jugarlos desde cualquier dispositivo.",
+      "El progreso se guarda: al volver, tu nave está donde la dejaste, con su carga y su casco.",
+      "Máximo 5 pilotos por cuenta y nombres únicos, ahora garantizados por el servidor."
+    ]
+  },
+  {
     "version": "v0.2.0",
     "highlights": [
       "Nuevos iconos de interfaz: 16 símbolos propios (warp, minar, atracar, punto de salto, asteroide, pecio, ruina…) en una sola imagen que se descarga de golpe.",

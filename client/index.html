@@ -98,6 +98,41 @@
       border-radius: 6px; border: none; background: #2a6fb0; color: #ffffff; cursor: pointer;
     }
     #char-create-toggle-btn:active, #char-create-btn:active { background: #1f5686; }
+    #login-explain {
+      color: #8fa6c4; font-size: clamp(12px, 2.8vw, 14px);
+      line-height: 1.5; margin: 0 0 16px;
+    }
+    #login-email-input {
+      width: 100%; box-sizing: border-box; padding: 12px;
+      background: #0d131c; border: 1px solid #2a3a52; border-radius: 8px;
+      color: #cfe8ff; font-family: monospace; font-size: clamp(13px, 3vw, 15px);
+      margin-bottom: 12px;
+    }
+    #login-send-btn {
+      width: 100%; padding: 12px; border: none; border-radius: 8px;
+      background: #1a4a7a; color: #cfe8ff; font-family: monospace;
+      font-size: clamp(13px, 3vw, 15px); cursor: pointer;
+    }
+    #login-send-btn:active { background: #1f5686; }
+    #login-send-btn:disabled { background: #22303f; color: #6b7d92; }
+    #login-status {
+      margin-top: 14px; color: #8fa6c4; font-size: clamp(11px, 2.6vw, 13px);
+      line-height: 1.5; min-height: 1.2em;
+    }
+    /* Botón de borrar personaje, a la derecha de cada uno de la lista. */
+    .char-row { display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px; }
+    .char-row .char-item { flex: 1; margin-bottom: 0; }
+    .char-delete-btn {
+      width: 44px; flex-shrink: 0; border-radius: 8px; cursor: pointer;
+      background: #2a1418; border: 1px solid #5a2530; color: #d98a95;
+      font-family: monospace; font-size: 16px;
+    }
+    .char-delete-btn:active { background: #3a1c22; }
+    #char-signout-btn {
+      margin-top: 18px; background: none; border: none; cursor: pointer;
+      color: #6b7d92; font-family: monospace;
+      font-size: clamp(11px, 2.5vw, 12px); text-decoration: underline;
+    }
     #char-name-input {
       padding: clamp(9px, 2.2vw, 10px) 12px; font-size: clamp(14px, 3.4vw, 16px);
       border-radius: 6px; border: 1px solid #334455; background: #0a0e16; color: #cfe8ff;
@@ -244,6 +279,16 @@
     <div id="intro-scroll"><div id="intro-scroll-inner"></div></div>
   </div>
 
+  <div id="login-screen" class="overlay-screen">
+    <div class="char-box">
+      <h1 id="login-title">Identifícate</h1>
+      <p id="login-explain">Escribe tu correo y te enviaremos un enlace para entrar. No hace falta contraseña.</p>
+      <input id="login-email-input" type="email" inputmode="email" autocomplete="email" placeholder="tu@correo.com" />
+      <button id="login-send-btn">Enviarme el enlace</button>
+      <div id="login-status"></div>
+    </div>
+  </div>
+
   <div id="character-screen" class="overlay-screen">
     <div class="char-box">
       <h1 id="char-title">Elige tu piloto</h1>
@@ -255,6 +300,7 @@
       <button id="char-create-toggle-btn">+ Crear nuevo personaje</button>
       <div id="char-limit-msg" style="display:none;">Límite de 5 personajes alcanzado.</div>
       <div id="char-status"></div>
+      <button id="char-signout-btn">Cerrar sesión</button>
     </div>
   </div>
 

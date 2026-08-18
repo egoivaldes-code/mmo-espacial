@@ -1,9 +1,18 @@
 import Phaser from "phaser";
 import { Client } from "colyseus.js";
+import {
+  supabase,
+  getSession,
+  sendMagicLink,
+  signOut,
+  listCharacters,
+  createCharacter as createCharacterRemote,
+  deleteCharacter as deleteCharacterRemote,
+} from "./cuenta.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.2.0";
+const GAME_VERSION = "v0.3.0";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -99,7 +108,6 @@ const INTERP_DELAY_MS = 100;
 const RECONNECT_WINDOW_MS = 85000;
 
 const MAX_CHARACTERS = 5;
-const CHARACTERS_STORAGE_KEY = "spacemmo_characters";
 
 // Nave que usa todo el mundo por ahora (todavía no hay selección/crafteo
 // de nave — ver roadmap). Debe coincidir con ACTIVE_SHIP_ID en
@@ -202,6 +210,7 @@ function setLanguage(code) {
 
 let roomPromise = null;
 let CHOSEN_NAME = "Piloto";
+let CHOSEN_CHARACTER_ID = null;
 
 const statusListeners = new Set();
 let currentStatusText = "";
@@ -243,9 +252,18 @@ async function warmupServer() {
   clearTimeout(hintTimer);
 }
 
-function joinRoom() {
+async function joinRoom() {
   const client = new Client(SERVER_URL);
-  return client.joinOrCreate("chunk", { name: CHOSEN_NAME });
+  // Se manda el token de sesión junto al personaje elegido. El servidor
+  // comprueba las dos cosas: que el token es auténtico y que ese personaje
+  // pertenece a esa cuenta. Sin eso, cualquiera podría pedir jugar con el
+  // piloto de otro simplemente sabiendo su identificador.
+  const session = await getSession();
+  return client.joinOrCreate("chunk", {
+    name: CHOSEN_NAME,
+    characterId: CHOSEN_CHARACTER_ID,
+    accessToken: session?.access_token || null,
+  });
 }
 
 async function startBackgroundConnection() {
@@ -460,33 +478,91 @@ async function loadPatchNotes() {
   }
 }
 
-introContinueBtn.addEventListener("click", () => {
+introContinueBtn.addEventListener("click", async () => {
   introScreen.style.display = "none";
-  showCharacterScreen();
+  await routeAfterIntro();
+});
+
+// ============================================================================
+// Pantalla de identificación (enlace mágico)
+//
+// El jugador escribe su correo, recibe un enlace y al pulsarlo vuelve aquí
+// ya identificado. No hay contraseñas: nada que recordar, nada que se pueda
+// filtrar, y una cuenta perdida se recupera solo con acceso al correo.
+// ============================================================================
+
+const loginScreen = document.getElementById("login-screen");
+const loginTitleEl = document.getElementById("login-title");
+const loginExplainEl = document.getElementById("login-explain");
+const loginEmailInput = document.getElementById("login-email-input");
+const loginSendBtn = document.getElementById("login-send-btn");
+const loginStatusEl = document.getElementById("login-status");
+const charSignoutBtn = document.getElementById("char-signout-btn");
+
+// Decide qué pantalla toca: si ya hay sesión, directo a los pilotos.
+async function routeAfterIntro() {
+  const session = await getSession();
+  if (session) {
+    loginScreen.style.display = "none";
+    await showCharacterScreen();
+  } else {
+    loginScreen.style.display = "flex";
+  }
+}
+
+loginSendBtn.addEventListener("click", async () => {
+  const email = loginEmailInput.value.trim();
+  if (!email || !email.includes("@")) {
+    loginStatusEl.textContent = t("login.invalidEmail");
+    return;
+  }
+  loginSendBtn.disabled = true;
+  loginStatusEl.textContent = t("login.sending");
+  try {
+    await sendMagicLink(email);
+    loginStatusEl.textContent = t("login.sent", { email });
+  } catch {
+    loginStatusEl.textContent = t("login.error");
+    loginSendBtn.disabled = false;
+  }
+});
+
+loginEmailInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") loginSendBtn.click();
+});
+
+// Cuando el jugador vuelve desde el enlace del correo, Supabase detecta la
+// sesión sola y avisa por aquí. Sin esto habría que recargar a mano.
+supabase.auth.onAuthStateChange(async (event) => {
+  if (event === "SIGNED_IN" && loginScreen.style.display === "flex") {
+    loginScreen.style.display = "none";
+    await showCharacterScreen();
+  }
+});
+
+charSignoutBtn.addEventListener("click", async () => {
+  await signOut();
+  cachedCharacters = [];
+  characterScreen.style.display = "none";
+  loginSendBtn.disabled = false;
+  loginStatusEl.textContent = "";
+  loginEmailInput.value = "";
+  loginScreen.style.display = "flex";
 });
 
 // ============================================================================
 // Pantalla 2: selección/creación de personaje (máx. 5, guardado local)
 //
-// Nota: esto es persistencia LOCAL en el navegador (localStorage), no una
-// cuenta de verdad — es un sustituto provisional hasta que el documento de
-// diseño incorpore autenticación real vía Supabase (ver sección 7 del
-// documento de diseño).
+// Los personajes están ligados a la CUENTA, no al navegador: entras con tu
+// correo desde cualquier dispositivo y ahí están. El límite de 5 lo impone
+// la propia base de datos, no este código (ver sección 7 del documento de
+// diseño).
 // ============================================================================
 
-function loadCharacters() {
-  try {
-    const raw = localStorage.getItem(CHARACTERS_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveCharacters(characters) {
-  localStorage.setItem(CHARACTERS_STORAGE_KEY, JSON.stringify(characters));
-}
+// Los personajes ya no viven en este navegador: viven en la cuenta. Esta
+// lista es solo una copia en memoria de lo último que devolvió el servidor,
+// para no pedirla de nuevo cada vez que se redibuja la pantalla.
+let cachedCharacters = [];
 
 const charTitleEl = document.getElementById("char-title");
 const charListEl = document.getElementById("char-list");
@@ -501,28 +577,63 @@ onStatusChange((text) => {
   charStatusEl.textContent = text;
 });
 
-function showCharacterScreen() {
+async function showCharacterScreen() {
   characterScreen.style.display = "flex";
+  charListEl.innerHTML = "";
+  charStatusEl.textContent = t("character.loading");
+  try {
+    cachedCharacters = await listCharacters();
+    charStatusEl.textContent = "";
+  } catch {
+    charStatusEl.textContent = t("character.loadError");
+    return;
+  }
   renderCharacterScreen();
 }
 
 function renderCharacterScreen() {
-  const characters = loadCharacters();
   charListEl.innerHTML = "";
 
-  characters.forEach((char) => {
+  cachedCharacters.forEach((char) => {
+    const row = document.createElement("div");
+    row.className = "char-row";
+
     const btn = document.createElement("button");
     btn.className = "char-item";
-    const dateStr = new Date(char.createdAt).toLocaleDateString(localeForLang(currentLang));
+    const dateStr = new Date(char.created_at).toLocaleDateString(localeForLang(currentLang));
     btn.innerHTML = `${escapeHtml(char.name)}<div class="char-meta">${escapeHtml(t("character.createdOn", { date: dateStr }))}</div>`;
     btn.addEventListener("click", () => selectCharacter(char));
-    charListEl.appendChild(btn);
+
+    // Borrar es irreversible y el botón está justo al lado de "jugar", así
+    // que pide confirmación escribiendo el nombre no — pero sí una
+    // confirmación explícita. En un móvil los dedos resbalan.
+    const del = document.createElement("button");
+    del.className = "char-delete-btn";
+    del.textContent = "×";
+    del.title = t("character.delete");
+    del.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm(t("character.deleteConfirm", { name: char.name }))) return;
+      charStatusEl.textContent = t("character.deleting");
+      try {
+        await deleteCharacterRemote(char.id);
+        cachedCharacters = cachedCharacters.filter((c) => c.id !== char.id);
+        charStatusEl.textContent = "";
+        renderCharacterScreen();
+      } catch {
+        charStatusEl.textContent = t("character.deleteError");
+      }
+    });
+
+    row.appendChild(btn);
+    row.appendChild(del);
+    charListEl.appendChild(row);
   });
 
-  const atLimit = characters.length >= MAX_CHARACTERS;
+  const atLimit = cachedCharacters.length >= MAX_CHARACTERS;
   charLimitMsg.style.display = atLimit ? "block" : "none";
 
-  const showCreateFormDirectly = characters.length === 0 && !atLimit;
+  const showCreateFormDirectly = cachedCharacters.length === 0 && !atLimit;
   charCreateEl.style.display = showCreateFormDirectly ? "block" : "none";
   charCreateToggleBtn.style.display = atLimit || showCreateFormDirectly ? "none" : "block";
 }
@@ -533,22 +644,39 @@ charCreateToggleBtn.addEventListener("click", () => {
   charNameInput.focus();
 });
 
-function createCharacter() {
-  const characters = loadCharacters();
-  if (characters.length >= MAX_CHARACTERS) return;
+async function createCharacter() {
+  if (cachedCharacters.length >= MAX_CHARACTERS) return;
 
   const typed = charNameInput.value.trim();
-  const name = typed ? typed.slice(0, 16) : t("character.defaultName", { n: characters.length + 1 });
+  const name = typed
+    ? typed.slice(0, 16)
+    : t("character.defaultName", { n: cachedCharacters.length + 1 });
 
-  const character = {
-    id: `char_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-    name,
-    createdAt: Date.now(),
-  };
-  characters.push(character);
-  saveCharacters(characters);
+  if (name.length < 3) {
+    charStatusEl.textContent = t("character.nameTooShort");
+    return;
+  }
 
-  selectCharacter(character);
+  charCreateBtn.disabled = true;
+  charStatusEl.textContent = t("character.creating");
+  try {
+    const character = await createCharacterRemote(name);
+    cachedCharacters.push(character);
+    charStatusEl.textContent = "";
+    selectCharacter(character);
+  } catch (err) {
+    // El nombre es único en TODO el juego, así que este error es frecuente
+    // y merece un mensaje claro en vez de un fallo genérico.
+    if (err.message === "NOMBRE_OCUPADO") {
+      charStatusEl.textContent = t("character.nameTaken");
+    } else if (err.message === "LIMITE") {
+      charStatusEl.textContent = t("character.limitReached");
+    } else {
+      charStatusEl.textContent = t("character.createError");
+    }
+  } finally {
+    charCreateBtn.disabled = false;
+  }
 }
 
 charCreateBtn.addEventListener("click", createCharacter);
@@ -558,6 +686,7 @@ charNameInput.addEventListener("keydown", (e) => {
 
 function selectCharacter(character) {
   CHOSEN_NAME = character.name;
+  CHOSEN_CHARACTER_ID = character.id;
   characterScreen.style.display = "none";
   launchGame();
 }
@@ -570,6 +699,11 @@ function applyStaticTranslations() {
   charCreateBtn.textContent = t("character.createButton");
   charCreateToggleBtn.textContent = t("character.createNewToggle");
   charLimitMsg.textContent = t("character.limitReached");
+  loginTitleEl.textContent = t("login.title");
+  loginExplainEl.textContent = t("login.explain");
+  loginEmailInput.placeholder = t("login.emailPlaceholder");
+  loginSendBtn.textContent = t("login.sendButton");
+  charSignoutBtn.textContent = t("login.signOut");
 
   warpBtnLabel.textContent = t("controls.warp");
   if (currentAction) actionBtnLabel.textContent = t(`controls.action.${currentAction.kind}`);

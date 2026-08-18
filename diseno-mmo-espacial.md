@@ -867,14 +867,77 @@ vulnerabilidad, timers como en EVE?), costes de mantener territorio
 - Estado en tiempo real de naves, proyectiles, asteroides, NPCs dentro de ese sector
 - Se sincroniza contra Supabase al crear/destruir la room
 
-**Estado actual del prototipo — placeholder sin Supabase todavía:** de
-momento no hay autenticación real. El "personaje" (nombre, hasta 5 por
-jugador) se guarda en `localStorage` del navegador — es decir, por
-dispositivo/navegador, no por cuenta. Es un sustituto temporal para poder
-jugar y probar mientras no existe el backend de Supabase; se perderá al
-borrar datos del navegador o cambiar de dispositivo. Migrar esto a
-Supabase (auth real + tabla de personajes) es parte del roadmap (ver
-sección 13).
+### 7.1 Persistencia real — implementada en v0.3.0
+
+El sustituto de `localStorage` queda retirado. Hay cuentas de verdad,
+personajes por cuenta y progreso guardado en servidor.
+
+**Identificación: enlace mágico al correo.** El jugador escribe su email y
+recibe un enlace; al pulsarlo entra. No hay contraseñas. Se eligió así
+porque una contraseña que el jugador olvida es una cuenta perdida y un
+formulario de recuperación que hay que construir y mantener, y porque una
+contraseña filtrada es un problema que este proyecto no necesita tener.
+
+**Tablas:**
+
+| Tabla | Contiene |
+|---|---|
+| `auth.users` | Cuentas (lo gestiona Supabase) |
+| `characters` | Personajes: nombre, cuenta propietaria, fechas. Máx. 5 por cuenta |
+| `character_state` | Estado de vuelo: nave, posición, velocidad, orientación, casco, carga |
+
+**Quién puede escribir qué — la regla que sostiene todo lo demás.** El
+navegador puede crear, listar y borrar sus propios personajes, y nada más.
+**No tiene permiso para escribir en `character_state`.** Posición, casco y
+carga solo los escribe el servidor del juego, que usa una clave de
+servicio guardada en una variable de entorno.
+
+Esto no es una precaución de más: si el navegador pudiera escribir su
+propio estado, cualquiera podría declararse 50.000 unidades de mineral en
+bodega sin haber minado nunca. La base de datos lo impide por sí misma,
+aunque alguien modifique el código del cliente.
+
+**Cadena de comprobación al entrar a jugar.** El cliente manda dos cosas al
+servidor: el testigo de sesión que le dio Supabase y el identificador del
+personaje elegido. El servidor, antes de dejarlo entrar:
+
+1. Verifica contra Supabase que el testigo es auténtico y no ha caducado
+   → obtiene de quién es la cuenta.
+2. Comprueba que ese personaje pertenece a esa cuenta.
+
+Sin el paso 2, bastaría con conocer el identificador del personaje de otro
+para jugar con su nave. El identificador no es un secreto; la propiedad
+sí se comprueba.
+
+**Reglas aplicadas en la base, no en el cliente.** El límite de 5
+personajes y la unicidad del nombre (ignorando mayúsculas) viven en la
+base de datos. Cualquier regla que solo viva en el navegador es una
+sugerencia, porque el navegador es del jugador. Además, crear un personaje
+crea automáticamente su estado inicial, de forma que no puede existir un
+personaje sin estado aunque el servidor falle justo después del alta.
+
+**Ritmo de guardado.** No se escribe cada tick: veinte escrituras por
+segundo y por jugador fundirían la base sin aportar nada. Se guarda:
+
+- cada 30 segundos mientras se juega,
+- al salir de forma explícita,
+- al expirar la ventana de reconexión sin que el jugador vuelva,
+- al cerrarse la sala.
+
+Perder los últimos segundos de vuelo si el servidor cae es irrelevante;
+perder la sesión entera no lo es. Los dos últimos casos son los que de
+verdad importan, porque cerrar el móvil de golpe es la forma habitual de
+terminar una partida en este juego.
+
+**Degradación deliberada.** Si faltan las variables de entorno, el
+servidor arranca igual y el juego funciona sin guardar, avisando por
+consola. Una configuración incompleta deja el juego jugable en vez de
+tirarlo abajo.
+
+**Pendiente:** guardar la nave elegida cuando existan varias (hoy todos
+los personajes vuelan la lanzadera inicial); mover a la base la bodega de
+mineral separada (8.2.2) cuando exista; copias de seguridad, que el plan
+gratuito de Supabase no incluye (ver 14).
 
 ## 8. Mecánicas
 

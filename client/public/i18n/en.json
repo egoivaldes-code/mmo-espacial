@@ -16,7 +16,17 @@
     "createNewToggle": "+ Create new character",
     "limitReached": "5-character limit reached.",
     "createdOn": "Created {date}",
-    "defaultName": "Pilot-{n}"
+    "defaultName": "Pilot-{n}",
+    "loading": "Loading your pilots…",
+    "loadError": "Could not load your pilots. Check your connection.",
+    "creating": "Creating pilot…",
+    "createError": "Could not create the pilot.",
+    "nameTaken": "That name is already taken by another pilot.",
+    "nameTooShort": "The name needs at least 3 letters.",
+    "delete": "Delete",
+    "deleteConfirm": "Delete {name}? This cannot be undone.",
+    "deleting": "Deleting…",
+    "deleteError": "Could not delete the pilot."
   },
   "hud": {
     "pingSuffix": "  |  Ping: {ms}ms",
@@ -46,5 +56,16 @@
       "gate": "JUMP",
       "loot": "OPEN"
     }
+  },
+  "login": {
+    "title": "Sign in",
+    "explain": "Enter your email and we will send you a link to get in. No password needed.",
+    "emailPlaceholder": "you@email.com",
+    "sendButton": "Send me the link",
+    "invalidEmail": "Enter a valid email address.",
+    "sending": "Sending…",
+    "sent": "Link sent to {email}. Open it on this same device.",
+    "error": "Could not send the link. Please try again.",
+    "signOut": "Sign out"
   }
 }

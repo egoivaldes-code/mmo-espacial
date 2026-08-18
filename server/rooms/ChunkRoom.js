@@ -1,5 +1,6 @@
 const { Room } = require("colyseus");
 const { ChunkState } = require("../schema/ChunkState");
+const persistence = require("../persistence");
 const { Player } = require("../schema/Player");
 const { Asteroid } = require("../schema/Asteroid");
 
@@ -53,6 +54,13 @@ const WARP_COOLDOWN = 30; // segundos, empieza a contar al activar la carga
 // solo le importe a uno. En vez de eso se manda un mensaje directo al
 // cliente afectado, y solo cuando el resultado cambia respecto al anterior:
 // volando por el vacío no se envía absolutamente nada.
+// --- Guardado en base de datos -------------------------------------------
+// NO se guarda cada tick. Escribir en la base 20 veces por segundo y por
+// jugador la fundiría, y sería inútil: si el servidor se cae, perder los
+// últimos segundos de vuelo no le importa a nadie. Se guarda cada 30 s y
+// solo de quienes hayan cambiado algo desde el último guardado.
+const SAVE_INTERVAL_MS = 30000;
+
 const ACTION_SCAN_HZ = 4; // veces por segundo que se recalcula (20 sería tirar CPU)
 const ACTION_SCAN_INTERVAL = 1000 / ACTION_SCAN_HZ;
 const DOCK_RANGE = 250;
@@ -163,6 +171,7 @@ class ChunkRoom extends Room {
     // sessionId -> última acción notificada, para no reenviar lo mismo.
     this.lastAction = new Map();
     this.actionScanAccum = 0;
+    this.saveAccum = 0;
 
     this.setSimulationInterval((deltaMs) => this.update(deltaMs), 1000 / TICK_RATE);
   }
@@ -176,18 +185,96 @@ class ChunkRoom extends Room {
     }
   }
 
-  onJoin(client, options) {
+  // Colyseus llama a onAuth ANTES de onJoin. Si devuelve null o lanza, el
+  // jugador no entra. Aquí es donde se comprueba que quien dice ser el
+  // dueño de un personaje lo es de verdad.
+  //
+  // Si la persistencia no está configurada (desarrollo local sin claves),
+  // se deja entrar como invitado sin guardado, para no bloquear las
+  // pruebas.
+  async onAuth(client, options) {
+    if (!persistence.enabled) {
+      return { guest: true, name: options?.name || "Piloto" };
+    }
+
+    const userId = await persistence.verifyToken(options?.accessToken);
+    if (!userId) {
+      throw new Error("Sesión no válida. Vuelve a iniciar sesión.");
+    }
+
+    // El personaje tiene que existir y ser de este usuario. Esta consulta
+    // es la que impide que alguien mande el id del personaje de otro.
+    const character = await persistence.loadCharacter(userId, options?.characterId);
+    if (!character) {
+      throw new Error("Ese personaje no existe o no es tuyo.");
+    }
+
+    return { guest: false, userId, character };
+  }
+
+  onJoin(client, options, auth) {
     // Si ya hay un Player para este sessionId es una reconexión dentro de
     // la ventana de allowReconnection (ver onLeave) — se conserva posición,
     // carga, HP, etc. Solo se crea uno nuevo si es la primera entrada.
     if (this.state.players.has(client.sessionId)) return;
 
     const player = new Player();
-    player.name = options?.name || `Piloto-${client.sessionId.slice(0, 4)}`;
-    player.x = (Math.random() - 0.5) * 400;
-    player.y = (Math.random() - 0.5) * 400;
     player.input = null;
+
+    if (auth?.guest || !auth?.character) {
+      // Modo sin persistencia: piloto de usar y tirar.
+      player.name = options?.name || `Piloto-${client.sessionId.slice(0, 4)}`;
+      player.x = (Math.random() - 0.5) * 400;
+      player.y = (Math.random() - 0.5) * 400;
+    } else {
+      const { character } = auth;
+      player.name = character.name;
+      player.characterId = character.id;
+
+      if (character.state) {
+        // Vuelve donde lo dejó, con su carga y su casco.
+        player.x = character.state.x;
+        player.y = character.state.y;
+        player.vx = character.state.vx;
+        player.vy = character.state.vy;
+        player.facing = character.state.facing;
+        player.rotation = character.state.facing;
+        player.hp = character.state.hp;
+        player.cargo = character.state.cargo;
+      } else {
+        // Primera vez que vuela este personaje.
+        player.x = (Math.random() - 0.5) * 400;
+        player.y = (Math.random() - 0.5) * 400;
+      }
+
+      persistence.touchLastPlayed(character.id);
+    }
+
     this.state.players.set(client.sessionId, player);
+  }
+
+  // Vuelca a la base de datos el estado de un jugador concreto.
+  async savePlayer(player) {
+    if (!player?.characterId) return;
+    await persistence.saveCharacterState(player.characterId, {
+      shipId: "shuttle_01",
+      x: player.x,
+      y: player.y,
+      vx: player.vx || 0,
+      vy: player.vy || 0,
+      facing: player.facing || 0,
+      hp: player.hp,
+      cargo: player.cargo,
+    });
+  }
+
+  // Guardado periódico de todos los pilotos con personaje asociado.
+  async saveAllPlayers() {
+    const pending = [];
+    this.state.players.forEach((player) => {
+      if (player.characterId) pending.push(this.savePlayer(player));
+    });
+    if (pending.length) await Promise.allSettled(pending);
   }
 
   // Antes borraba al jugador de state al instante en cuanto caía el socket.
@@ -206,7 +293,10 @@ class ChunkRoom extends Room {
     this.lastAction.delete(client.sessionId);
 
     // Salida explícita (el jugador cerró el juego) — no reservar asiento.
+    // Se guarda ANTES de borrarlo del estado, o se perdería el progreso de
+    // la sesión entera.
     if (consented) {
+      await this.savePlayer(player);
       this.state.players.delete(client.sessionId);
       return;
     }
@@ -216,9 +306,20 @@ class ChunkRoom extends Room {
       // El cliente volvió dentro de la ventana — el jugador sigue en state,
       // no hay que hacer nada más.
     } catch {
-      // Expiró la ventana sin reconexión.
-      if (player) this.state.players.delete(client.sessionId);
+      // Expiró la ventana sin reconexión: se guarda antes de descartarlo.
+      // Este es el caso habitual cuando alguien cierra el móvil de golpe,
+      // así que es justo donde más importa no perder el progreso.
+      if (player) {
+        await this.savePlayer(player);
+        this.state.players.delete(client.sessionId);
+      }
     }
+  }
+
+  // La sala se cierra (último jugador fuera, o reinicio del servidor).
+  // Último guardado de todo lo que quede dentro.
+  async onDispose() {
+    await this.saveAllPlayers();
   }
 
   update(deltaMs) {
@@ -337,6 +438,14 @@ class ChunkRoom extends Room {
     if (this.actionScanAccum >= ACTION_SCAN_INTERVAL) {
       this.actionScanAccum = 0;
       this.updateContextActions();
+    }
+
+    // Guardado periódico. No se espera al resultado: si la base tarda o
+    // falla, la simulación no puede quedarse parada esperándola.
+    this.saveAccum += deltaMs;
+    if (this.saveAccum >= SAVE_INTERVAL_MS) {
+      this.saveAccum = 0;
+      this.saveAllPlayers();
     }
   }
 

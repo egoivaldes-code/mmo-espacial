@@ -16,7 +16,17 @@
     "createNewToggle": "+ Crear nuevo personaje",
     "limitReached": "Límite de 5 personajes alcanzado.",
     "createdOn": "Creado {date}",
-    "defaultName": "Piloto-{n}"
+    "defaultName": "Piloto-{n}",
+    "loading": "Cargando tus pilotos…",
+    "loadError": "No se pudieron cargar tus pilotos. Comprueba tu conexión.",
+    "creating": "Creando piloto…",
+    "createError": "No se pudo crear el piloto.",
+    "nameTaken": "Ese nombre ya está cogido por otro piloto.",
+    "nameTooShort": "El nombre necesita al menos 3 letras.",
+    "delete": "Borrar",
+    "deleteConfirm": "¿Borrar a {name}? Esto no se puede deshacer.",
+    "deleting": "Borrando…",
+    "deleteError": "No se pudo borrar el piloto."
   },
   "hud": {
     "pingSuffix": "  |  Ping: {ms}ms",
@@ -46,5 +56,16 @@
       "gate": "SALTAR",
       "loot": "ABRIR"
     }
+  },
+  "login": {
+    "title": "Identifícate",
+    "explain": "Escribe tu correo y te enviaremos un enlace para entrar. No hace falta contraseña.",
+    "emailPlaceholder": "tu@correo.com",
+    "sendButton": "Enviarme el enlace",
+    "invalidEmail": "Escribe un correo válido.",
+    "sending": "Enviando…",
+    "sent": "Enlace enviado a {email}. Ábrelo desde este mismo dispositivo.",
+    "error": "No se pudo enviar el enlace. Inténtalo de nuevo.",
+    "signOut": "Cerrar sesión"
   }
 }

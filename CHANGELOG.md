@@ -14,6 +14,38 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.3.0]
+
+### Añadido — cuentas y progreso guardado (Supabase)
+- **Entrada por enlace mágico al correo.** Sin contraseñas: el jugador
+  escribe su email, recibe un enlace y al pulsarlo entra.
+- **Personajes por cuenta**, no por navegador. Se acabó `localStorage`:
+  ahora se puede jugar el mismo piloto desde cualquier dispositivo.
+- **El progreso se guarda**: posición, velocidad, orientación, casco y
+  carga. Al volver a entrar, la nave está donde se dejó.
+- Guardado cada 30 s, al salir, al expirar la ventana de reconexión y al
+  cerrarse la sala. No se guarda cada tick a propósito: veinte escrituras
+  por segundo y por jugador fundirían la base sin ganar nada.
+
+### Seguridad
+- El navegador **no puede escribir** posición, casco ni carga. Solo puede
+  crear, listar y borrar sus propios personajes. El estado de vuelo lo
+  escribe únicamente el servidor. La base lo impone por sí misma, aunque
+  se modifique el código del cliente.
+- Al entrar a jugar el servidor verifica el testigo de sesión contra
+  Supabase **y** que el personaje pertenezca a esa cuenta. Sin lo segundo,
+  conocer el identificador de otro bastaría para jugar con su nave.
+- Límite de 5 personajes y unicidad de nombre (ignorando mayúsculas)
+  aplicados en la base de datos, no en el navegador.
+
+### Corregido
+- El aviso de "límite de personajes alcanzado" no llegaba a mostrarse:
+  el cliente buscaba el mensaje por su texto y no coincidía con el que
+  emite la base. Ahora se detecta por código de error.
+- La clave de servicio se acepta con dos nombres posibles de variable de
+  entorno. Si no coincide, el servidor arranca y no guarda nada sin dar
+  error — el fallo más difícil de detectar.
+
 ## [v0.2.0]
 
 ### Añadido — arte e iconografía de interfaz

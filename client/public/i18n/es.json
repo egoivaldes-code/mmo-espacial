@@ -58,14 +58,26 @@
     }
   },
   "login": {
-    "title": "Identifícate",
-    "explain": "Escribe tu correo y te enviaremos un enlace para entrar. No hace falta contraseña.",
+    "title": "Entrar",
     "emailPlaceholder": "tu@correo.com",
-    "sendButton": "Enviarme el enlace",
-    "invalidEmail": "Escribe un correo válido.",
-    "sending": "Enviando…",
-    "sent": "Enlace enviado a {email}. Ábrelo desde este mismo dispositivo.",
-    "error": "No se pudo enviar el enlace. Inténtalo de nuevo.",
-    "signOut": "Cerrar sesión"
+    "passwordPlaceholder": "Contraseña",
+    "remember": "Mantener sesión iniciada",
+    "signInButton": "Entrar",
+    "signUpButton": "Crear cuenta",
+    "signOut": "Cerrar sesión",
+    "signingIn": "Entrando…",
+    "creating": "Creando cuenta…",
+    "invalidEmail": "Ese correo no parece válido.",
+    "passwordShort": "La contraseña necesita al menos {min} caracteres.",
+    "err": {
+      "CREDENCIALES": "Correo o contraseña incorrectos.",
+      "CUENTA_EXISTE": "Ya existe una cuenta con ese correo. Pulsa Entrar.",
+      "PASSWORD_CORTA": "La contraseña es demasiado corta.",
+      "SIN_CONFIRMAR": "Esa cuenta está sin confirmar.",
+      "REQUIERE_CONFIRMACION": "La cuenta se creó pero necesita confirmación por correo. Avisa al administrador.",
+      "DEMASIADOS_INTENTOS": "Demasiados intentos seguidos. Espera un minuto.",
+      "SIN_CONEXION": "Sin conexión con el servidor de cuentas.",
+      "DESCONOCIDO": "No se ha podido completar. Inténtalo de nuevo."
+    }
   }
 }

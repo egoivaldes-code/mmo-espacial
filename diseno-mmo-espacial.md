@@ -872,11 +872,65 @@ vulnerabilidad, timers como en EVE?), costes de mantener territorio
 El sustituto de `localStorage` queda retirado. Hay cuentas de verdad,
 personajes por cuenta y progreso guardado en servidor.
 
-**Identificación: enlace mágico al correo.** El jugador escribe su email y
-recibe un enlace; al pulsarlo entra. No hay contraseñas. Se eligió así
-porque una contraseña que el jugador olvida es una cuenta perdida y un
-formulario de recuperación que hay que construir y mantener, y porque una
-contraseña filtrada es un problema que este proyecto no necesita tener.
+**Identificación: correo y contraseña** (v0.4.0), con casilla de mantener
+la sesión iniciada.
+
+Se probó primero con enlace mágico al correo, sin contraseñas, y se
+descartó por dos razones:
+
+1. **Obliga a salir del juego para entrar al juego.** El jugador tiene que
+   irse a su aplicación de correo, buscar el mensaje y volver. En un juego
+   eso es una barrera desproporcionada, y peor aún en móvil, donde salir de
+   la pestaña puede costar recargar toda la partida.
+2. **No escala más allá del desarrollador.** El servicio de correo que
+   Supabase trae de serie solo envía mensajes a los dueños del proyecto y
+   con un límite de unos pocos por hora. Funcionaba en las pruebas
+   únicamente porque el probador era el dueño; ningún otro jugador habría
+   recibido nunca su enlace.
+
+**Consecuencia asumida:** sin correo saliente propio no hay recuperación de
+contraseña. Si un jugador la olvida, la cuenta se recupera a mano desde el
+panel. Es aceptable en fase cerrada y **deja de serlo antes de abrir el
+juego a desconocidos**: conectar un servicio de correo propio es requisito
+previo a la apertura, y con él la recuperación funciona sola.
+
+**Dónde se guarda la sesión.** La casilla elige entre un almacén que
+sobrevive a cerrar el navegador (por defecto) y otro que se borra al cerrar
+la pestaña, para dispositivos prestados o compartidos.
+
+#### 7.1.1 Login dormido durante el desarrollo
+
+**El login está construido pero desactivado** (`LOGIN_ENABLED = false` en
+`client/src/cuenta.js`). Durante la fase de pruebas, pedir credenciales en
+cada sesión de prueba cuesta más de lo que aporta.
+
+**No se desactiva saltándose el sistema.** Con el login dormido, el juego
+crea al vuelo una **cuenta anónima**: una cuenta real en la base de datos,
+sin correo asociado. Los personajes siguen viviendo en Supabase, con su
+límite de 5, sus nombres únicos, sus reglas de escritura y su progreso
+guardado por el servidor.
+
+Esto importa más de lo que parece. La alternativa —volver a guardar
+personajes en el navegador mientras dure el desarrollo— crearía **un
+segundo camino que nadie prueba**: todo funcionaría en pruebas por una vía
+distinta de la que usarán los jugadores, y el día de activar el login
+habría que volver a probarlo entero, con los fallos apareciendo justo
+cuando hay gente mirando. Con cuentas anónimas, las pruebas diarias
+ejercitan exactamente el mismo recorrido que el juego final; lo único que
+desaparece es la pantalla.
+
+**Degradación:** si las sesiones anónimas no están habilitadas en el panel
+de Supabase, el juego enseña la pantalla de login normal en lugar de
+quedarse en blanco.
+
+**Coste asumido:** una cuenta anónima vive en el navegador. Borrar los
+datos del navegador la deja huérfana junto con sus personajes. Es
+aceptable en pruebas y es precisamente la razón de que exista el login.
+
+**Cuándo despertarlo:** cuando haya contenido y jugadores reales, es decir,
+cuando perder una cuenta empiece a doler. Se cambia una constante a `true`
+y nada más. Antes de ese momento hay que resolver el correo saliente (7.1),
+o no habrá recuperación de contraseña.
 
 **Tablas:**
 
@@ -934,7 +988,9 @@ servidor arranca igual y el juego funciona sin guardar, avisando por
 consola. Una configuración incompleta deja el juego jugable en vez de
 tirarlo abajo.
 
-**Pendiente:** guardar la nave elegida cuando existan varias (hoy todos
+**Pendiente:** conectar un servicio de correo propio antes de abrir el
+juego (bloquea la recuperación de contraseña y cualquier aviso por email);
+guardar la nave elegida cuando existan varias (hoy todos
 los personajes vuelan la lanzadera inicial); mover a la base la bodega de
 mineral separada (8.2.2) cuando exista; copias de seguridad, que el plan
 gratuito de Supabase no incluye (ver 14).

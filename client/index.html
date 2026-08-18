@@ -194,6 +194,18 @@
       mask-position: calc(var(--ix) * 33.3333%) calc(var(--iy) * 33.3333%);
     }
 
+    /* Fila de la casilla "mantener sesion". El <label> envuelve casilla y
+       texto para que se pueda pulsar en cualquiera de los dos: en movil,
+       acertar solo en la casilla es incomodo. */
+    #login-remember-row {
+      display: flex; align-items: center; gap: 8px;
+      font-family: monospace; font-size: clamp(11px, 2.6vw, 13px);
+      color: #9fb8d4; cursor: pointer; margin: 2px 0 6px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #login-remember { width: 18px; height: 18px; accent-color: #3399ff; flex-shrink: 0; }
+    .secondary-btn { background: transparent !important; }
+
     #action-buttons {
       position: absolute; right: 20px; bottom: 20px; pointer-events: none;
       display: flex; gap: 16px; align-items: flex-end;
@@ -281,10 +293,15 @@
 
   <div id="login-screen" class="overlay-screen">
     <div class="char-box">
-      <h1 id="login-title">Identifícate</h1>
-      <p id="login-explain">Escribe tu correo y te enviaremos un enlace para entrar. No hace falta contraseña.</p>
-      <input id="login-email-input" type="email" inputmode="email" autocomplete="email" placeholder="tu@correo.com" />
-      <button id="login-send-btn">Enviarme el enlace</button>
+      <h1 id="login-title">Entrar</h1>
+      <input id="login-email-input" type="email" inputmode="email" autocomplete="username" placeholder="tu@correo.com" />
+      <input id="login-password-input" type="password" autocomplete="current-password" placeholder="Contraseña" />
+      <label id="login-remember-row">
+        <input id="login-remember" type="checkbox" checked />
+        <span id="login-remember-label">Mantener sesión iniciada</span>
+      </label>
+      <button id="login-signin-btn">Entrar</button>
+      <button id="login-signup-btn" class="secondary-btn">Crear cuenta</button>
       <div id="login-status"></div>
     </div>
   </div>

@@ -14,6 +14,46 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.4.0]
+
+### Cambiado — acceso con contraseña en lugar de enlace por correo
+- **Correo y contraseña**, con botones separados de *Entrar* y *Crear
+  cuenta*, y casilla de **mantener sesión iniciada** (marcada por defecto).
+- Se retira el enlace mágico. Dos motivos: obligaba a salir del juego para
+  entrar al juego, y el correo de serie de Supabase **solo envía mensajes a
+  los dueños del proyecto**, así que ningún otro jugador habría recibido
+  nunca su enlace. Funcionaba en pruebas solo porque el probador era el
+  dueño.
+- Sin marcar la casilla, la sesión se borra al cerrar la pestaña (móvil
+  prestado u ordenador compartido).
+- Errores traducidos al idioma del jugador: contraseña incorrecta, cuenta
+  ya existente, contraseña corta, demasiados intentos, sin conexión. Se
+  detectan por código de error además de por texto, porque la redacción de
+  Supabase puede cambiar entre versiones.
+- Enter entra, pero no crea cuenta: crear una cuenta sin querer por pulsar
+  Enter sería un mal accidente.
+
+### Añadido — login dormido durante el desarrollo
+- `LOGIN_ENABLED = false` en `client/src/cuenta.js`. Con el login dormido
+  no se pide nada al entrar: el juego crea en silencio una **cuenta
+  anónima**, que es una cuenta real de la base de datos sin correo.
+- Los personajes siguen en Supabase con todas sus reglas y el progreso se
+  sigue guardando. No es un camino paralelo: las pruebas ejercitan
+  exactamente el mismo recorrido que usará el juego con login activo, así
+  que activarlo no obliga a volver a probarlo todo.
+- Si las sesiones anónimas no están habilitadas en Supabase, aparece la
+  pantalla de login normal en lugar de una pantalla muerta.
+- Para despertarlo: cambiar la constante a `true`.
+
+### Corregido
+- Tras identificarse, la pantalla no avanzaba a la selección de piloto: la
+  sesión se abría correctamente pero el juego se quedaba en el formulario.
+
+### Pendiente conocido
+- **No hay recuperación de contraseña.** Requiere conectar un servicio de
+  correo propio, que es requisito previo a abrir el juego a desconocidos.
+  Mientras tanto, se recupera a mano desde el panel de Supabase.
+
 ## [v0.3.0]
 
 ### Añadido — cuentas y progreso guardado (Supabase)

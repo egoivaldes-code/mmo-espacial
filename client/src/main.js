@@ -3,16 +3,22 @@ import { Client } from "colyseus.js";
 import {
   supabase,
   getSession,
-  sendMagicLink,
+  ensureSession,
+  LOGIN_ENABLED,
+  signIn,
+  signUp,
   signOut,
+  setRemember,
+  getRemember,
   listCharacters,
   createCharacter as createCharacterRemote,
   deleteCharacter as deleteCharacterRemote,
+  MIN_PASSWORD,
 } from "./cuenta.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.3.0";
+const GAME_VERSION = "v0.4.0";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -492,61 +498,102 @@ introContinueBtn.addEventListener("click", async () => {
 // ============================================================================
 
 const loginScreen = document.getElementById("login-screen");
-const loginTitleEl = document.getElementById("login-title");
-const loginExplainEl = document.getElementById("login-explain");
 const loginEmailInput = document.getElementById("login-email-input");
-const loginSendBtn = document.getElementById("login-send-btn");
+const loginPasswordInput = document.getElementById("login-password-input");
+const loginRememberCheck = document.getElementById("login-remember");
+const loginSigninBtn = document.getElementById("login-signin-btn");
+const loginSignupBtn = document.getElementById("login-signup-btn");
 const loginStatusEl = document.getElementById("login-status");
 const charSignoutBtn = document.getElementById("char-signout-btn");
 
-// Decide qué pantalla toca: si ya hay sesión, directo a los pilotos.
+loginRememberCheck.checked = getRemember();
+
+// Cerrar sesión solo se ofrece si hay una sesión que cerrar tenga sentido.
+// Con el login dormido la cuenta es anónima: cerrarla no te devuelve a
+// ninguna pantalla útil, te borra el acceso a tus propios personajes.
+if (!LOGIN_ENABLED) charSignoutBtn.style.display = "none";
+
+// Decide qué pantalla toca al terminar la intro: si ya hay sesión guardada,
+// directo a los pilotos sin pedir nada.
 async function routeAfterIntro() {
-  const session = await getSession();
+  // Con el login dormido esto crea una cuenta anónima al vuelo y entra
+  // directo. Si algo impide crearla, cae en la pantalla de login en vez de
+  // dejar al jugador mirando una pantalla muerta.
+  const session = await ensureSession();
   if (session) {
     loginScreen.style.display = "none";
     await showCharacterScreen();
   } else {
     loginScreen.style.display = "flex";
+    loginEmailInput.focus();
   }
 }
 
-loginSendBtn.addEventListener("click", async () => {
+function setLoginBusy(busy) {
+  loginSigninBtn.disabled = busy;
+  loginSignupBtn.disabled = busy;
+}
+
+// Validación antes de molestar al servidor: si falta algo o la contraseña es
+// demasiado corta, se dice aquí mismo en lugar de esperar un viaje de ida y
+// vuelta para recibir un error en inglés.
+function datosLoginValidos() {
   const email = loginEmailInput.value.trim();
-  if (!email || !email.includes("@")) {
+  const password = loginPasswordInput.value;
+  if (!email.includes("@") || email.length < 5) {
     loginStatusEl.textContent = t("login.invalidEmail");
-    return;
+    return null;
   }
-  loginSendBtn.disabled = true;
-  loginStatusEl.textContent = t("login.sending");
+  if (password.length < MIN_PASSWORD) {
+    loginStatusEl.textContent = t("login.passwordShort", { min: MIN_PASSWORD });
+    return null;
+  }
+  return { email, password };
+}
+
+// Los dos botones hacen lo mismo salvo la operación concreta, así que
+// comparten el envoltorio: bloquear, avisar, traducir el error, desbloquear.
+async function ejecutarAcceso(accion, statusKey) {
+  const datos = datosLoginValidos();
+  if (!datos) return;
+
+  setRemember(loginRememberCheck.checked);
+  setLoginBusy(true);
+  loginStatusEl.textContent = t(statusKey);
+
   try {
-    await sendMagicLink(email);
-    loginStatusEl.textContent = t("login.sent", { email });
-  } catch {
-    loginStatusEl.textContent = t("login.error");
-    loginSendBtn.disabled = false;
-  }
-});
-
-loginEmailInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") loginSendBtn.click();
-});
-
-// Cuando el jugador vuelve desde el enlace del correo, Supabase detecta la
-// sesión sola y avisa por aquí. Sin esto habría que recargar a mano.
-supabase.auth.onAuthStateChange(async (event) => {
-  if (event === "SIGNED_IN" && loginScreen.style.display === "flex") {
+    await accion(datos.email, datos.password);
+    loginPasswordInput.value = "";
+    loginStatusEl.textContent = "";
     loginScreen.style.display = "none";
     await showCharacterScreen();
+  } catch (err) {
+    // err.message trae uno de los códigos propios de cuenta.js.
+    const clave = `login.err.${err.message}`;
+    const texto = t(clave);
+    loginStatusEl.textContent = texto === clave ? t("login.err.DESCONOCIDO") : texto;
+    setLoginBusy(false);
   }
+}
+
+loginSigninBtn.addEventListener("click", () => ejecutarAcceso(signIn, "login.signingIn"));
+loginSignupBtn.addEventListener("click", () => ejecutarAcceso(signUp, "login.creating"));
+
+// Enter desde cualquiera de los dos campos entra (no crea cuenta): crear una
+// cuenta sin querer por pulsar Enter sería un mal accidente.
+[loginEmailInput, loginPasswordInput].forEach((el) => {
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") loginSigninBtn.click();
+  });
 });
 
 charSignoutBtn.addEventListener("click", async () => {
   await signOut();
   cachedCharacters = [];
   characterScreen.style.display = "none";
-  loginSendBtn.disabled = false;
+  setLoginBusy(false);
   loginStatusEl.textContent = "";
-  loginEmailInput.value = "";
+  loginPasswordInput.value = "";
   loginScreen.style.display = "flex";
 });
 
@@ -699,10 +746,12 @@ function applyStaticTranslations() {
   charCreateBtn.textContent = t("character.createButton");
   charCreateToggleBtn.textContent = t("character.createNewToggle");
   charLimitMsg.textContent = t("character.limitReached");
-  loginTitleEl.textContent = t("login.title");
-  loginExplainEl.textContent = t("login.explain");
+  document.getElementById("login-title").textContent = t("login.title");
   loginEmailInput.placeholder = t("login.emailPlaceholder");
-  loginSendBtn.textContent = t("login.sendButton");
+  loginPasswordInput.placeholder = t("login.passwordPlaceholder");
+  document.getElementById("login-remember-label").textContent = t("login.remember");
+  loginSigninBtn.textContent = t("login.signInButton");
+  loginSignupBtn.textContent = t("login.signUpButton");
   charSignoutBtn.textContent = t("login.signOut");
 
   warpBtnLabel.textContent = t("controls.warp");

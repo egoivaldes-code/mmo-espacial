@@ -1,5 +1,15 @@
 [
   {
+    "version": "v0.4.0",
+    "highlights": [
+      "During testing there's no sign-in prompt: you go straight in and progress is still saved. Login stays ready to switch on when there are more players.",
+      "Signing in now uses email and password — no leaving the game to find an email.",
+      "Keep-me-signed-in checkbox: leave it ticked and it won't ask again.",
+      "Separate buttons for signing in and creating an account, with clear error messages.",
+      "Fixed: after signing in, the game didn't move on to pilot selection."
+    ]
+  },
+  {
     "version": "v0.3.0",
     "highlights": [
       "You can now sign in with your email: you get a link, no passwords needed.",

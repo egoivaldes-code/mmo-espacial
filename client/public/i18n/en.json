@@ -59,13 +59,25 @@
   },
   "login": {
     "title": "Sign in",
-    "explain": "Enter your email and we will send you a link to get in. No password needed.",
     "emailPlaceholder": "you@email.com",
-    "sendButton": "Send me the link",
-    "invalidEmail": "Enter a valid email address.",
-    "sending": "Sending…",
-    "sent": "Link sent to {email}. Open it on this same device.",
-    "error": "Could not send the link. Please try again.",
-    "signOut": "Sign out"
+    "passwordPlaceholder": "Password",
+    "remember": "Keep me signed in",
+    "signInButton": "Sign in",
+    "signUpButton": "Create account",
+    "signOut": "Sign out",
+    "signingIn": "Signing in…",
+    "creating": "Creating account…",
+    "invalidEmail": "That email doesn't look valid.",
+    "passwordShort": "Password needs at least {min} characters.",
+    "err": {
+      "CREDENCIALES": "Wrong email or password.",
+      "CUENTA_EXISTE": "An account with that email already exists. Press Sign in.",
+      "PASSWORD_CORTA": "Password is too short.",
+      "SIN_CONFIRMAR": "That account is not confirmed.",
+      "REQUIERE_CONFIRMACION": "Account created but needs email confirmation. Contact the admin.",
+      "DEMASIADOS_INTENTOS": "Too many attempts in a row. Wait a minute.",
+      "SIN_CONEXION": "No connection to the account server.",
+      "DESCONOCIDO": "Couldn't complete. Please try again."
+    }
   }
 }

@@ -1,5 +1,15 @@
 [
   {
+    "version": "v0.4.0",
+    "highlights": [
+      "Durante las pruebas no se pide identificación: entras directo y tu progreso se guarda igual. El login queda listo para activarlo cuando haya más jugadores.",
+      "Entrar es ahora con correo y contraseña, sin salir del juego a buscar ningún email.",
+      "Casilla de mantener sesión iniciada: si la dejas marcada, no vuelve a pedirte nada.",
+      "Botones separados para entrar y para crear cuenta, con mensajes de error claros.",
+      "Arreglado: tras identificarte, el juego no pasaba a la selección de piloto."
+    ]
+  },
+  {
     "version": "v0.3.0",
     "highlights": [
       "Ya puedes entrar con tu correo: te llega un enlace y listo, sin contraseñas.",

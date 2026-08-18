@@ -14,6 +14,54 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.3]
+
+### Corregido — botón "Crear cuenta" invisible
+- El CSS del botón de la pantalla de login se escribió para un `id` de
+  una versión anterior (`#login-send-btn`, de la era del enlace mágico) y
+  nunca se actualizó al reescribir esa pantalla con botones separados de
+  Entrar/Crear cuenta. El de Entrar caía en el estilo por defecto del
+  navegador (visible, aunque desentonaba); el de Crear cuenta, con fondo
+  transparente y sin color de texto propio, quedaba prácticamente
+  invisible sobre el fondo negro.
+- Corregido dándole a cada botón su estilo explícito, con el secundario
+  usando borde y texto claros en vez de los valores por defecto del
+  navegador.
+
+### Corregido — flash de español antes de cambiar de idioma
+- La pantalla de login no tenía ningún estado oculto por defecto (a
+  diferencia de la pantalla de intro), así que en el primer pintado —
+  antes de que corriera una sola línea de JavaScript — ya se veía, con el
+  texto en español escrito directamente en el HTML. En cuanto la app
+  detectaba el idioma real del teléfono y lo aplicaba, ese texto se
+  sustituía. En un teléfono con el navegador en inglés, eso se veía como
+  "empieza en español y cambia de golpe a inglés" — no era un fallo de
+  idioma, era que la pantalla se enseñaba antes de que la app decidiera
+  cuál tocaba.
+- Corregido ocultando la pantalla de login por defecto, igual que ya
+  hacían la de intro y la de selección de personaje.
+
+## [v0.5.2]
+
+### Corregido — "Ese personaje no existe" con sesión recordada
+- Al abrir la página, el juego iniciaba una unión a la sala **antes** de
+  que el jugador hubiera elegido personaje, para tener la conexión ya en
+  marcha (optimización de latencia). Esa unión temprana viajaba con
+  `characterId: null`.
+- Para quien no tenía sesión guardada, eso fallaba con un error distinto
+  y pasaba desapercibido. Para quien SÍ tenía sesión recordada (login con
+  la casilla de "mantener sesión" marcada), el token era válido — el
+  servidor llegaba a comprobarlo — y fallaba después, buscando un
+  personaje con id `null`: exactamente el "Ese personaje no existe o no
+  es tuyo" que se veía en pantalla.
+- Ese intento fallido quedaba guardado y se **reutilizaba** más tarde, en
+  vez de intentar la unión otra vez ya con el personaje real elegido. Por
+  eso el error persistía en cada intento, incluso recargando la página.
+- Corregido separando las dos cosas: al abrir la página solo se despierta
+  el servidor (una petición sin identidad). La unión real a la sala —la
+  que necesita saber quién eres y qué personaje quieres— se hace una sola
+  vez, cuando ya se ha elegido personaje.
+
 ## [v0.5.1]
 
 ### Corregido — el juego no arrancaba ninguna partida

@@ -35,6 +35,19 @@
       font-family: system-ui, sans-serif;
     }
     #intro-screen { visibility: hidden; }
+    /* BUG REAL: login-screen y character-screen heredaban display:flex de
+       .overlay-screen sin ningún estado oculto por defecto (a diferencia
+       de intro-screen). En el primer pintado, antes de que corra una sola
+       línea de JS, ya se veían — con el texto en español escrito a mano
+       en el HTML ("Entrar", "tu@correo.com"...). En cuanto termina
+       loadTranslations() y detecta el idioma real del teléfono, ese texto
+       se sustituye. Si el navegador del teléfono está en inglés, eso se
+       ve como "empieza en español y cambia de golpe a inglés": no es un
+       fallo de idioma, es que la pantalla se enseña antes de que la app
+       decida cuál toca. Un selector por ID pesa más que la clase
+       .overlay-screen, así que esto gana sin tocar el JS que ya
+       alterna display "none"/"flex" en el momento correcto. */
+    #login-screen { display: none; }
 
     /* Pantalla 1: patch notes + barra de estado, ANCLADA ARRIBA */
     #intro-top-bar {
@@ -108,13 +121,28 @@
       color: #cfe8ff; font-family: monospace; font-size: clamp(13px, 3vw, 15px);
       margin-bottom: 12px;
     }
-    #login-send-btn {
-      width: 100%; padding: 12px; border: none; border-radius: 8px;
-      background: #1a4a7a; color: #cfe8ff; font-family: monospace;
-      font-size: clamp(13px, 3vw, 15px); cursor: pointer;
+    #login-signin-btn, #login-signup-btn {
+      width: 100%; padding: 12px; border-radius: 8px;
+      font-family: monospace; font-size: clamp(13px, 3vw, 15px);
+      cursor: pointer; margin-bottom: 10px;
     }
-    #login-send-btn:active { background: #1f5686; }
-    #login-send-btn:disabled { background: #22303f; color: #6b7d92; }
+    #login-signin-btn {
+      border: none; background: #1a4a7a; color: #cfe8ff;
+    }
+    #login-signin-btn:active { background: #1f5686; }
+    #login-signin-btn:disabled { background: #22303f; color: #6b7d92; }
+
+    /* El botón "secundario" (Crear cuenta) usa fondo transparente a
+       propósito, para no competir visualmente con el de Entrar — pero
+       NECESITA su propio borde y color de texto explícitos. Sin ellos
+       caía en los valores por defecto del navegador, que sobre el fondo
+       negro de la página son casi invisibles (border gris claro apenas
+       perceptible, texto oscuro sobre fondo oscuro). */
+    #login-signup-btn.secondary-btn {
+      border: 1px solid #3a5578; color: #8fa6c4;
+    }
+    #login-signup-btn.secondary-btn:active { background: rgba(58, 85, 120, 0.25) !important; }
+    #login-signup-btn.secondary-btn:disabled { border-color: #22303f; color: #4a5568; }
     #login-status {
       margin-top: 14px; color: #8fa6c4; font-size: clamp(11px, 2.6vw, 13px);
       line-height: 1.5; min-height: 1.2em;

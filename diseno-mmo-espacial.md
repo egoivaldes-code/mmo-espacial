@@ -1756,6 +1756,65 @@ propiedades de `this`, esas propiedades deben estar garantizadas antes de
 la primera llamada — idealmente inicializándolas todas al principio de
 `onCreate`, o llamando al método que las usa al final.
 
+### 7.1.2 Segundo fallo en producción — unión prematura sin identidad (v0.5.2)
+
+Tras corregir el fallo de `spawnNpc` (v0.5.1), el mismo mensaje —"Ese
+personaje no existe o no es tuyo"— volvió a aparecer, esta vez de forma
+persistente y sin relación con ningún despliegue en marcha. Solo le
+pasaba a quien tenía **sesión recordada** de una vez anterior (casilla de
+"mantener sesión iniciada" marcada); alguien sin sesión guardada no lo
+veía.
+
+**La causa:** al abrir la página, el juego iniciaba una unión completa a
+la sala —con token de sesión y personaje— *antes* de que el jugador
+hubiera llegado a elegir personaje, como optimización para tener la
+conexión ya lista. Esa unión temprana viajaba con `characterId: null`.
+Con sesión válida pero sin personaje que buscar, el servidor respondía
+exactamente ese error. El intento fallido se guardaba y se **reutilizaba**
+en el momento de la unión real, así que ni recargar la página lo
+arreglaba: el personaje elegido de verdad nunca llegaba a comprobarse.
+
+**La lección — no reutilizar un resultado obtenido antes de tener todos
+los datos que ese resultado necesitaba.** "Adelantar trabajo mientras el
+jugador todavía está decidiendo" es una optimización válida (aquí,
+despertar el servidor de Render antes de que haga falta), pero solo para
+la parte que no depende de una decisión pendiente. La unión a la sala sí
+dependía de qué personaje se iba a elegir, así que no podía adelantarse:
+se separó en dos pasos — despertar el servidor (sin identidad, seguro de
+adelantar) y unirse a la sala (con identidad, solo cuando ya existe).
+
+### 15.4.2 Fallos de interfaz en producción (v0.5.3)
+
+Dos fallos de interfaz, distintos entre sí pero con la misma raíz: CSS y
+HTML que se quedaron desincronizados al reescribir una pantalla.
+
+**Botón "Crear cuenta" invisible.** El CSS del botón de login se escribió
+para el `id` de la versión con enlace mágico (`#login-send-btn`); al
+reescribir esa pantalla con botones separados de Entrar/Crear cuenta
+(15.4, v0.4.0), el `id` cambió pero el CSS no se actualizó. El botón
+secundario quedó con fondo transparente y sin color de texto propio,
+prácticamente invisible sobre fondo negro. **Lección:** un botón "fantasma"
+que no aparece en ningún registro de error — el navegador no avisa de un
+selector CSS que ya no coincide con nada, simplemente deja de aplicarse en
+silencio.
+
+**Cambio de idioma "de golpe".** La pantalla de login no tenía ningún
+estado oculto por defecto, a diferencia de la de intro. En el primer
+pintado —antes de que corriera código— ya era visible, mostrando el texto
+en español escrito directamente en el HTML. En cuanto la app detectaba el
+idioma real del dispositivo y lo aplicaba, ese texto se sustituía. En un
+teléfono con el navegador en inglés, eso se veía como un cambio brusco de
+idioma; no era un fallo de detección, era una pantalla enseñada antes de
+tiempo. **Corregido** ocultándola por defecto, igual que ya hacían las
+otras dos pantallas previas al juego.
+
+**Pendiente de decidir, no resuelto aquí:** hoy el idioma del dispositivo
+gana sobre el español por defecto si el idioma detectado está entre los
+disponibles. Es una decisión de producto válida, pero cabe preguntarse si
+conviene forzar español por defecto independientemente del idioma del
+teléfono, dado que el equipo de desarrollo y la base de jugadores inicial
+son hispanohablantes.
+
 ### 8.4.10.2 Primera implementación — v0.5.0
 
 **Primer combate jugable, en producción.** Sirve para validar si el

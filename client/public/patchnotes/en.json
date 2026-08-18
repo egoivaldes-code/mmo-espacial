@@ -1,5 +1,17 @@
 [
   {
+    "version": "v0.5.3",
+    "highlights": [
+      "Fixed: the \"Create account\" button was nearly invisible, and the sign-in screen no longer flips language right in front of you."
+    ]
+  },
+  {
+    "version": "v0.5.2",
+    "highlights": [
+      "Fixed: signing in with a remembered session could get you rejected with a bogus \"character doesn't exist\" error. Shouldn't happen anymore."
+    ]
+  },
+  {
     "version": "v0.5.1",
     "highlights": [
       "Fixed a bug that prevented playing after the combat patch. You can play normally again."

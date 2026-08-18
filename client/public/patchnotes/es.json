@@ -1,5 +1,17 @@
 [
   {
+    "version": "v0.5.3",
+    "highlights": [
+      "Arreglado: el botón \"Crear cuenta\" era casi invisible, y la pantalla de inicio de sesión ya no cambia de idioma de golpe delante de ti."
+    ]
+  },
+  {
+    "version": "v0.5.2",
+    "highlights": [
+      "Arreglado: si entrabas con una sesión ya guardada, el juego podía rechazarte con \"ese personaje no existe\" sin motivo real. Ya no debería pasar."
+    ]
+  },
+  {
     "version": "v0.5.1",
     "highlights": [
       "Arreglado un fallo que impedía entrar a jugar tras el parche de combate. Ya se puede volver a jugar con normalidad."

@@ -18,7 +18,7 @@ import {
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.5.1";
+const GAME_VERSION = "v0.5.3";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -218,7 +218,6 @@ function setLanguage(code) {
 // estaba dormido (el plan gratuito duerme tras inactividad).
 // ============================================================================
 
-let roomPromise = null;
 let CHOSEN_NAME = "Piloto";
 let CHOSEN_CHARACTER_ID = null;
 
@@ -276,18 +275,30 @@ async function joinRoom() {
   });
 }
 
+// BUG REAL (v0.5.1 → v0.5.2, encontrado en producción): esta función hacía
+// la unión a la sala completa — con autenticación e identidad — en cuanto
+// se abría la página, antes de que el jugador hubiera elegido personaje.
+// Con eso, "characterId" viajaba como null.
+//
+// Para alguien sin sesión guardada eso fallaba con "Sesión no válida" y
+// pasaba desapercibido. Para alguien con sesión recordada (login normal,
+// casilla de "mantener sesión" marcada), el token SÍ era válido — el
+// servidor llegaba a comprobarlo — y fallaba más adelante, al buscar un
+// personaje con id null: "Ese personaje no existe o no es tuyo". Ese
+// intento fallido quedaba guardado en `roomPromise`, y `connectToServer()`
+// lo REUTILIZABA en vez de intentarlo de nuevo — así que aunque el
+// jugador ya hubiera elegido personaje de verdad, seguía viendo el
+// rechazo de aquel primer intento, hecho antes de que existiera nada que
+// comprobar.
+//
+// La corrección: aquí solo se despierta el servidor (una petición HTTP
+// sin identidad, útil porque el plan gratuito de Render duerme el
+// servicio). La unión real a la sala —la que necesita char/token— se
+// hace en connectToServer(), una vez, cuando ya hay un personaje elegido.
 async function startBackgroundConnection() {
   setStatus(t("intro.checkingServer"));
   await warmupServer();
   setStatus(t("intro.serverReady"));
-
-  roomPromise = joinRoom();
-  try {
-    await roomPromise;
-    setStatus(t("intro.connected"));
-  } catch (err) {
-    setStatus(t("intro.connectionError", { error: err.message }));
-  }
 }
 
 // ============================================================================
@@ -1046,7 +1057,11 @@ class ChunkScene extends Phaser.Scene {
     });
 
     try {
-      this.room = roomPromise ? await roomPromise : await joinRoom();
+      // Únion real, con el personaje YA elegido. Se hace siempre aquí y no
+      // se reutiliza ningún intento anterior (ver el comentario en
+      // startBackgroundConnection): un intento hecho antes de conocer
+      // characterId no sirve, por muy "ya en marcha" que estuviera.
+      this.room = await joinRoom();
     } catch (err) {
       ui.textContent = t("hud.connectionError", { error: err.message });
       return;

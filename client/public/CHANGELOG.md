@@ -14,6 +14,26 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.4]
+
+### Añadido — herramienta de hardpoints en la Naveteca
+- Dos pestañas nuevas en la Naveteca (`client/public/naveteca/`), junto a
+  la de edición de naves:
+  - **Slots de torretas**: sobre el sprite de cada nave, tocar añade un
+    slot y arrastrar lo mueve. Simetría opcional en eje X (izquierda-
+    derecha) y/o eje Y (arriba-abajo): con ella activada, cada slot que
+    se coloca crea a la vez su pareja al otro lado, y moverlo mueve a la
+    pareja también. Cada slot puede tener una torreta asignada, que se
+    dibuja ya girada/alineada por su pivote sobre la propia nave.
+  - **Eje de rotación (torretas)**: se sube el PNG de cada torreta y se
+    marca a mano, arrastrando una cruz, el punto exacto sobre el que
+    debe girar al apuntar (no siempre el centro de la imagen).
+- Botón "Exportar parche de armamento (.zip)" que empaqueta
+  `turret-slots.json` (slots por nave) y `turrets.json` + las imágenes
+  de torreta (catálogo con pivote). Aún no hay carpeta fija en el repo
+  para estos archivos ni código que los lea en combate — ver 8.4.12 del
+  documento de diseño. Esta es solo la herramienta de autoría.
+
 ## [v0.5.3]
 
 ### Corregido — botón "Crear cuenta" invisible

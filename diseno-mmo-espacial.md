@@ -1878,6 +1878,26 @@ vez de improvisar una versión floja.
   módulos y cómo se replica sin coste.
 - Cifras de alcance por familia dentro del techo de 3000 unidades.
 
+### 8.4.12 Herramienta de colocación de hardpoints (Naveteca)
+
+Para no depender de coordenadas a mano, la Naveteca (editor de naves en
+el navegador, `client/public/naveteca/`) incorpora dos pestañas nuevas:
+
+- **Slots de torretas**: sobre el sprite de cada nave se marcan los
+  puntos donde van montadas las torretas, con simetría opcional en eje X
+  y/o eje Y para colocar pares a la vez.
+- **Eje de rotación (torretas)**: por cada modelo de torreta (imagen
+  subida aparte) se marca el punto exacto sobre el que debe girar al
+  apuntar, que no tiene por qué ser el centro de la imagen.
+
+El resultado se exporta como `turret-slots.json` (posición de cada slot
+por nave, en píxeles nativos del sprite, con su grupo de simetría y qué
+torreta tiene asignada) y `turrets.json` + las imágenes de torreta
+(pivote incluido). **Pendiente:** aún no existe una carpeta fija en el
+repo para estos archivos (se propone `client/public/turrets/`) ni el
+código de cliente/servidor que los lea para dibujar y girar las
+torretas en combate — de momento es solo la herramienta de autoría.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo

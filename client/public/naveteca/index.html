@@ -116,9 +116,104 @@
     #sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
     #detail-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); }
   }
+
+  /* --- Pestañas --- */
+  #tabbar {
+    display: flex; height: 44px; flex-shrink: 0; border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .tab-btn {
+    background: transparent; border: none; color: var(--muted); font-size: 13px;
+    padding: 0 16px; cursor: pointer; border-bottom: 2px solid transparent;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  #tab-content { height: calc(100% - 44px); }
+  .tab-panel { display: none; height: 100%; }
+  .tab-panel.active { display: flex; }
+
+  /* --- Slots de torretas --- */
+  #slots-app { display: flex; height: 100%; width: 100%; }
+  #slots-sidebar {
+    width: 220px; flex-shrink: 0; border-right: 1px solid var(--border);
+    padding: 16px 12px; overflow-y: auto; display: flex; flex-direction: column;
+  }
+  #slots-sidebar h1 { font-size: 16px; margin: 0 0 2px; color: #fff; }
+  #slots-sidebar .subtitle { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+  #slots-search {
+    width: 100%; padding: 7px 9px; border-radius: 6px; margin-bottom: 10px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px;
+  }
+  .ship-list-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 6px; border-radius: 6px;
+    cursor: pointer; margin-bottom: 2px;
+  }
+  .ship-list-row:hover { background: #10151f; }
+  .ship-list-row.selected { background: #142433; }
+  .ship-list-row img { width: 28px; height: 28px; object-fit: contain; }
+  .ship-list-row .name { font-size: 12px; }
+  .ship-list-row .count { font-size: 10px; color: var(--muted); }
+  #slots-sidebar-footer { margin-top: auto; padding-top: 10px; }
+  #slots-export-btn {
+    width: 100%; padding: 9px; border-radius: 6px; border: none; background: #2f8f5b;
+    color: #fff; font-size: 12px; cursor: pointer;
+  }
+  #slots-export-note { font-size: 10px; color: var(--muted); text-align: center; margin-top: 6px; }
+  #slots-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #slots-toolbar {
+    padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex;
+    align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12px;
+  }
+  #slots-toolbar label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  #slots-toolbar input[type=range] { width: 100px; }
+  #slots-instructions { font-size: 11px; color: var(--muted); padding: 6px 16px; }
+  #slots-canvas-wrap { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; background: #020204; }
+  #slots-canvas { touch-action: none; image-rendering: pixelated; display: block; }
+  #slots-list-panel { width: 260px; flex-shrink: 0; border-left: 1px solid var(--border); padding: 16px; overflow-y: auto; }
+  #slots-list-panel h2 { font-size: 14px; margin: 0 0 10px; }
+  .slot-row { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+  .slot-row-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .mirror-tag { font-size: 10px; color: #6fd68a; background: #12241a; padding: 1px 6px; border-radius: 4px; }
+  .slot-del { background: transparent; border: none; color: #d08080; cursor: pointer; font-size: 12px; }
+  .slot-coords { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .slot-turret { width: 100%; padding: 5px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 11px; }
+  .empty-note { font-size: 12px; color: var(--muted); }
+
+  /* --- Eje de rotación de torretas --- */
+  #pivote-app { display: flex; height: 100%; width: 100%; }
+  #turret-sidebar { width: 220px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 16px 12px; overflow-y: auto; }
+  #turret-sidebar h1 { font-size: 16px; margin: 0 0 2px; color: #fff; }
+  #turret-sidebar .subtitle { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+  #turret-add-btn {
+    width: 100%; padding: 9px; border-radius: 6px; border: none; background: #2a6fb0;
+    color: #fff; font-size: 12px; cursor: pointer; margin-bottom: 12px;
+  }
+  .turret-row { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 6px; cursor: pointer; margin-bottom: 2px; }
+  .turret-row:hover { background: #10151f; }
+  .turret-row.selected { background: #142433; }
+  .turret-row img { width: 30px; height: 30px; object-fit: contain; background: #020204; border-radius: 4px; }
+  .turret-row .name { font-size: 12px; }
+  #turret-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #turret-toolbar { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+  #turret-toolbar input[type=text] {
+    padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); font-size: 12px; width: 160px;
+  }
+  #turret-toolbar input[type=range] { width: 100px; }
+  #turret-del-btn { background: transparent; border: 1px solid #663333; color: #d08080; border-radius: 6px; padding: 6px 10px; font-size: 11px; cursor: pointer; }
+  #turret-canvas-wrap { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; background: #020204; }
+  #turret-canvas { touch-action: none; image-rendering: pixelated; display: block; }
+  #turret-note { font-size: 11px; color: var(--muted); padding: 8px 16px; }
+  #turret-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; }
 </style>
 </head>
 <body>
+<div id="tabbar">
+  <button class="tab-btn active" data-tab="naves">Naves</button>
+  <button class="tab-btn" data-tab="slots">Slots de torretas</button>
+  <button class="tab-btn" data-tab="pivote">Eje de rotación (torretas)</button>
+</div>
+<div id="tab-content">
+<div id="tab-naves" class="tab-panel active">
 <div id="app">
   <div id="sidebar">
     <h1>Naveteca</h1>
@@ -139,6 +234,58 @@
   </div>
   <div id="detail-panel" class="empty">Selecciona una nave para editarla.</div>
 </div>
+</div> <!-- /tab-naves -->
+
+<div id="tab-slots" class="tab-panel">
+  <div id="slots-app">
+    <div id="slots-sidebar">
+      <h1>Slots de torretas</h1>
+      <div class="subtitle">Elige una nave para colocar sus huecos de armas</div>
+      <input id="slots-search" type="text" placeholder="Buscar nave…" />
+      <div id="slots-ship-list"></div>
+      <div id="slots-sidebar-footer">
+        <button id="slots-export-btn">⬇ Exportar parche de armamento (.zip)</button>
+        <div id="slots-export-note">Incluye los slots de todas las naves y el catálogo de torretas con sus ejes.</div>
+      </div>
+    </div>
+    <div id="slots-main">
+      <div id="slots-toolbar">
+        <label><input type="checkbox" id="sym-x" /> Simetría eje X (izquierda-derecha)</label>
+        <label><input type="checkbox" id="sym-y" /> Simetría eje Y (arriba-abajo)</label>
+        <label>Zoom <input type="range" id="slots-zoom" min="2" max="14" value="6" step="1" /></label>
+      </div>
+      <div id="slots-instructions">Toca sobre la nave para añadir un slot nuevo. Arrastra un slot ya puesto para moverlo. Con la simetría activada, cada slot que coloques crea automáticamente su pareja al otro lado, y moverlo mueve a la vez a su pareja.</div>
+      <div id="slots-canvas-wrap"><canvas id="slots-canvas" width="1" height="1"></canvas></div>
+    </div>
+    <div id="slots-list-panel">
+      <h2>Slots de <span id="slots-ship-name">—</span></h2>
+      <div id="slots-list"><div class="empty-note">Elige una nave a la izquierda.</div></div>
+    </div>
+  </div>
+</div> <!-- /tab-slots -->
+
+<div id="tab-pivote" class="tab-panel">
+  <div id="pivote-app">
+    <div id="turret-sidebar">
+      <h1>Torretas</h1>
+      <div class="subtitle">Sube cada modelo de torreta y marca su eje de giro</div>
+      <button id="turret-add-btn">+ Añadir torreta (subir PNG)</button>
+      <input type="file" id="turret-add-input" accept="image/png" style="display:none" />
+      <div id="turret-list"></div>
+    </div>
+    <div id="turret-main">
+      <div id="turret-toolbar">
+        <input type="text" id="turret-name-input" placeholder="Nombre de la torreta" />
+        <label>Zoom <input type="range" id="turret-zoom" min="2" max="14" value="8" step="1" /></label>
+        <button id="turret-del-btn">🗑 Borrar esta torreta</button>
+      </div>
+      <div id="turret-note">Arrastra la cruz hasta el punto exacto sobre el que la torreta debe girar al apuntar — normalmente la base del montaje, no la punta del cañón. La línea de puntos marca "hacia adelante" (0°) para esa torreta.</div>
+      <div id="turret-canvas-wrap"><canvas id="turret-canvas" width="1" height="1"></canvas></div>
+    </div>
+  </div>
+  <div id="turret-empty" style="display:none">Sube una torreta con el botón de la izquierda para empezar.</div>
+</div> <!-- /tab-pivote -->
+</div> <!-- /tab-content -->
 
 <script>
 // Esta herramienta vive DENTRO del sitio del juego y lee del mismo sitio
@@ -212,6 +359,7 @@ function spriteSrc(ship) {
 
 async function init() {
   loadOverrides();
+  loadTurretData();
   const res = await fetch("../ships/ships.json");
   SHIPS = await res.json();
   renderClassFilters();
@@ -521,6 +669,521 @@ document.getElementById("search-input").addEventListener("input", (e) => {
   searchTerm = e.target.value;
   renderGrid();
 });
+
+// ============================================================
+// PESTAÑAS
+// ============================================================
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.onclick = () => {
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+    if (btn.dataset.tab === "slots") { renderSlotsShipList(); if (slotsSelectedShipId) drawSlotsCanvas(); }
+    if (btn.dataset.tab === "pivote") { renderTurretList(); }
+  };
+});
+
+function uid(prefix) {
+  return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+function downloadJSON(filename, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// SLOTS DE TORRETAS (por nave)
+// ============================================================
+// turretSlots[shipId] = { w, h, slots: [ {id, x, y, groupId, mx, my, turretId} ] }
+// w/h = tamaño nativo del sprite usado al colocar los slots (para que
+// cuadre aunque el sprite cambie de tamaño en el futuro).
+// groupId: slots con el mismo groupId son una pareja/grupo de simetría
+// y se mueven juntos. mx/my indican si ESTE slot concreto es el
+// reflejo en X y/o en Y respecto al que se colocó originalmente.
+let turretSlots = {};
+let turretCatalog = []; // [{id,name,fileName,dataUrl,width,height,pivot:{x,y}}]
+let turretImageCache = {}; // id -> HTMLImageElement (cargada) | "loading"
+let slotsSelectedShipId = null;
+let slotsImg = null;
+let slotsScale = 6;
+let symX = false, symY = false;
+let slotsDragId = null;
+
+function getTurretImage(turretId) {
+  const cached = turretImageCache[turretId];
+  if (cached && cached !== "loading") return cached;
+  if (cached === "loading") return null;
+  const t = turretCatalog.find((x) => x.id === turretId);
+  if (!t) return null;
+  turretImageCache[turretId] = "loading";
+  const img = new Image();
+  img.onload = () => { turretImageCache[turretId] = img; drawSlotsCanvas(); };
+  img.src = t.dataUrl;
+  return null;
+}
+
+function loadTurretData() {
+  try { turretSlots = JSON.parse(localStorage.getItem("spacemmo_turret_slots") || "{}"); } catch { turretSlots = {}; }
+  try { turretCatalog = JSON.parse(localStorage.getItem("spacemmo_turret_catalog") || "[]"); } catch { turretCatalog = []; }
+}
+function saveTurretSlots() {
+  localStorage.setItem("spacemmo_turret_slots", JSON.stringify(turretSlots));
+}
+function saveTurretCatalog() {
+  try {
+    localStorage.setItem("spacemmo_turret_catalog", JSON.stringify(turretCatalog));
+    return true;
+  } catch (err) {
+    alert("No se pudo guardar: " + err.message + "\n\nPrueba con una imagen de torreta más pequeña, o exporta el parche y borra alguna torreta del catálogo para liberar espacio.");
+    return false;
+  }
+}
+function ensureShipSlots(shipId, w, h) {
+  if (!turretSlots[shipId]) turretSlots[shipId] = { w, h, slots: [] };
+  turretSlots[shipId].w = w;
+  turretSlots[shipId].h = h;
+  return turretSlots[shipId];
+}
+
+function renderSlotsShipList() {
+  const container = document.getElementById("slots-ship-list");
+  const term = (document.getElementById("slots-search").value || "").toLowerCase();
+  container.innerHTML = "";
+  SHIPS.filter((s) => effectiveShip(s).name.toLowerCase().includes(term)).forEach((ship) => {
+    const eff = effectiveShip(ship);
+    const count = (turretSlots[ship.id]?.slots || []).length;
+    const row = document.createElement("div");
+    row.className = "ship-list-row" + (ship.id === slotsSelectedShipId ? " selected" : "");
+    row.innerHTML = `<img src="${spriteSrc(ship)}" /><div><div class="name">${eff.name}</div><div class="count">${count} slot${count === 1 ? "" : "s"}</div></div>`;
+    row.onclick = () => selectSlotsShip(ship.id);
+    container.appendChild(row);
+  });
+}
+
+function selectSlotsShip(shipId) {
+  slotsSelectedShipId = shipId;
+  const ship = SHIPS.find((s) => s.id === shipId);
+  document.getElementById("slots-ship-name").textContent = effectiveShip(ship).name;
+  renderSlotsShipList();
+  renderSlotsList();
+  const img = new Image();
+  img.onload = () => {
+    slotsImg = img;
+    ensureShipSlots(shipId, img.naturalWidth, img.naturalHeight);
+    drawSlotsCanvas();
+  };
+  img.src = spriteSrc(ship);
+}
+
+function drawSlotsCanvas() {
+  const canvas = document.getElementById("slots-canvas");
+  if (!slotsImg || !slotsSelectedShipId) { canvas.width = 1; canvas.height = 1; return; }
+  const W = slotsImg.naturalWidth, H = slotsImg.naturalHeight;
+  const scale = slotsScale;
+  canvas.width = W * scale;
+  canvas.height = H * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = "#05050a";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(slotsImg, 0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = "rgba(102,204,255,0.12)";
+  ctx.lineWidth = 1;
+  for (let gx = 0; gx <= W; gx += 10) {
+    ctx.beginPath(); ctx.moveTo(gx * scale + 0.5, 0); ctx.lineTo(gx * scale + 0.5, canvas.height); ctx.stroke();
+  }
+  for (let gy = 0; gy <= H; gy += 10) {
+    ctx.beginPath(); ctx.moveTo(0, gy * scale + 0.5); ctx.lineTo(canvas.width, gy * scale + 0.5); ctx.stroke();
+  }
+
+  ctx.strokeStyle = "#ff6688";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo((W / 2) * scale, 0); ctx.lineTo((W / 2) * scale, canvas.height); ctx.stroke(); // eje Y (vertical)
+  ctx.beginPath(); ctx.moveTo(0, (H / 2) * scale); ctx.lineTo(canvas.width, (H / 2) * scale); ctx.stroke(); // eje X (horizontal)
+  ctx.fillStyle = "#ff6688";
+  ctx.font = "11px system-ui";
+  ctx.fillText("eje X", canvas.width - 36, (H / 2) * scale - 6);
+  ctx.fillText("eje Y", (W / 2) * scale + 6, 12);
+
+  const slots = turretSlots[slotsSelectedShipId]?.slots || [];
+  slots.forEach((slot, i) => {
+    const px = slot.x * scale, py = slot.y * scale;
+
+    if (slot.turretId) {
+      const t = turretCatalog.find((x) => x.id === slot.turretId);
+      const img = t ? getTurretImage(slot.turretId) : null;
+      if (t && img) {
+        const drawW = t.width * scale, drawH = t.height * scale;
+        const drawX = px - t.pivot.x * scale, drawY = py - t.pivot.y * scale;
+        ctx.globalAlpha = 0.95;
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "rgba(255,255,255,0.4)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(drawX, drawY, drawW, drawH);
+      }
+    }
+
+    ctx.beginPath();
+    ctx.arc(px, py, 8, 0, Math.PI * 2);
+    ctx.fillStyle = slot.groupId ? "#6fd68a" : "#66ccff";
+    ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = "#05050a";
+    ctx.font = "bold 10px system-ui";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(i + 1), px, py);
+  });
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+}
+
+function canvasPointToNative(canvas, evt, scale) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+  const cx = (evt.clientX - rect.left) * scaleX;
+  const cy = (evt.clientY - rect.top) * scaleY;
+  return { x: cx / scale, y: cy / scale };
+}
+
+function hitTestSlot(nx, ny) {
+  const slots = turretSlots[slotsSelectedShipId]?.slots || [];
+  const radius = 10 / slotsScale;
+  for (const slot of slots) {
+    const dx = slot.x - nx, dy = slot.y - ny;
+    if (Math.sqrt(dx * dx + dy * dy) <= Math.max(radius, 3)) return slot;
+  }
+  return null;
+}
+
+function addSlotAt(x, y) {
+  const entry = turretSlots[slotsSelectedShipId];
+  const W = entry.w, H = entry.h;
+  x = clamp(x, 0, W); y = clamp(y, 0, H);
+  const groupId = (symX || symY) ? uid("g") : null;
+  const base = { id: uid("s"), x, y, groupId, mx: 0, my: 0, turretId: null };
+  entry.slots.push(base);
+  slotsDragId = base.id;
+  if (symX) entry.slots.push({ id: uid("s"), x: W - x, y, groupId, mx: 1, my: 0, turretId: null });
+  if (symY) entry.slots.push({ id: uid("s"), x, y: H - y, groupId, mx: 0, my: 1, turretId: null });
+  if (symX && symY) entry.slots.push({ id: uid("s"), x: W - x, y: H - y, groupId, mx: 1, my: 1, turretId: null });
+  saveTurretSlots();
+  drawSlotsCanvas();
+  renderSlotsList();
+  renderSlotsShipList();
+}
+
+function moveSlotTo(id, nx, ny) {
+  const entry = turretSlots[slotsSelectedShipId];
+  const slot = entry.slots.find((s) => s.id === id);
+  if (!slot) return;
+  const W = entry.w, H = entry.h;
+  nx = clamp(nx, 0, W); ny = clamp(ny, 0, H);
+  if (!slot.groupId) {
+    slot.x = nx; slot.y = ny;
+    drawSlotsCanvas();
+    return;
+  }
+  const primaryX = slot.mx ? W - nx : nx;
+  const primaryY = slot.my ? H - ny : ny;
+  entry.slots.filter((s) => s.groupId === slot.groupId).forEach((s) => {
+    s.x = s.mx ? W - primaryX : primaryX;
+    s.y = s.my ? H - primaryY : primaryY;
+  });
+  drawSlotsCanvas();
+}
+
+function deleteSlot(id) {
+  const entry = turretSlots[slotsSelectedShipId];
+  if (!entry) return;
+  entry.slots = entry.slots.filter((s) => s.id !== id);
+  saveTurretSlots();
+  drawSlotsCanvas();
+  renderSlotsList();
+  renderSlotsShipList();
+}
+
+function renderSlotsList() {
+  const panel = document.getElementById("slots-list");
+  if (!slotsSelectedShipId) { panel.innerHTML = '<div class="empty-note">Elige una nave a la izquierda.</div>'; return; }
+  const slots = turretSlots[slotsSelectedShipId]?.slots || [];
+  if (slots.length === 0) { panel.innerHTML = '<div class="empty-note">Toca sobre la nave para añadir el primer slot.</div>'; return; }
+  panel.innerHTML = slots.map((s, i) => `
+    <div class="slot-row">
+      <div class="slot-row-head"><b>#${i + 1}</b> ${s.groupId ? '<span class="mirror-tag">simetría</span>' : ""} <button class="slot-del" data-id="${s.id}">✕ quitar</button></div>
+      <div class="slot-coords">x: ${Math.round(s.x)} · y: ${Math.round(s.y)}</div>
+      <select class="slot-turret" data-id="${s.id}">
+        <option value="">— sin torreta asignada —</option>
+        ${turretCatalog.map((t) => `<option value="${t.id}" ${s.turretId === t.id ? "selected" : ""}>${escapeHtml(t.name)}</option>`).join("")}
+      </select>
+    </div>
+  `).join("");
+  panel.querySelectorAll(".slot-del").forEach((btn) => btn.onclick = () => deleteSlot(btn.dataset.id));
+  panel.querySelectorAll(".slot-turret").forEach((sel) => {
+    sel.onchange = () => {
+      const slots2 = turretSlots[slotsSelectedShipId].slots;
+      const slot = slots2.find((s) => s.id === sel.dataset.id);
+      slot.turretId = sel.value || null;
+      saveTurretSlots();
+      drawSlotsCanvas();
+    };
+  });
+}
+
+const slotsCanvasEl = document.getElementById("slots-canvas");
+slotsCanvasEl.addEventListener("pointerdown", (e) => {
+  if (!slotsSelectedShipId) return;
+  const { x, y } = canvasPointToNative(slotsCanvasEl, e, slotsScale);
+  const hit = hitTestSlot(x, y);
+  if (hit) { slotsDragId = hit.id; }
+  else { addSlotAt(x, y); }
+  slotsCanvasEl.setPointerCapture(e.pointerId);
+});
+slotsCanvasEl.addEventListener("pointermove", (e) => {
+  if (!slotsDragId) return;
+  const { x, y } = canvasPointToNative(slotsCanvasEl, e, slotsScale);
+  moveSlotTo(slotsDragId, x, y);
+});
+slotsCanvasEl.addEventListener("pointerup", () => {
+  if (slotsDragId) { saveTurretSlots(); renderSlotsList(); renderSlotsShipList(); }
+  slotsDragId = null;
+});
+
+document.getElementById("sym-x").onchange = (e) => { symX = e.target.checked; };
+document.getElementById("sym-y").onchange = (e) => { symY = e.target.checked; };
+document.getElementById("slots-zoom").oninput = (e) => { slotsScale = Number(e.target.value); drawSlotsCanvas(); };
+document.getElementById("slots-search").addEventListener("input", renderSlotsShipList);
+
+// ============================================================
+// CATÁLOGO DE TORRETAS — EJE DE ROTACIÓN
+// ============================================================
+let pivotSelectedId = null;
+let pivotImg = null;
+let pivotScale = 8;
+let pivotDragging = false;
+
+function selectTurret(id) {
+  pivotSelectedId = id;
+  const t = turretCatalog.find((x) => x.id === id);
+  if (!t) { pivotImg = null; renderTurretList(); return; }
+  const img = new Image();
+  img.onload = () => { pivotImg = img; drawTurretCanvas(); };
+  img.src = t.dataUrl;
+  document.getElementById("turret-name-input").value = t.name;
+  renderTurretList();
+}
+
+function renderTurretList() {
+  const container = document.getElementById("turret-list");
+  const empty = document.getElementById("turret-empty");
+  const wrap = document.getElementById("pivote-app");
+  if (turretCatalog.length === 0) {
+    container.innerHTML = '<div class="empty-note">Sube tu primera torreta con el botón de arriba.</div>';
+    wrap.style.display = "none";
+    empty.style.display = "flex";
+    return;
+  }
+  wrap.style.display = "flex";
+  empty.style.display = "none";
+  container.innerHTML = turretCatalog.map((t) => `
+    <div class="turret-row ${t.id === pivotSelectedId ? "selected" : ""}" data-id="${t.id}">
+      <img src="${t.dataUrl}" />
+      <div class="name">${escapeHtml(t.name)}</div>
+    </div>
+  `).join("");
+  container.querySelectorAll(".turret-row").forEach((row) => row.onclick = () => selectTurret(row.dataset.id));
+  if (!pivotSelectedId || !turretCatalog.find((t) => t.id === pivotSelectedId)) {
+    selectTurret(turretCatalog[0].id);
+  }
+}
+
+function drawTurretCanvas() {
+  const canvas = document.getElementById("turret-canvas");
+  const t = turretCatalog.find((x) => x.id === pivotSelectedId);
+  if (!t || !pivotImg) { canvas.width = 1; canvas.height = 1; return; }
+  const scale = pivotScale;
+  canvas.width = t.width * scale;
+  canvas.height = t.height * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = "#05050a";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(pivotImg, 0, 0, canvas.width, canvas.height);
+
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = "rgba(255,255,255,0.35)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(t.pivot.x * scale, t.pivot.y * scale); ctx.lineTo(t.pivot.x * scale, 0); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = "rgba(255,102,136,0.5)";
+  ctx.beginPath(); ctx.moveTo(t.pivot.x * scale, 0); ctx.lineTo(t.pivot.x * scale, canvas.height); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, t.pivot.y * scale); ctx.lineTo(canvas.width, t.pivot.y * scale); ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(t.pivot.x * scale, t.pivot.y * scale, 8, 0, Math.PI * 2);
+  ctx.fillStyle = "#ff6688"; ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+}
+
+document.getElementById("turret-canvas").addEventListener("pointerdown", (e) => {
+  if (!pivotSelectedId) return;
+  pivotDragging = true;
+  setPivotFromEvent(e);
+  e.target.setPointerCapture(e.pointerId);
+});
+document.getElementById("turret-canvas").addEventListener("pointermove", (e) => {
+  if (!pivotDragging) return;
+  setPivotFromEvent(e);
+});
+document.getElementById("turret-canvas").addEventListener("pointerup", () => {
+  if (pivotDragging) { pivotDragging = false; saveTurretCatalog(); }
+});
+
+function setPivotFromEvent(e) {
+  const canvas = document.getElementById("turret-canvas");
+  const t = turretCatalog.find((x) => x.id === pivotSelectedId);
+  if (!t) return;
+  const { x, y } = canvasPointToNative(canvas, e, pivotScale);
+  t.pivot = { x: clamp(x, 0, t.width), y: clamp(y, 0, t.height) };
+  drawTurretCanvas();
+}
+
+document.getElementById("turret-add-btn").onclick = () => document.getElementById("turret-add-input").click();
+document.getElementById("turret-add-input").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    alert("Esa imagen pesa más de 2MB — puede no caber en el almacenamiento local. Prueba con un PNG más pequeño.");
+    e.target.value = ""; return;
+  }
+  const dataUrl = await fileToDataUrl(file);
+  const img = new Image();
+  img.onload = () => {
+    const entry = {
+      id: uid("t"),
+      name: `Torreta ${turretCatalog.length + 1}`,
+      fileName: file.name,
+      dataUrl,
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      pivot: { x: img.naturalWidth / 2, y: img.naturalHeight / 2 },
+    };
+    turretCatalog.push(entry);
+    saveTurretCatalog();
+    pivotSelectedId = entry.id;
+    renderTurretList();
+    pivotImg = img;
+    drawTurretCanvas();
+  };
+  img.src = dataUrl;
+  e.target.value = "";
+});
+
+document.getElementById("turret-name-input").addEventListener("change", (e) => {
+  const t = turretCatalog.find((x) => x.id === pivotSelectedId);
+  if (!t) return;
+  t.name = e.target.value.trim() || t.name;
+  saveTurretCatalog();
+  renderTurretList();
+});
+document.getElementById("turret-zoom").oninput = (e) => { pivotScale = Number(e.target.value); drawTurretCanvas(); };
+document.getElementById("turret-del-btn").onclick = () => {
+  const t = turretCatalog.find((x) => x.id === pivotSelectedId);
+  if (!t) return;
+  if (!confirm(`¿Borrar la torreta "${t.name}" del catálogo? También se quitará de cualquier slot que la tuviera asignada.`)) return;
+  turretCatalog = turretCatalog.filter((x) => x.id !== t.id);
+  delete turretImageCache[t.id];
+  Object.values(turretSlots).forEach((entry) => {
+    entry.slots.forEach((s) => { if (s.turretId === t.id) s.turretId = null; });
+  });
+  saveTurretCatalog();
+  saveTurretSlots();
+  pivotSelectedId = null;
+  pivotImg = null;
+  renderTurretList();
+  drawTurretCanvas();
+};
+
+// ============================================================
+// EXPORTAR PARCHE DE ARMAMENTO (.zip)
+// ============================================================
+document.getElementById("slots-export-btn").onclick = async () => {
+  const shipsWithSlots = Object.entries(turretSlots).filter(([, e]) => e.slots && e.slots.length > 0);
+  if (shipsWithSlots.length === 0 && turretCatalog.length === 0) {
+    alert("Todavía no hay slots ni torretas que exportar.");
+    return;
+  }
+  const zip = new JSZip();
+  const turretFolder = zip.folder("turrets");
+
+  const shipsOut = {};
+  shipsWithSlots.forEach(([shipId, entry]) => {
+    shipsOut[shipId] = {
+      spriteSize: { w: entry.w, h: entry.h },
+      slots: entry.slots.map((s) => ({
+        id: s.id,
+        x: Math.round(s.x * 100) / 100,
+        y: Math.round(s.y * 100) / 100,
+        mirrorGroup: s.groupId || null,
+        turretId: s.turretId || null,
+      })),
+    };
+  });
+
+  const turretsOut = turretCatalog.map((t) => ({
+    id: t.id,
+    name: t.name,
+    file: `turrets/${t.fileName}`,
+    size: { w: t.width, h: t.height },
+    pivot: { x: Math.round(t.pivot.x * 100) / 100, y: Math.round(t.pivot.y * 100) / 100 },
+  }));
+
+  zip.file("turret-slots.json", JSON.stringify(shipsOut, null, 2));
+  zip.file("turrets.json", JSON.stringify(turretsOut, null, 2));
+  turretCatalog.forEach((t) => { if (t.dataUrl) turretFolder.file(t.fileName, dataUrlToBlob(t.dataUrl)); });
+
+  zip.file("README.md", `# Parche de armamento — slots de torretas y ejes de rotación
+
+Generado desde la pestaña "Slots de torretas" / "Eje de rotación" del Naveteca.
+
+## Qué contiene
+- \`turret-slots.json\`: para cada nave con slots definidos, el tamaño de
+  sprite usado al colocarlos (\`spriteSize\`, en píxeles) y la lista de
+  slots con su posición (\`x\`, \`y\`, píxeles nativos, origen arriba-
+  izquierda de la imagen de la nave), su grupo de simetría
+  (\`mirrorGroup\`: mismo valor = pensados para moverse/existir juntos)
+  y qué torreta tiene asignada (\`turretId\`, puede ser \`null\`).
+- \`turrets.json\`: catálogo de modelos de torreta con el tamaño de su
+  imagen y el punto \`pivot\` (píxeles nativos de la imagen de la
+  torreta) sobre el que debe girar al apuntar.
+- \`turrets/\`: las imágenes .png de las torretas subidas desde esta
+  herramienta.
+
+## Cómo aplicarlo
+1. Copia \`turret-slots.json\` y \`turrets.json\`, y el contenido de
+   \`turrets/\`, a la carpeta que el código del cliente/servidor vaya a
+   usar para leerlos (de momento no existe una carpeta fija en el repo
+   para esto — se sugiere \`client/public/turrets/\`).
+2. Commit + push a main como el resto de parches.
+
+Nota: si el sprite de una nave cambia de tamaño más adelante, sus slots
+guardados aquí (en píxeles del sprite anterior) dejarán de encajar y
+habrá que revisarlos.
+`);
+
+  const blob = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "armamento-parche.zip"; a.click();
+  URL.revokeObjectURL(url);
+};
 
 init();
 </script>

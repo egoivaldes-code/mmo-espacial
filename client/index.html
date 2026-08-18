@@ -206,6 +206,70 @@
     #login-remember { width: 18px; height: 18px; accent-color: #3399ff; flex-shrink: 0; }
     .secondary-btn { background: transparent !important; }
 
+    /* --- Barras de combate: escudo, estructura, energia ------------------
+       Tres barras finas debajo del contador de arriba. Colores distintos
+       para que se distingan sin leer texto: verde escudo, gris estructura,
+       azul energia. Cuando el escudo llega a 0 la barra de estructura pasa
+       a rojo, para que el peligro se note sin tener que mirar el numero. */
+    #combat-bars {
+      position: fixed; top: 46px; left: 10px; z-index: 10;
+      display: flex; flex-direction: column; gap: 3px;
+      width: clamp(120px, 34vw, 180px);
+      pointer-events: none;
+    }
+    .cbar-track {
+      height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12);
+      overflow: hidden;
+    }
+    .cbar-fill { height: 100%; border-radius: 3px; transition: width 150ms linear; }
+    #shield-fill { background: #46c8ff; }
+    #structure-fill { background: #9fb0c0; }
+    #structure-fill.critical { background: #ff5555; }
+    #capacitor-fill { background: #ffcc44; }
+
+    /* --- Boton de disparo y casilla de autodisparo -------------------------
+       Van pegados al boton de accion, en el mismo lado (pulgar derecho).
+       Solo existen con un objetivo FIJADO Y BLOQUEADO (15.4.1): sin eso no
+       hay nada que disparar, asi que no ocupan sitio en pantalla. */
+    #combat-buttons {
+      position: absolute; right: 20px; bottom: 128px; pointer-events: none;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+    }
+    #combat-buttons.empty { display: none; }
+    #fire-btn {
+      pointer-events: auto;
+      width: clamp(60px, 16vw, 76px); height: clamp(60px, 16vw, 76px);
+      border-radius: 50%; border: 2px solid rgba(255, 80, 80, 0.8);
+      background: rgba(255, 80, 80, 0.22);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #fire-btn.active { background: rgba(255, 80, 80, 0.55); }
+    #fire-btn.no-energy { opacity: 0.4; }
+    #fire-btn .ui-icon { width: 44%; height: 44%; }
+    #autoshoot-row {
+      pointer-events: auto; display: flex; align-items: center; gap: 6px;
+      background: rgba(10,14,22,0.6); border-radius: 12px; padding: 4px 10px;
+      font-family: monospace; font-size: clamp(9px, 2.2vw, 11px); color: #cfe0f0;
+    }
+    #autoshoot-check { width: 15px; height: 15px; accent-color: #ff5050; }
+
+    /* --- Marcador de objetivo: barra de fijado sobre el HUD, no en el mundo.
+       La reticula girando ya existe en el mundo (Phaser); esta barra es el
+       resumen textual encima, con nombre y las dos capas de vida. */
+    #target-panel {
+      position: fixed; top: 10px; right: 10px; z-index: 10;
+      width: clamp(130px, 38vw, 190px);
+      background: rgba(10,14,22,0.55); border-radius: 8px; padding: 6px 8px;
+      font-family: monospace; color: #dfe8f2; pointer-events: none;
+      display: none;
+    }
+    #target-panel.visible { display: block; }
+    #target-name { font-size: clamp(10px, 2.6vw, 12px); margin-bottom: 4px; }
+    #target-bars .cbar-track { height: 5px; margin-bottom: 3px; }
+    #target-shield-fill { background: #46c8ff; }
+    #target-structure-fill { background: #9fb0c0; }
+
     #action-buttons {
       position: absolute; right: 20px; bottom: 20px; pointer-events: none;
       display: flex; gap: 16px; align-items: flex-end;
@@ -324,6 +388,30 @@
   <div id="game-hud">
     <div id="version-badge"></div>
     <button id="options-gear-btn">⚙</button>
+    <div id="combat-bars">
+      <div class="cbar-track"><div id="shield-fill" class="cbar-fill" style="width:100%"></div></div>
+      <div class="cbar-track"><div id="structure-fill" class="cbar-fill" style="width:100%"></div></div>
+      <div class="cbar-track"><div id="capacitor-fill" class="cbar-fill" style="width:100%"></div></div>
+    </div>
+
+    <div id="target-panel">
+      <div id="target-name"></div>
+      <div id="target-bars">
+        <div class="cbar-track"><div id="target-shield-fill" class="cbar-fill" style="width:100%"></div></div>
+        <div class="cbar-track"><div id="target-structure-fill" class="cbar-fill" style="width:100%"></div></div>
+      </div>
+    </div>
+
+    <div id="combat-buttons" class="empty">
+      <label id="autoshoot-row">
+        <input id="autoshoot-check" type="checkbox" />
+        <span id="autoshoot-label">Auto</span>
+      </label>
+      <button id="fire-btn">
+        <i class="ui-icon" style="--ix:3; --iy:1;"></i>
+      </button>
+    </div>
+
     <div id="action-buttons">
       <button id="warp-btn" class="hud-round-btn">
         <i class="ui-icon" style="--ix:0; --iy:0;"></i>

@@ -497,8 +497,11 @@ Escalera de degradación cuando un chunk satura, en este orden:
    cosas. La simulación se queda fija en 20 Hz y el patch arranca en 15.
    Con la interpolación de 5.7 apenas se nota y es donde más CPU se
    recupera.
-2. **Estrechar el radio de AoI** (área de interés): con 150 naves alrededor
-   no hace falta ver a 3000 unidades.
+2. **Bajar la frecuencia de lo lejano, NUNCA su radio** (ver 8.4.7). Lo
+   cercano sigue al `patchRate` de la fila; lo lejano se actualiza mucho
+   más despacio pero **no desaparece**. A 2500 unidades y con la cámara
+   alejada, una nave ocupa poquísimos píxeles: refrescarla 3 veces por
+   segundo en lugar de 15 es imperceptible, y cuesta una quinta parte.
 3. **Congelar lo no crítico**: asteroides y NPCs pasan a dormidos; solo
    naves y proyectiles siguen a tick completo.
 4. **Cola en el punto de salto**, presentada de forma diegética
@@ -506,12 +509,23 @@ Escalera de degradación cuando un chunk satura, en este orden:
 
 Valores de partida, por ocupación de la room:
 
-| Jugadores | `patchRate` | Radio AoI | Extra |
+| Jugadores | `patchRate` cercano | Anillo lejano | Extra |
 |---|---|---|---|
-| ≤ 20 | 15 Hz | 3000 u | — |
-| 21-50 | 12 Hz | 2000 u | — |
-| 51-100 | 10 Hz | 1200 u | Asteroides y NPC dormidos fuera de AoI |
-| > 100 | 8 Hz | 900 u | Cola en el punto de salto |
+| ≤ 20 | 15 Hz | 15 Hz (sin anillo) | — |
+| 21-50 | 12 Hz | 6 Hz a partir de 1200 u | — |
+| 51-100 | 10 Hz | 4 Hz a partir de 1200 u | Asteroides y NPC dormidos lejos |
+| > 100 | 8 Hz | 3 Hz a partir de 900 u | Cola en el punto de salto |
+
+**El radio de replicación se mantiene siempre en 3000 unidades**, pase lo
+que pase. Lo que se degrada es cada cuánto se refresca, no hasta dónde
+llega. El motivo está en 8.4.7 y es una restricción dura, no una
+preferencia.
+
+**Excepción que salta el anillo:** una nave que te tenga bloqueado o que
+te haya disparado en los últimos segundos se replica **siempre a
+frecuencia completa**, esté a la distancia que esté. Quien puede matarte
+nunca se actualiza despacio. Son unas pocas entidades por jugador, así que
+el coste es despreciable y elimina el peor fallo posible del sistema.
 
 Son valores de arranque, no definitivos: hay que **instrumentar el tiempo
 real de tick** del servidor y recalibrar con datos. El número de jugadores
@@ -1182,11 +1196,11 @@ fabricación de cada clase en recursos.
 
 ### 8.4 Combate
 
-**Apuntado**: sistema híbrido — armas de disparo directo (apuntar y
-disparar, más habilidad manual, más "arcade") combinadas con armas de
-bloqueo/lock (se marca un objetivo y el arma dispara sola mientras el lock
-se mantiene, más táctico, tipo EVE). Da variedad de builds/naves según qué
-tipo de arma prioricen.
+**Apuntado — decisión cerrada: no hay armas manuales.** Se descarta el
+sistema híbrido que estaba apuntado aquí. **Todos los módulos son
+automáticos**: se marca un objetivo y las armas disparan solas mientras el
+bloqueo se mantenga. Ver 8.4.10 para qué hace entonces el jugador, que es
+la parte importante.
 
 **Pérdida al morir — es punitivo de verdad**: al morir en combate se puede
 perder la **nave entera**, no solo la carga transportada. Esto tiene
@@ -1273,14 +1287,509 @@ Ninguna de las tres es un interruptor — son subsistemas enteros. Se deja
 como expansión futura posible, no descartada para siempre, pero fuera del
 alcance de la primera versión de esta mecánica.
 
-**Pendiente de definir:** catálogo de órdenes disponibles por clase de
-nave (¿una lanzadera solo admite una orden simple, una minera dedicada
+**Pendiente de definir:** dónde se traza exactamente la frontera entre
+"seguro" e "inseguro" a efectos de permitir órdenes offline (8.4.1.1);
+catálogo de órdenes disponibles por clase de nave (¿una lanzadera solo admite una orden simple, una minera dedicada
 encadena varias?); si existen mejoras (módulos, tripulación, skills) que
 suban la eficiencia offline por encima del 40% base; tope de fantasmas
 visuales simultáneos por chunk al despertar, mismo patrón que el tope de
 naves CONCORD (4.3.2); si el piloto automático online se puede activar
 con el jugador mirando otra pantalla del juego (mercado, fabricación) o
 exige minimizar/salir del modo vuelo.
+
+### 8.4.1.1 Alcance actual: solo automatización ONLINE
+
+**Acotación, agosto 2026.** Todo lo offline queda aplazado. Lo que se
+diseña y se construye ahora es únicamente la **automatización con el
+jugador conectado**: dejar la nave minando, viajando o combatiendo NPCs
+mientras se está AFK en el PC o con el móvil en el bolsillo.
+
+El motivo es que el offline arrastra subsistemas enteros que hoy no
+existen —combate contra jugador ausente, escritura en caliente, reparto
+justo de la pérdida (ver el descarte al final de 8.4.1)— y diseñarlo ahora
+significa decidir sobre piezas que aún no se pueden probar.
+
+**Lo que sí importa ya, porque afecta al online:** la nave automatizada
+está dentro del chunk y es **física e interceptable como cualquier otra**.
+No hay atajo: si otro jugador te encuentra minando en automático, te puede
+atacar igual que si estuvieras pilotando. Eso es deliberado y es lo que
+impide que automatizar sea una forma de volverse inmune.
+
+El resto de esta subsección se conserva como **notas para cuando llegue el
+offline**, no como decisiones vigentes.
+
+---
+
+#### Notas aparcadas — qué se simula y qué se calcula (offline, futuro)
+
+No todas las tareas automatizadas son iguales. Minar en un cinturón,
+transportar carga de un sistema a otro y combatir a NPCs tienen costes muy
+distintos, y meterlas todas en el mismo saco de "idle" llevaría a simular
+cosas que no hace falta simular o, peor, a calcular cosas que otros
+jugadores deberían poder interceptar.
+
+**La regla, y de ella se derivan todas las demás:**
+
+> Se **simula físicamente** aquello que otro jugador debe poder
+> interrumpir. Se **calcula matemáticamente** todo lo demás.
+
+No es una regla de rendimiento disfrazada de diseño: es la misma razón por
+la que 5.4 descarta instanciar chunks. Si una nave cargada de mineral
+cruza un sistema hostil resolviéndose con una fórmula, **emboscar deja de
+existir**, bloquear un punto de salto deja de significar nada y todo el
+dominio de territorio (§6) se queda sin dientes. La intercepción es
+contenido, y el contenido no se puede optimizar hasta hacerlo desaparecer.
+
+**Aplicada a los casos concretos:**
+
+| Tarea | Zona segura (CONCORD) | Zona insegura |
+|---|---|---|
+| Viajar / transportar carga | Cálculo. Nadie puede interceptarte, así que mover la nave no aporta nada | **Nave física**, interceptable, con su firma y su velocidad reales |
+| Minar en un cinturón | Nave física si el chunk está despierto; cálculo si duerme | Igual, y por eso minar lejos de casa es arriesgado |
+| Combatir NPCs | Nave física — hay combate real | Nave física |
+| Cualquier tarea con el chunk dormido | Cálculo | Cálculo (no hay nadie que pueda interceptar) |
+
+**La pieza que hace que esto no se contradiga: el chunk dormido.** Un chunk
+sin nadie dentro no existe (5.4.1). Si no hay nadie, tampoco hay nadie que
+pueda emboscarte, así que resolver tu viaje con una fórmula no le quita
+nada a nadie. Cuando alguien despierta el chunk, se calcula dónde estaría
+tu nave según el tiempo transcurrido y **se materializa ahí**, a partir de
+ese momento física e interceptable.
+
+Es el mismo patrón de orden persistente y evaluación perezosa que ya
+sostiene 5.4.1, aplicado a naves en tránsito en lugar de a recursos. No
+hay nada simulándose en segundo plano en ningún momento: hay una orden con
+fecha, y una nave que aparece cuando hace falta que aparezca.
+
+**Corolario:** si estás dentro del chunk, tu nave es física — ya estás
+pagando ese coste. El cálculo se reservaría para lo que nadie mira.
+
+**Cuando llegue el momento**, el caso difícil será la nave automática en
+zona insegura con el dueño desconectado: destruirla exige las tres piezas
+que 8.4.1 dejó fuera de alcance. Decisión aplazada hasta entonces.
+
+### 8.4.2 Resolución del disparo — matemática, no proyectiles
+
+**Decisión, y manda sobre todo lo demás del combate: los disparos no son
+objetos que vuelan por el espacio.** El servidor decide en el instante del
+disparo si acierta y cuánto daño hace, lo aplica y manda un mensaje. El
+cliente dibuja el fogonazo, el rayo o la traza; ese dibujo es puramente
+cosmético y no existe para el servidor.
+
+La alternativa —cada disparo como entidad con posición, replicada y
+comprobada contra todas las naves cada tick— escala fatal. Cincuenta naves
+con seis torretas disparando una vez por segundo son trescientas entidades
+nuevas por segundo, cada una comprobada contra cada nave veinte veces por
+segundo. Funciona perfectamente con cuatro amigos probando y funde el
+servidor el día que la batalla importa, que es exactamente el día que no
+puede fallar.
+
+**Encaja de forma natural con la decisión de 8.4.10**: como no hay armas
+manuales, nadie espera ver una bala en vuelo ni esquivarla mirándola. El
+disparo instantáneo no es una concesión al rendimiento que el jugador
+sufra, sino exactamente lo que el sistema promete.
+
+**Ciclos largos, no fuego continuo.** Cada disparo es un mensaje. Un arma
+que dispara cada 3 segundos genera un mensaje; una ametralladora a 10
+disparos por segundo genera treinta veces más para el mismo daño. Los
+ciclos de arma se sitúan en el rango de 2 a 5 segundos, y el tiempo de
+recarga **no se replica**: el cliente lo cuenta solo desde el disparo, que
+para eso conoce el arma.
+
+**Las torretas se agrupan.** Seis torretas iguales disparan como una sola
+y se resuelven con un cálculo, no con seis. La diferencia entre llevar dos
+o seis torretas es el daño de ese cálculo, no el número de cálculos.
+
+### 8.4.3 Capas defensivas y tipos de daño
+
+**Dos barras: escudo → estructura.** Todo el daño entra por el escudo
+mientras quede; agotado, pasa a estructura. La estructura representa
+conjuntamente casco, blindaje y compartimentos internos: no hay tercera
+barra de armadura.
+
+**Cuatro tipos de daño**, cada uno con color propio para que la interfaz
+se lea de un vistazo (ver 15.3):
+
+| Tipo | Color | Armas típicas |
+|---|---|---|
+| Cinético | Amarillo | Autocañones, railguns, coilguns |
+| Térmico | Rojo | Láseres, plasma |
+| Radiológico | Verde | Neutrones, gamma, tecnología alienígena |
+| Iónico | Azul | Cañones de iones, aceleradores de partículas |
+
+Escudo y estructura tienen **resistencias independientes** contra los
+cuatro tipos. Esto no cuesta prácticamente nada en red, porque las
+resistencias son parte del equipamiento: se mandan una vez al entrar y no
+cambian salvo que el jugador active un módulo.
+
+**Penalización por apilamiento — obligatoria.** El segundo módulo de la
+misma resistencia rinde bastante menos que el primero, el tercero menos
+aún. Sin esto, alguien apila cinco módulos térmicos, llega a inmunidad
+efectiva y quedan facciones enteras del PvE trivializadas. Es la pieza que
+convierte elegir resistencias en una decisión con techo en lugar de en una
+carrera hacia el 100%.
+
+**Perfiles de daño NPC predecibles.** Cada facción golpea con una mezcla
+reconocible (por ejemplo 60% radiológico / 40% térmico), de modo que
+preparar la nave para un contenido concreto forme parte de la partida:
+identificar al enemigo, conocer su daño y sus vulnerabilidades, ajustar
+resistencias, elegir armas, salir. El fitting es preparación de PvE, no
+solo de PvP.
+
+**Energía: existe, es visible, y solo la ve su dueño.** Los pocos módulos
+activos (8.4.10) la consumen mientras estén encendidos, así que el jugador
+**sí la administra**: mantener el reparador y el inhibidor a la vez vacía
+la reserva, y quedarse seco en mitad de un combate significa no poder
+reparar ni impedir que el otro huya. Decidir qué encender y durante cuánto
+es la decisión de recurso del sistema, y por eso la barra tiene que verse.
+
+Se administra también **pilotando**: alejarse para dejar de recibir daño y
+que el reparador deje de ciclar es tan válido como apagarlo.
+
+La energía **no se replica a los demás**: es el dato que más cambia de todo
+el juego, drena y regenera de forma continua, y a nadie le sirve la ajena.
+Va por mensaje privado al cliente afectado, igual que el botón de acción
+contextual (15.5).
+
+### 8.4.4 Tamaños de arma, tracking y firma
+
+Cuatro tamaños: **Small, Medium, Large, Capital**. El tamaño no es una
+escalera de potencia: cada uno está pensado para objetivos de su escala.
+Un arma Capital puede disparar a una fragata; lo difícil es acertarle.
+
+**Dos estadísticas hacen que eso funcione, y las dos son necesarias:**
+
+- **Tracking** — si el arma es capaz de seguir el giro del objetivo.
+  Depende de la velocidad angular: lo que importa no es lo rápido que va
+  el objetivo, sino lo rápido que cruza el punto de mira.
+- **Firma** — el tamaño aparente del objetivo. Un arma grande contra una
+  firma pequeña pierde buena parte del impacto aunque el objetivo esté
+  quieto.
+
+La firma es **estadística de primer nivel**, junto a escudo y estructura.
+Sin ella, una fragata detenida un segundo recibe el impacto completo de un
+arma Capital y toda la filosofía de "la grande no barre a la pequeña" se
+cae en el peor momento.
+
+**Corto alcance:** más daño, mejor tracking, obliga a exponerse. Favorece
+el combate cuerpo a cuerpo.
+**Largo alcance:** menos daño, mucho más alcance, peor tracking. Sufre
+mucho cuando algo rápido consigue acercarse.
+
+### 8.4.5 Familias de torretas — y por dónde empezar
+
+El objetivo final son dos familias (corta y larga) por tipo de daño:
+
+| Daño | Corto alcance | Largo alcance |
+|---|---|---|
+| Cinético | Autocañón | Railgun |
+| Térmico | Plasma | Láser |
+| Radiológico | Proyector de neutrones | Arma gamma |
+| Iónico | Cañón iónico | Acelerador de partículas |
+
+Con cuatro tamaños son **32 variantes**, y esa cifra no es un objetivo de
+la primera versión. Cada variante son arte, icono, sonido, balance y
+pruebas.
+
+**Se empieza por un solo tamaño, Medium: 8 armas.** Con eso ya se puede
+saber si el sistema es divertido, que es la única pregunta que importa
+ahora. Los tamaños multiplican el mismo trabajo y no aportan nada hasta
+que existan naves de escalas distintas peleando a la vez. La nomenclatura
+no está cerrada.
+
+### 8.4.6 Clases de nave y roles
+
+**Principio: el tamaño determina qué armamento montas; el casco determina
+qué haces bien con él.** Dos naves con armas Medium pueden comportarse de
+forma completamente distinta — un crucero brawler con bonos de tracking y
+escudo activo, frente a un battlecruiser de artillería con bonos de
+alcance y mucha estructura.
+
+| Escala | Clases | Notas |
+|---|---|---|
+| Small | Fragatas, destructores | Interceptor, tackle, exploración, EWAR ligero, anti-fragata |
+| Medium | Cruceros, battlecruisers | La franja más versátil; battlecruiser = plataforma pesada |
+| Large | Acorazados | Núcleo de flota, artillería, tanque pesado |
+| Capital | Dreadnoughts, carriers, supercarriers | Anti-capital, anti-estructura, proyección |
+
+**Los cascos llevan bonos** (capacidad o regeneración de escudo, reparación
+de estructura, resistencias, daño, tracking, alcance, velocidad, EWAR) que
+orientan la nave hacia un papel sin impedir experimentar.
+
+**Una nave grande no es una versión mejor de la pequeña.** Un acorazado
+tiene mucho más aguante y daño; una fragata tiene movilidad, firma
+pequeña, velocidad angular y tackle, y puede acercarse hasta hacer muy
+difícil que las armas Large la toquen. De ahí que incluso una nave carísima
+necesite escolta, que es lo que hace que las flotas tengan composición.
+
+Las excepciones (un battlecruiser con armas Large, pagándolo en tanque,
+tracking o ranuras) sirven para crear cascos memorables, no para ser la
+norma.
+
+**Los fighters de carrier son la entidad más cara del juego.** Cuarenta
+cazas por supercarrier y seis supercarriers son 240 entidades extra
+moviéndose en la misma batalla en la que ya hay demasiado. **Un escuadrón
+es UNA entidad con un número dentro**, no N naves; el cliente puede dibujar
+varios cazas alrededor de esa única entidad. Sin esta regla, los capitales
+son directamente inviables.
+
+**El catálogo actual no da para este esquema.** De las 41 naves hay 9
+destructores, 6 lanzaderas, 6 fragatas, 6 cruceros, 5 battlecruisers, 5
+acorazados, 3 carriers, **1 dreadnought y ningún supercarrier**. Las
+lanzaderas tampoco encajan como clase de combate. Habrá que ampliar el
+catálogo por arriba o recortar las clases capitales del diseño.
+
+### 8.4.7 Alcance contra degradación — restricción dura
+
+**Decisión: hay francotiradores de verdad. Por tanto el radio de
+replicación no se degrada nunca.**
+
+El conflicto es real y era invisible: la escalera de 5.4 preveía estrechar
+el área de interés hasta 900 unidades bajo carga, mientras que las armas de
+largo alcance existen precisamente para disparar más lejos. Combinadas, un
+francotirador a 2500 unidades **estaría matando a alguien cuyo cliente no
+sabe que existe**, justo en el momento de máxima carga, que es cuando hay
+batalla, que es cuando peor se puede permitir.
+
+De ahí sale una regla que ata dos partes del diseño:
+
+> **El alcance máximo de arma del juego define el suelo del radio de
+> replicación.** Nunca se puede degradar por debajo.
+
+**Cifra de trabajo: alcance máximo 3000 unidades**, que es exactamente el
+radio de área de interés ya fijado en 5.4. No es casualidad buscada: se
+elige así para que las dos decisiones encajen sin tocar ningún número
+existente. Si algún día se quiere un arma que llegue más lejos, hay que
+subir también el suelo de replicación, y eso tiene coste.
+
+Lo que se degrada en su lugar es la **frecuencia** (ver la tabla de 5.4):
+lo lejano sigue estando, pero se refresca más despacio. A 2500 unidades y
+con la cámara alejada la nave ocupa poquísimos píxeles, así que refrescarla
+3 veces por segundo en vez de 15 no se nota y cuesta una quinta parte.
+
+**Y quien te dispara nunca va despacio:** una nave que te tenga bloqueado o
+que te haya disparado hace poco se replica a frecuencia completa esté donde
+esté. Son pocas entidades por jugador y elimina el único fallo grave que
+este esquema podría tener.
+
+**Consecuencia para la interfaz (15.6):** si te pueden disparar desde fuera
+de la pantalla, hace falta un indicador de dirección del daño en el borde.
+Sin él, morir a manos de algo invisible es indistinguible de un fallo del
+juego.
+
+### 8.4.8 Qué viaja por la red
+
+| Dato | Replicado a todos | Motivo |
+|---|---|---|
+| Escudo, estructura | Sí | Cambian con el daño y todos deben verlo |
+| Firma, resistencias | No | Son del equipamiento: se mandan al entrar |
+| Energía | Solo al dueño | Cambia continuamente y a nadie le sirve la ajena |
+| Recarga de arma | No | El cliente la cuenta desde el disparo |
+| Impacto de disparo | Evento puntual | Un mensaje, no una entidad que vuela |
+
+**Los restos caducan.** Una batalla de cien naves deja cien pecios. Sin
+caducidad, el sistema acumula basura permanente que hay que replicar a todo
+el que pase por allí para siempre.
+
+### 8.4.10 Qué hace el jugador — pilotar, no microgestionar
+
+**Decisión: no hay armas manuales, y los módulos activos se reducen a unos
+pocos botones** — cinco en el peor de los casos. El jugador se dedica a
+**pilotar la nave, posicionarla, gestionar objetivos y mantener conciencia
+situacional**, con un puñado de interruptores encima.
+
+Los botones previstos, siempre asociados a tener un objetivo fijado:
+
+| Botón | Qué hace |
+|---|---|
+| Disparar | Enciende las armas contra el objetivo fijado |
+| Tanque activo | Reparador de escudo o estructura |
+| Ralentizador | Reduce la velocidad del objetivo |
+| Inhibidor de warp | Le impide huir |
+| (reserva) | Un quinto según casco: EWAR, sobrecarga, etc. |
+
+No es "cero micromanejo": es **el mínimo que hace falta para que haya
+decisiones**, que es más o menos donde acaba EVE en la práctica una vez
+descontado lo que allí hace el piloto automático.
+
+**La diferencia con EVE, y es la que justifica todo el sistema: en EVE no
+pilotas.** Se da una orden ("orbitar a 500") y el piloto automático la
+ejecuta; la habilidad del jugador está en el micromanejo de módulos. Aquí
+el vuelo es newtoniano y manual desde v0.1 — **la nave la llevas tú**.
+Trasladar además el micromanejo de EVE encima sería pedir dos trabajos a la
+vez y hacer ambos mal, sobre todo con un pulgar en un móvil (15.1).
+
+Así que el reparto es el contrario: **el grueso de la habilidad vive en el
+vuelo**, y encima van los pocos interruptores que de verdad cambian el
+resultado de un combate.
+
+**Por qué esto puede funcionar de verdad y no ser "orbitar y esperar".**
+Porque el tracking depende de la **velocidad angular**, es decir, de lo
+rápido que cruzas el punto de mira del otro, y eso es pura geometría: tu
+distancia, tu velocidad y tu ángulo. En EVE esa geometría la resuelve el
+piloto automático; aquí la construyes tú con el mando. Volar pegado y
+rápido alrededor de un acorazado para que sus armas Large no te enganchen
+deja de ser una orden y pasa a ser una maniobra que se te da bien o no.
+
+**El posicionamiento ES la defensa activa.** No se esquivan disparos —no
+existen como objetos (8.4.2)—; se esquiva *estadísticamente*, haciéndose
+difícil de acertar. Eso preserva la sensación de pilotar sin ningún coste
+de red.
+
+**Riesgo asumido, y hay que vigilarlo:** si la geometría influye poco en el
+resultado, el combate degenera exactamente en lo que se quería evitar. Para
+que el pilotaje se sienta, hacen falta dos cosas:
+
+1. Que la diferencia entre buena y mala posición sea **grande**, no un
+   ajuste del 10%.
+2. Que el jugador **vea** esa relación mientras vuela. Sin indicación de
+   que está demasiado cerca, demasiado lejos o demasiado lento, no puede
+   aprender a pilotar mejor y concluirá que su vuelo no hace nada. Esto es
+   requisito de interfaz, no un adorno (15.6).
+
+**Las decisiones en vivo del jugador** quedan así: a quién fijar y en qué
+orden, a qué distancia y ángulo mantenerse, cuándo encender cada módulo,
+cuándo romper el combate y hacia dónde huir.
+
+**Coste en red: mínimo, y por un motivo concreto.** Lo que se envía al
+pulsar un botón es el **interruptor, no cada ciclo**. Un reparador
+encendido cicla cada pocos segundos durante minutos, pero el cliente manda
+un único mensaje al encenderlo y otro al apagarlo; los ciclos los lleva el
+servidor solo. Cinco botones que se pulsan unas cuantas veces por combate
+no se acercan ni de lejos al coste del pilotaje, que ya viaja de forma
+continua.
+
+**Lo que otros ven de tus módulos: un solo número.** Que un ralentizador o
+un inhibidor esté activo sí tiene que verse (el afectado necesita saber por
+qué no puede huir). Replicarlo como cinco campos por nave serían quinientos
+valores en una batalla de cien naves. Se replica en su lugar **un único
+entero por nave donde cada bit es un módulo**: un campo en vez de cinco, y
+solo cambia cuando alguien pulsa algo.
+
+### 8.4.10.1 Combate automático y componente idle
+
+**Decisión: todo se puede configurar en automático, estando conectado.**
+El offline queda aplazado (8.4.1.1); lo que se construye ahora es el nivel
+intermedio de 8.4.1 —piloto automático online, ~65% de eficiencia— pensado
+para **jugar desde el móvil o estar AFK en el PC**. El jugador define
+umbrales antes de salir —"repara por debajo del 60%", "inhibe si el
+objetivo intenta huir", "dispara al más cercano"— y la nave se apaña sola
+mientras él mira otra cosa.
+
+**El manual siempre puede intervenir.** Tocar un botón sobreescribe al
+automático en ese momento; no son dos modos separados entre los que hay que
+elegir al empezar. Sin esto el juego se parte en dos juegos distintos.
+
+**Los tres niveles no se comportan igual en combate que en minería, y es
+importante no tratarlos como si sí.** Minar al 65% es minar más despacio.
+Combatir al 65% contra alguien que va al 100% **no es perder un poco: es
+perder**. El combate tiene realimentación —quien empieza perdiendo recibe
+más daño, pierde módulos, pierde el escudo antes— así que una desventaja
+del 35% no resta, multiplica.
+
+De ahí una regla que hay que asumir explícitamente:
+
+> **El combate automático es una herramienta de PvE, no de PvP.** Contra
+> facciones NPC de perfil predecible (8.4.3) funciona: tardas más y gastas
+> más. Contra un jugador que pilota, dejarlo en automático es entregar la
+> nave, y como al morir se pierde la nave entera (8.4), la pérdida es real.
+
+El juego debe **decirlo claramente** al activar el automático fuera de zona
+segura. Y como el jugador está conectado, siempre puede volver y tomar el
+mando: el automático es un respiro, no un compromiso irreversible.
+
+**Coste en servidor — el riesgo real de esta fase.** Hay una nave de verdad
+dentro del chunk y su piloto automático corre en el servidor. Cincuenta
+naves en automático son cincuenta pilotos artificiales que el servidor
+tiene que pensar, justo encima de la carga que ya se está intentando
+degradar (5.4). Es la razón por la que este nivel necesita límites desde el
+primer día y no cuando se note.
+
+Restricciones que esto impone:
+
+- **La IA de pilotaje corre a 2-4 Hz, no a 20.** Reevaluar la maniobra
+  cuatro veces por segundo basta de sobra para orbitar y disparar.
+- **IA barata a propósito**: mantener una distancia orbital, disparar al
+  objetivo asignado, aplicar los umbrales configurados. Nada de predecir
+  trayectorias ni buscar la posición óptima; eso es caro y además haría el
+  automático demasiado bueno.
+- **El automático entra en la escalera de degradación** (5.4): si el chunk
+  satura, los pilotos automáticos son de lo primero que baja de frecuencia
+  o se congela, por delante de cualquier jugador activo. Quien está
+  jugando tiene preferencia sobre quien ha dejado la nave trabajando.
+- **Límite de naves automáticas por cuenta en un mismo chunk.** Sin él,
+  una persona despliega una flota entera en automático y el resultado es
+  indistinguible de una granja de bots, con el coste de servidor
+  correspondiente.
+
+**Por qué el automático mediocre es lo correcto y no una limitación
+técnica disfrazada:** si el piloto automático volara bien, el pilotaje
+manual —que es donde se decidió poner toda la habilidad del juego
+(8.4.10)— dejaría de importar. El 65% no es un castigo arbitrario: es lo
+que mantiene en pie la decisión de diseño central.
+
+### 8.4.10.2 Primera implementación — v0.5.0
+
+**Primer combate jugable, en producción.** Sirve para validar si el
+sistema se siente bien antes de ampliarlo. Alcance deliberadamente
+mínimo: un arma, un enemigo, sin muerte permanente todavía.
+
+- Nave inicial: **crucero** (FHI Warden). El armamento Medium no decía
+  nada probado sobre una lanzadera.
+- **Un arma**: autocañón Medium corto alcance. Daño = 170 en calidad
+  perfecta, ciclo de 3 s, óptimo 600u + falloff 300u, tracking 0,8 rad/s.
+- **Fijado**: 4 s, hasta 3 objetivos simultáneos, rango de fijado 2000u.
+- **Botón de disparo + casilla de autodisparo**, ambos aparecen solo con
+  objetivo bloqueado (15.4.1).
+- Escudo, estructura y energía como tres barras reales.
+- **Dos NPC** (FHI Bastion) por chunk, IA a 4 Hz: persiguen, orbitan a
+  550u, disparan con las mismas fórmulas que el jugador. Reaparecen a los
+  30 s.
+
+**Balance verificado por simulación, no fijado a ojo.** El primer intento
+(daño 110, regeneración de escudo 12/s) daba **inmunidad de facto**
+orbitando pegado: 162 s de combate sin recibir un solo punto de daño,
+comprobado simulando la pelea completa antes de tocar el cliente. Se subió
+el daño a 170 y se bajó la regeneración a 5/s. Con eso: quedarse quieto
+gana en ~24s (llega con 127/698 de estructura), orbitar en rango en ~42s
+(133/698), orbitar pegado en ~63s pero es la opción más segura (231/698).
+El orbiteo sigue siendo la defensa real que pedía 8.4.10, pero deja de ser
+un techo de cristal invisible.
+
+**Muerte: deliberadamente incompleta.** Al perder la estructura, la nave
+reaparece a los 5 s en el centro con todo lleno. No se pierde la nave ni la
+carga. El diseño (8.4) exige que morir cueste la nave entera, pero eso
+necesita inventario, seguro y equidad de pérdida — ninguno existe aún. Una
+penalización a medias sería peor que ninguna, así que se pospone entera en
+vez de improvisar una versión floja.
+
+### 8.4.11 Pendiente en combate
+
+- **Qué módulos van a botón y cuáles ciclan solos.** Los cinco de 8.4.10
+  son la lista de partida, no una lista cerrada. El criterio propuesto:
+  va a botón lo que tenga un **momento correcto** (encender el reparador
+  cuando cae el escudo, el inhibidor cuando el otro intenta huir), y cicla
+  solo lo que se querría tener siempre encendido, porque un botón que
+  siempre se pulsa no es una decisión, es un trámite.
+- **Cuánta energía consume cada módulo** y si dos activos a la vez deben
+  ser insostenibles a propósito: es lo que convierte los cinco botones en
+  una elección en vez de en cinco cosas que se encienden al empezar.
+- **Qué umbrales puede configurar el jugador** para el automático, y con
+  qué interfaz: demasiados convierten la preparación en programar; muy
+  pocos hacen el automático inservible.
+- Límite concreto de naves automáticas por cuenta y por chunk (8.4.10.1).
+- Si el automático avisa al jugador (vibración, sonido) cuando recibe daño
+  de otro jugador, para que pueda volver y tomar el mando — estando
+  conectado, esa es la respuesta natural, y es mucho más simple que
+  cualquier mecánica de protección automática.
+- **Límite de objetivos simultáneos y tiempo de bloqueo** por casco: es lo
+  que convierte la gestión de objetivos en decisión real y no en pulsar.
+- Fórmulas concretas de tracking, firma, resistencias base y penalización
+  por apilamiento.
+- Ranuras por casco y coste energético de cada módulo.
+- Si EWAR (bloqueo, ralentización, interferencia) es familia propia de
+  módulos y cómo se replica sin coste.
+- Cifras de alcance por familia dentro del techo de 3000 unidades.
 
 ### 8.5 Bootstrap del jugador nuevo
 
@@ -1347,6 +1856,19 @@ jugadores?).
 - Proporción de sistemas binarios frente a estrella única (5.6.0)
 - ¿Existe un overview textual tipo EVE, o el HUD se queda solo con
   marcadores gráficos? (15.6)
+- ~~Qué decisiones toma el jugador durante un combate~~ — resuelto:
+  **pilotar**. Sin armas manuales ni módulos a mano; la habilidad está en
+  el vuelo, el posicionamiento y la gestión de objetivos (8.4.10)
+- ¿Se amplía el catálogo por arriba (faltan supercarriers, solo hay 1
+  dreadnought) o se recortan las clases capitales? (8.4.6)
+- Qué módulos llevan botón y cuáles ciclan solos; cuánta energía consume
+  cada uno (8.4.11)
+- ~~Cuántos objetivos simultáneos admite cada casco y cuánto tarda el
+  bloqueo~~ — valores de partida en v0.5.0: 3 objetivos, 4 s de fijado
+  (8.4.10.2). Pendiente variar por clase de casco.
+- EWAR: el ralentizador y el inhibidor de warp ya son módulos activos con
+  botón (8.4.10); queda por decidir si hay más familias (interferencia de
+  sensores, drenaje de energía) y si alguna es pasiva
 - Cómo se muestran escudo/armadura/casco cuando sean tres capas separadas
   (15.6)
 - ~~Qué naves llevan capacidad de minado~~ — resuelto: **módulo que ocupa
@@ -1688,8 +2210,33 @@ Reglas:
   la velocidad a la que sube el contador de bodega. La interfaz no tiene
   que avisar de que estás minando mal — el número lo dice solo.
 
-**Qué NO es este botón:** no es una barra de acciones que se vaya
-llenando. Si un objeto admite varias cosas (atracar en una estación y
+#### 15.4.1 Botones de combate — aparecen con el objetivo
+
+Los módulos activos de combate (8.4.10) son hasta cinco botones más:
+disparar, tanque activo, ralentizador, inhibidor de warp y una reserva por
+casco. Sumados al warp y al botón de acción contextual son **siete**, y eso
+es mucho para una pantalla vertical manejada mientras se pilota.
+
+**Regla, coherente con 15.1: los botones de combate solo existen mientras
+haya un objetivo fijado.** Sin objetivo no hay nada que disparar ni a quién
+ralentizar, así que desaparecen igual que desaparece el botón de acción
+cuando no hay nada a rango. Volando por el vacío la pantalla vuelve a tener
+dos botones.
+
+**Disposición:** el pulgar izquierdo pilota y el derecho pulsa; los botones
+de combate se agrupan en el lado derecho, por encima de los dos fijos. El
+jugador no puede mirar la botonera mientras vuela, así que la posición de
+cada módulo debe ser **estable entre combates**: siempre el mismo módulo en
+el mismo sitio, aunque el casco no lleve alguno y quede un hueco. Reordenar
+los botones según lo equipado obligaría a leerlos cada vez.
+
+**Estado visible en el botón:** encendido, apagado y sin energía suficiente
+son tres estados distintos y hay que distinguirlos. Un botón que no
+responde por falta de energía y uno apagado se ven igual si no se cuidan, y
+el jugador concluye que el juego falla.
+
+**Qué NO es el botón de acción contextual:** no es una barra de acciones
+que se vaya llenando. Si un objeto admite varias cosas (atracar en una estación y
 además repararse), la acción contextual es solo la principal —
 "atracar" — y el resto vive dentro del panel de la estación, no en el
 HUD de vuelo.
@@ -1736,8 +2283,13 @@ que necesitará esa misma rejilla para construir el área de interés.
 - Disposición del HUD en horizontal y en pantallas grandes (hoy todo está
   pensado para vertical a una mano).
 - Panel de estación: qué se ve al atracar y cómo se navega (§3).
-- Representación de escudo/armadura/casco cuando existan las tres capas
-  (8.4): hoy solo hay un número de integridad.
+- Representación de escudo, estructura y energía: son **tres** barras, no
+  las dos que promete 15.1 (ver 8.4.3). Hoy solo hay un número de
+  integridad. La energía complica el HUD y es imprescindible para que el
+  tanque activo sea una decisión y no un botón siempre pulsado.
+- Indicador de dirección del daño en el borde de la pantalla: con
+  francotiradores a 3000 unidades te pueden matar desde fuera de la vista
+  (8.4.7), y sin aviso eso es indistinguible de un fallo del juego.
 - Overview tipo EVE (lista textual de objetos del sistema) — si existe,
   cómo convive con un HUD pensado para no tener listas.
 - Marcadores en el borde de la pantalla para objetos fuera de vista.

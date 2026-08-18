@@ -79,5 +79,9 @@
       "SIN_CONEXION": "No connection to the account server.",
       "DESCONOCIDO": "Couldn't complete. Please try again."
     }
+  },
+  "combat": {
+    "target": "Target",
+    "auto": "Auto"
   }
 }

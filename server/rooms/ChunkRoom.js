@@ -1,6 +1,8 @@
 const { Room } = require("colyseus");
 const { ChunkState } = require("../schema/ChunkState");
 const persistence = require("../persistence");
+const combat = require("../combat");
+const { Npc } = require("../schema/Npc");
 const { Player } = require("../schema/Player");
 const { Asteroid } = require("../schema/Asteroid");
 
@@ -67,6 +69,66 @@ const DOCK_RANGE = 250;
 const GATE_RANGE = 250;
 const LOOT_RANGE = 120;
 
+// ===========================================================================
+// COMBATE (ver 8.4 del documento de diseño)
+//
+// Escala: crucero contra crucero, armamento Medium. Todos estos valores son
+// de PARTIDA, para poder probar si el combate se siente bien. El balance real
+// necesita jugarlo, no calcularlo.
+// ===========================================================================
+
+// Arma única de esta versión: Medium de corto alcance. Las otras siete
+// familias (8.4.5) entran encima de esta misma estructura sin rehacer nada.
+const ARMA_MEDIUM_CORTA = {
+  id: "autocannon_m",
+  // 170 y no 110: con la regeneración de escudo original, orbitar pegado
+  // daba inmunidad de facto (simulado: 162s sin un rasguño). Subir el daño
+  // y bajar la regeneración a la mitad deja el orbiteo como ventaja real
+  // pero no absoluta — ver la comparativa simulada más abajo.
+  damage: 170,         // daño de un ciclo con calidad perfecta
+  cycle: 3.0,         // segundos entre disparos: pocos y gordos, no muchos y
+                      // pequeños — cada disparo es un mensaje de red (8.4.2)
+  tracking: 0.8,      // rad/s de velocidad angular que aguanta sin perder daño
+  signatureRef: 120,  // firma para la que está calibrada: la de un crucero
+  optimal: 600,       // dentro de esto pega entero
+  falloff: 300,       // más allá cae rápido
+  energyCost: 18,     // por ciclo
+};
+
+const LOCK_TIME = 4.0;        // segundos para fijar un objetivo
+const LOCK_RANGE = 2000;      // no se puede fijar más lejos
+const MAX_TARGETS = 3;        // objetivos simultáneos por nave
+
+const CRUISER_SHIELD = 420;
+const CRUISER_SHIELD_REGEN = 5;    // por segundo; la estructura NO se regenera
+// Simulado con este balance (crucero vs crucero, ambos disparando 3s/ciclo):
+//   quieto todo el combate     -> gana en ~24s, llega con 127/698 estructura
+//   orbitando a 550u (rango)   -> gana en ~42s, llega con 133/698
+//   orbitando pegado a 300u    -> gana en ~63s, llega con 231/698 (el más seguro)
+// Orbitar sigue siendo la opción defensiva real, pero deja de ser inmunidad.
+const CRUISER_STRUCTURE = 698;     // FHI Warden, del catálogo
+const CRUISER_SIGNATURE = 120;
+
+const CAPACITOR_MAX = 1000;
+const CAPACITOR_REGEN = 22;   // por segundo
+
+// El enemigo: FHI Bastion, algo más blando que el jugador para que la primera
+// pelea se pueda ganar mientras se aprende a colocarse.
+const NPC_SHIELD = 380;
+const NPC_STRUCTURE = 632;
+const NPC_SIGNATURE = 120;
+const NPC_COUNT = 2;
+const NPC_RESPAWN_S = 30;
+const NPC_AGGRO_RANGE = 1400;   // a partir de aquí te ataca
+const NPC_ORBIT_RANGE = 550;    // distancia a la que intenta mantenerse
+const NPC_SPEED = 248;          // FHI Bastion
+
+// La IA piensa 4 veces por segundo, no 20. Reevaluar la maniobra cada 250 ms
+// basta de sobra para orbitar y disparar, y cuesta la quinta parte. Con
+// decenas de NPCs esa diferencia es la que decide si el chunk aguanta.
+const NPC_THINK_HZ = 4;
+const NPC_THINK_INTERVAL = 1000 / NPC_THINK_HZ;
+
 // --- Minado: quién puede y cuánto (ver 8.2.1 del documento de diseño) ----
 //
 // Dos preguntas distintas, y es importante que estén separadas:
@@ -120,6 +182,7 @@ class ChunkRoom extends Room {
     // tiempo. 120 sigue siendo un valor de prototipo, no densidad final
     // calibrada — solo para que el mundo no se sienta vacío al explorar.
     this.spawnAsteroids(120);
+    for (let i = 0; i < NPC_COUNT; i++) this.spawnNpc();
 
     // Input del cliente: { up, down, left, right, mining }
     this.onMessage("input", (client, input) => {
@@ -147,6 +210,47 @@ class ChunkRoom extends Room {
     // inactivo (y sin enfriamiento) arranca la carga; si está cargando o
     // ya viajando, lo cancela y para la nave en seco donde esté. Toda la
     // decisión vive en el servidor — el cliente solo pulsa el botón.
+    // --- Combate ---------------------------------------------------------
+    // Fijar objetivo. El cliente manda A QUIÉN quiere fijar; el servidor
+    // decide si puede (rango, límite de objetivos) y cuánto tarda.
+    this.onMessage("lock", (client, msg) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player || !player.alive) return;
+      this.startLock(client, player, msg?.kind, msg?.id);
+    });
+
+    this.onMessage("unlock", (client, msg) => {
+      const combatState = this.combatState.get(client.sessionId);
+      if (!combatState) return;
+      combatState.targets = combatState.targets.filter(
+        (t) => !(t.kind === msg?.kind && t.id === msg?.id)
+      );
+      if (combatState.activeTarget && combatState.activeTarget.id === msg?.id) {
+        combatState.activeTarget = combatState.targets[0] || null;
+      }
+      this.sendCombatState(client);
+    });
+
+    // Disparar es un INTERRUPTOR, no un disparo. El cliente manda "enciende"
+    // y "apaga"; los ciclos los cuenta el servidor. Un reparador encendido
+    // dos minutos son dos mensajes, no cuarenta (8.4.10).
+    this.onMessage("fireToggle", (client, on) => {
+      const combatState = this.combatState.get(client.sessionId);
+      if (!combatState) return;
+      combatState.firing = typeof on === "boolean" ? on : !combatState.firing;
+      this.sendCombatState(client);
+    });
+
+    // Autoshoot: al terminar de fijar, empieza a disparar solo. Es la casilla
+    // pensada para jugar desde el móvil o estar AFK (8.4.10.1).
+    this.onMessage("autoShoot", (client, on) => {
+      const combatState = this.combatState.get(client.sessionId);
+      if (!combatState) return;
+      combatState.autoShoot = Boolean(on);
+      if (combatState.autoShoot && combatState.activeTarget) combatState.firing = true;
+      this.sendCombatState(client);
+    });
+
     this.onMessage("warpToggle", (client) => {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
@@ -171,9 +275,411 @@ class ChunkRoom extends Room {
     // sessionId -> última acción notificada, para no reenviar lo mismo.
     this.lastAction = new Map();
     this.actionScanAccum = 0;
+
+    // Estado de combate por jugador. NO va al estado replicado: energía,
+    // objetivos y recargas solo le importan a su dueño (8.4.8). Se manda por
+    // mensaje privado y solo cuando cambia algo que se ve.
+    this.combatState = new Map();
+    this.npcBrains = new Map();
+    this.npcThinkAccum = 0;
+    this.npcRespawnQueue = [];
+    this.nextNpcId = 1;
     this.saveAccum = 0;
 
     this.setSimulationInterval((deltaMs) => this.update(deltaMs), 1000 / TICK_RATE);
+  }
+
+  // =========================================================================
+  // COMBATE
+  // =========================================================================
+
+  nuevoCombatState() {
+    return {
+      targets: [],        // [{kind, id, progress, locked}]
+      activeTarget: null,
+      firing: false,
+      autoShoot: false,
+      capacitor: CAPACITOR_MAX,
+      cycleAccum: 0,
+    };
+  }
+
+  // Busca la entidad real detrás de un objetivo fijado. Devuelve null si ya
+  // no existe (murió, se fue, se agotó el asteroide): fijar algo no impide
+  // que desaparezca, y el resto del código no debe asumir que sigue ahí.
+  resolverEntidad(target) {
+    if (!target) return null;
+    if (target.kind === "npc") return this.state.npcs.get(target.id) || null;
+    if (target.kind === "player") {
+      const p = this.state.players.get(target.id);
+      return p && p.alive ? p : null;
+    }
+    if (target.kind === "asteroid") {
+      const a = this.state.asteroids.get(target.id);
+      return a && a.amount > 0 ? { ...a, signature: 200, vx: 0, vy: 0, x: a.x, y: a.y } : null;
+    }
+    return null;
+  }
+
+  startLock(client, player, kind, id) {
+    const combatState = this.combatState.get(client.sessionId);
+    if (!combatState) return;
+
+    // Ya fijado o fijándose: no se duplica.
+    if (combatState.targets.some((t) => t.kind === kind && t.id === id)) return;
+    if (combatState.targets.length >= MAX_TARGETS) return;
+
+    const entidad = this.resolverEntidad({ kind, id });
+    if (!entidad) return;
+
+    const dist = Math.hypot(entidad.x - player.x, entidad.y - player.y);
+    if (dist > LOCK_RANGE) return;
+
+    combatState.targets.push({ kind, id, progress: 0, locked: false });
+    this.sendCombatState(client);
+  }
+
+  // Avance del fijado y disparo, por jugador. Se llama desde update().
+  updateCombat(deltaMs) {
+    const dt = deltaMs / 1000;
+
+    this.clients.forEach((client) => {
+      const player = this.state.players.get(client.sessionId);
+      const cs = this.combatState.get(client.sessionId);
+      if (!player || !cs) return;
+
+      let cambio = false;
+
+      // Capacitor: se regenera siempre. Es el recurso que limita cuánto
+      // puedes mantener encendido a la vez (8.4.3).
+      const capAntes = cs.capacitor;
+      cs.capacitor = Math.min(CAPACITOR_MAX, cs.capacitor + CAPACITOR_REGEN * dt);
+
+      // Escudo: se regenera solo. La estructura no, y esa asimetría es lo
+      // que hace que perder el escudo importe de verdad.
+      if (player.alive) {
+        combat.regenerarEscudo(player, CRUISER_SHIELD, CRUISER_SHIELD_REGEN, dt);
+      }
+
+      // Avance de los fijados. Se cae el objetivo que desaparece o se aleja.
+      for (const target of cs.targets) {
+        const entidad = this.resolverEntidad(target);
+        if (!entidad) { target.dead = true; cambio = true; continue; }
+
+        const dist = Math.hypot(entidad.x - player.x, entidad.y - player.y);
+        if (dist > LOCK_RANGE * 1.2) { target.dead = true; cambio = true; continue; }
+
+        if (!target.locked) {
+          target.progress = Math.min(1, target.progress + dt / LOCK_TIME);
+          if (target.progress >= 1) {
+            target.locked = true;
+            cambio = true;
+            if (!cs.activeTarget) cs.activeTarget = target;
+            // La casilla de autodisparo: en cuanto el fijado termina, abre
+            // fuego sin que el jugador tenga que pulsar nada.
+            if (cs.autoShoot) cs.firing = true;
+          }
+        }
+      }
+
+      const antes = cs.targets.length;
+      cs.targets = cs.targets.filter((t) => !t.dead);
+      if (cs.targets.length !== antes) cambio = true;
+      if (cs.activeTarget && cs.activeTarget.dead) cs.activeTarget = null;
+      if (!cs.activeTarget) cs.activeTarget = cs.targets.find((t) => t.locked) || null;
+      if (!cs.activeTarget && cs.firing) { cs.firing = false; cambio = true; }
+
+      // Barra de fijado que sí ven los demás: solo el más avanzado, para que
+      // la retícula del cliente tenga algo que dibujar sin replicar la lista
+      // entera de objetivos de cada jugador.
+      const enCurso = cs.targets.find((t) => !t.locked);
+      const locking = Boolean(enCurso);
+      const progress = enCurso ? enCurso.progress : 0;
+      if (player.locking !== locking) player.locking = locking;
+      if (Math.abs(player.lockProgress - progress) > 0.02) player.lockProgress = progress;
+
+      // Ciclo de arma.
+      if (cs.firing && cs.activeTarget?.locked && player.alive && !player.warping) {
+        cs.cycleAccum += dt;
+        if (cs.cycleAccum >= ARMA_MEDIUM_CORTA.cycle) {
+          cs.cycleAccum = 0;
+          this.dispararCiclo(client, player, cs);
+          cambio = true;
+        }
+      } else {
+        cs.cycleAccum = 0;
+      }
+
+      // Solo se avisa al cliente si cambió algo relevante, o cada vez que el
+      // capacitor se mueve lo bastante para verse en la barra. Mandar el
+      // capacitor cada tick sería el mensaje más frecuente del juego y no
+      // aportaría nada: nadie distingue 1% de diferencia.
+      if (cambio || Math.abs(cs.capacitor - capAntes) > CAPACITOR_MAX * 0.02) {
+        this.sendCombatState(client);
+      }
+    });
+  }
+
+  dispararCiclo(client, player, cs) {
+    const entidad = this.resolverEntidad(cs.activeTarget);
+    if (!entidad) return;
+
+    if (cs.capacitor < ARMA_MEDIUM_CORTA.energyCost) {
+      // Sin energía no se dispara. El cliente lo enseña como botón agotado,
+      // que es distinto de apagado (15.4.1).
+      return;
+    }
+
+    const resultado = combat.resolverDisparo(ARMA_MEDIUM_CORTA, player, entidad);
+    if (!resultado) return; // fuera de alcance: ni gasta energía ni avisa
+
+    cs.capacitor -= ARMA_MEDIUM_CORTA.energyCost;
+
+    let destruida = false;
+    if (cs.activeTarget.kind === "npc") {
+      const npc = this.state.npcs.get(cs.activeTarget.id);
+      const efecto = combat.aplicarDano(npc, resultado.damage);
+      destruida = efecto.destruida;
+      if (destruida) this.destruirNpc(cs.activeTarget.id);
+      // El NPC devuelve el golpe a quien le pega.
+      const brain = this.npcBrains.get(cs.activeTarget.id);
+      if (brain && !brain.targetSessionId) brain.targetSessionId = client.sessionId;
+    } else if (cs.activeTarget.kind === "player") {
+      const otro = this.state.players.get(cs.activeTarget.id);
+      if (otro) {
+        const efecto = combat.aplicarDano(otro, resultado.damage);
+        destruida = efecto.destruida;
+        if (destruida) this.matarJugador(cs.activeTarget.id);
+      }
+    }
+
+    // Un mensaje por ciclo, con los factores desglosados: el jugador tiene
+    // que poder ver POR QUÉ el disparo fue flojo, o no aprenderá a colocarse
+    // y concluirá que pilotar no sirve de nada (8.4.10).
+    client.send("shot", {
+      kind: cs.activeTarget.kind,
+      id: cs.activeTarget.id,
+      damage: Math.round(resultado.damage),
+      quality: Math.round(resultado.quality * 100),
+      angular: Math.round(resultado.angular * 100),
+      range: Math.round(resultado.rango * 100),
+      destroyed: destruida,
+    });
+  }
+
+  sendCombatState(client) {
+    const cs = this.combatState.get(client.sessionId);
+    if (!cs) return;
+    client.send("combat", {
+      capacitor: Math.round(cs.capacitor),
+      capacitorMax: CAPACITOR_MAX,
+      firing: cs.firing,
+      autoShoot: cs.autoShoot,
+      targets: cs.targets.map((t) => ({
+        kind: t.kind,
+        id: t.id,
+        progress: Math.round(t.progress * 100) / 100,
+        locked: t.locked,
+        active: cs.activeTarget === t,
+      })),
+    });
+  }
+
+  // =========================================================================
+  // NPCs
+  // =========================================================================
+
+  spawnNpc() {
+    const id = `npc-${this.nextNpcId++}`;
+    const npc = new Npc();
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 1500 + Math.random() * 1500;
+    npc.x = Math.cos(ang) * dist;
+    npc.y = Math.sin(ang) * dist;
+    npc.shipId = "cruiser_04";
+    npc.name = "Hostil";
+    npc.shield = NPC_SHIELD;
+    npc.structure = NPC_STRUCTURE;
+    npc.signature = NPC_SIGNATURE;
+    this.state.npcs.set(id, npc);
+    this.npcBrains.set(id, {
+      targetSessionId: null,
+      cycleAccum: 0,
+      vx: 0,
+      vy: 0,
+      orbitDir: Math.random() < 0.5 ? 1 : -1,
+    });
+    return id;
+  }
+
+  destruirNpc(id) {
+    this.state.npcs.delete(id);
+    this.npcBrains.delete(id);
+    this.npcRespawnQueue.push({ at: Date.now() + NPC_RESPAWN_S * 1000 });
+    // Se limpia de los objetivos de todos: fijar algo destruido no debe
+    // dejar retículas fantasma flotando en la pantalla de nadie.
+    this.clients.forEach((client) => {
+      const cs = this.combatState.get(client.sessionId);
+      if (!cs) return;
+      const antes = cs.targets.length;
+      cs.targets = cs.targets.filter((t) => !(t.kind === "npc" && t.id === id));
+      if (cs.activeTarget?.id === id) cs.activeTarget = cs.targets.find((t) => t.locked) || null;
+      if (cs.targets.length !== antes) this.sendCombatState(client);
+    });
+  }
+
+  // IA deliberadamente barata y a 4 Hz (ver NPC_THINK_HZ). Persigue, orbita a
+  // una distancia fija y dispara. Nada de predecir trayectorias: eso es caro
+  // y además haría al NPC demasiado bueno para lo que hace falta ahora.
+  updateNpcs(deltaMs) {
+    const dt = deltaMs / 1000;
+
+    // Movimiento: cada tick, porque si no se mueven a tirones.
+    this.state.npcs.forEach((npc, id) => {
+      const brain = this.npcBrains.get(id);
+      if (!brain) return;
+      npc.x += brain.vx * dt;
+      npc.y += brain.vy * dt;
+      if (brain.vx || brain.vy) npc.rotation = Math.atan2(brain.vy, brain.vx) + Math.PI / 2;
+      combat.regenerarEscudo(npc, NPC_SHIELD, CRUISER_SHIELD_REGEN * 0.5, dt);
+    });
+
+    // Decisión: solo 4 veces por segundo.
+    this.npcThinkAccum += deltaMs;
+    if (this.npcThinkAccum < NPC_THINK_INTERVAL) return;
+    const pensarDt = this.npcThinkAccum / 1000;
+    this.npcThinkAccum = 0;
+
+    this.state.npcs.forEach((npc, id) => {
+      const brain = this.npcBrains.get(id);
+      if (!brain) return;
+
+      let objetivo = brain.targetSessionId
+        ? this.state.players.get(brain.targetSessionId)
+        : null;
+      if (objetivo && (!objetivo.alive || objetivo.warping)) objetivo = null;
+
+      // Buscar al jugador vivo más cercano dentro del rango de agresión.
+      if (!objetivo) {
+        let mejor = null;
+        let mejorDist = NPC_AGGRO_RANGE;
+        this.state.players.forEach((p, sid) => {
+          if (!p.alive || p.warping) return;
+          const d = Math.hypot(p.x - npc.x, p.y - npc.y);
+          if (d < mejorDist) { mejorDist = d; mejor = sid; }
+        });
+        brain.targetSessionId = mejor;
+        objetivo = mejor ? this.state.players.get(mejor) : null;
+      }
+
+      if (!objetivo) {
+        brain.vx *= 0.9;
+        brain.vy *= 0.9;
+        if (npc.firing) npc.firing = false;
+        return;
+      }
+
+      const dx = objetivo.x - npc.x;
+      const dy = objetivo.y - npc.y;
+      const dist = Math.hypot(dx, dy) || 1;
+
+      // Se pierde el interés si el jugador se va lo bastante lejos.
+      if (dist > NPC_AGGRO_RANGE * 1.6) {
+        brain.targetSessionId = null;
+        if (npc.firing) npc.firing = false;
+        return;
+      }
+
+      // Acercarse o alejarse hasta la distancia de órbita, y orbitar. La
+      // combinación de las dos componentes da un movimiento circular sin
+      // tener que calcular ninguna trayectoria.
+      const ux = dx / dist;
+      const uy = dy / dist;
+      const radial = (dist - NPC_ORBIT_RANGE) / NPC_ORBIT_RANGE;
+      const acercarse = Math.max(-1, Math.min(1, radial));
+      const tangX = -uy * brain.orbitDir;
+      const tangY = ux * brain.orbitDir;
+
+      const deseadaX = (ux * acercarse + tangX * 0.9) * NPC_SPEED;
+      const deseadaY = (uy * acercarse + tangY * 0.9) * NPC_SPEED;
+
+      // Suavizado: la nave no cambia de rumbo instantáneamente.
+      brain.vx += (deseadaX - brain.vx) * Math.min(1, pensarDt * 2);
+      brain.vy += (deseadaY - brain.vy) * Math.min(1, pensarDt * 2);
+
+      // Disparo del NPC. Mismo arma y mismas fórmulas que el jugador: si el
+      // jugador se coloca bien, el NPC también falla.
+      brain.cycleAccum += pensarDt;
+      const disparando = dist < ARMA_MEDIUM_CORTA.optimal + ARMA_MEDIUM_CORTA.falloff * 3;
+      if (npc.firing !== disparando) npc.firing = disparando;
+
+      if (disparando && brain.cycleAccum >= ARMA_MEDIUM_CORTA.cycle) {
+        brain.cycleAccum = 0;
+        const tirador = { x: npc.x, y: npc.y, vx: brain.vx, vy: brain.vy };
+        const resultado = combat.resolverDisparo(ARMA_MEDIUM_CORTA, tirador, objetivo);
+        if (resultado) {
+          const efecto = combat.aplicarDano(objetivo, resultado.damage);
+          const client = this.clients.find((c) => c.sessionId === brain.targetSessionId);
+          if (client) {
+            client.send("hit", {
+              from: id,
+              damage: Math.round(resultado.damage),
+              shield: Math.round(objetivo.shield),
+              structure: Math.round(objetivo.structure),
+            });
+          }
+          if (efecto.destruida) this.matarJugador(brain.targetSessionId);
+        }
+      }
+    });
+
+    // Reaparición de los destruidos.
+    const ahora = Date.now();
+    while (this.npcRespawnQueue.length && this.npcRespawnQueue[0].at <= ahora) {
+      this.npcRespawnQueue.shift();
+      this.spawnNpc();
+    }
+  }
+
+  // Muerte del jugador. PROVISIONAL: reaparece en el centro con todo lleno.
+  // El diseño (8.4) dice que morir cuesta la nave entera, pero eso necesita
+  // inventario, seguro y equidad de pérdida — sistemas que aún no existen.
+  // Poner ahora una penalización a medias sería peor que no poner ninguna.
+  matarJugador(sessionId) {
+    const player = this.state.players.get(sessionId);
+    if (!player || !player.alive) return;
+    player.alive = false;
+    player.shield = 0;
+    player.structure = 0;
+
+    const client = this.clients.find((c) => c.sessionId === sessionId);
+    if (client) client.send("destroyed", {});
+
+    setTimeout(() => {
+      const p = this.state.players.get(sessionId);
+      if (!p) return;
+      p.x = (Math.random() - 0.5) * 400;
+      p.y = (Math.random() - 0.5) * 400;
+      p.vx = 0;
+      p.vy = 0;
+      p.shield = CRUISER_SHIELD;
+      p.structure = CRUISER_STRUCTURE;
+      p.alive = true;
+      const cs = this.combatState.get(sessionId);
+      if (cs) {
+        cs.targets = [];
+        cs.activeTarget = null;
+        cs.firing = false;
+        cs.capacitor = CAPACITOR_MAX;
+      }
+      // Los NPCs que le perseguían pierden el rastro: reaparecer y que te
+      // sigan esperando encima es una muerte segura en bucle.
+      this.npcBrains.forEach((brain) => {
+        if (brain.targetSessionId === sessionId) brain.targetSessionId = null;
+      });
+      const c2 = this.clients.find((c) => c.sessionId === sessionId);
+      if (c2) { this.sendCombatState(c2); c2.send("respawned", {}); }
+    }, 5000);
   }
 
   spawnAsteroids(count) {
@@ -239,7 +745,8 @@ class ChunkRoom extends Room {
         player.vy = character.state.vy;
         player.facing = character.state.facing;
         player.rotation = character.state.facing;
-        player.hp = character.state.hp;
+        player.structure = character.state.hp;
+        player.shield = character.state.shield ?? 0;
         player.cargo = character.state.cargo;
       } else {
         // Primera vez que vuela este personaje.
@@ -250,6 +757,14 @@ class ChunkRoom extends Room {
       persistence.touchLastPlayed(character.id);
     }
 
+    // Valores de crucero. Cuando existan varias naves esto se leerá del
+    // catálogo por shipId en vez de estar fijo.
+    player.signature = CRUISER_SIGNATURE;
+    if (!player.structure) player.structure = CRUISER_STRUCTURE;
+    if (!player.shield) player.shield = CRUISER_SHIELD;
+    player.alive = true;
+
+    this.combatState.set(client.sessionId, this.nuevoCombatState());
     this.state.players.set(client.sessionId, player);
   }
 
@@ -263,7 +778,8 @@ class ChunkRoom extends Room {
       vx: player.vx || 0,
       vy: player.vy || 0,
       facing: player.facing || 0,
-      hp: player.hp,
+      hp: player.structure,
+      shield: player.shield,
       cargo: player.cargo,
     });
   }
@@ -291,6 +807,11 @@ class ChunkRoom extends Room {
     // Se olvida la acción contextual cacheada: si vuelve, que se recalcule
     // desde cero (puede haber minado el asteroide otro mientras no estaba).
     this.lastAction.delete(client.sessionId);
+    this.combatState.delete(client.sessionId);
+    // Los NPCs que le perseguían dejan de hacerlo.
+    this.npcBrains.forEach((brain) => {
+      if (brain.targetSessionId === client.sessionId) brain.targetSessionId = null;
+    });
 
     // Salida explícita (el jugador cerró el juego) — no reservar asiento.
     // Se guarda ANTES de borrarlo del estado, o se perdería el progreso de
@@ -430,6 +951,9 @@ class ChunkRoom extends Room {
         this.tryMine(player);
       }
     });
+
+    this.updateNpcs(deltaMs);
+    this.updateCombat(deltaMs);
 
     // Recalcular qué puede hacer cada jugador, a 4 Hz y no a 20: es
     // información de interfaz, nadie nota 250 ms de retraso en que se

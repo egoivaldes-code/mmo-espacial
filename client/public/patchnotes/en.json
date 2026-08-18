@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.5.0",
+    "highlights": [
+      "Combat begins: lock targets, fire, and test yourself against two enemy cruisers patrolling the system.",
+      "Your starting ship is now a cruiser, matching the game's first weapon.",
+      "Three new bars: shield, hull and energy. Flying well literally reduces the damage you take."
+    ]
+  },
+  {
     "version": "v0.4.0",
     "highlights": [
       "During testing there's no sign-in prompt: you go straight in and progress is still saved. Login stays ready to switch on when there are more players.",

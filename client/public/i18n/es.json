@@ -79,5 +79,9 @@
       "SIN_CONEXION": "Sin conexión con el servidor de cuentas.",
       "DESCONOCIDO": "No se ha podido completar. Inténtalo de nuevo."
     }
+  },
+  "combat": {
+    "target": "Objetivo",
+    "auto": "Auto"
   }
 }

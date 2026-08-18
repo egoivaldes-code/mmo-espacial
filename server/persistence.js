@@ -115,6 +115,7 @@ async function saveCharacterState(characterId, state) {
         vy: state.vy,
         facing: state.facing,
         hp: Math.round(state.hp),
+        shield: Math.round(state.shield || 0),
         cargo: state.cargo,
         updated_at: new Date().toISOString(),
       },

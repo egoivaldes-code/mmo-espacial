@@ -14,6 +14,38 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.0]
+
+### Añadido — primer combate jugable
+- **Nave inicial: crucero** (FHI Warden). El armamento de este parche es
+  Medium y probarlo con la lanzadera no habría dicho nada útil.
+- **Fijar objetivo**: se toca una nave, tarda 4 s en bloquear, retícula
+  girando sobre el blanco mientras dura. Hasta 3 objetivos a la vez.
+- **Un arma**: autocañón Medium de corto alcance. El daño se calcula al
+  instante en el servidor — no hay proyectiles como objetos (ver 8.4.2 del
+  documento de diseño). Cada disparo muestra sus factores por separado
+  (ángulo, rango) para poder aprender a colocarse.
+- **Botón de disparo y casilla de autodisparo**, ambos aparecen solo con
+  un objetivo bloqueado y desaparecen sin él.
+- **Escudo, estructura y energía** como tres barras reales en el HUD. La
+  energía solo la ve su dueño (mensaje privado, no estado replicado).
+- **Dos cruceros enemigos** (FHI Bastion) patrullando el sistema, con IA
+  que persigue, orbita y dispara. Piensa 4 veces por segundo, no 20 — el
+  coste de tener decenas de estos algún día importa desde ahora.
+- Reaparecen 30 s después de destruidos.
+
+### Balance — verificado por simulación, no a ojo
+- El daño y la regeneración de escudo se probaron simulando combates
+  completos antes de fijar los números. El primer intento hacía que
+  orbitar pegado diera inmunidad de facto (162 s sin recibir daño); el
+  balance final deja el orbiteo como ventaja real pero no absoluta.
+
+### Muerte — provisional
+- Al perder toda la estructura, la nave reaparece a los 5 s en el centro
+  con todo lleno. **No se pierde la nave ni la carga.** El diseño (8.4)
+  dice que morir cuesta la nave entera, pero eso necesita inventario,
+  seguro y equidad de pérdida, que no existen todavía.
+
 ## [v0.4.0]
 
 ### Cambiado — acceso con contraseña en lugar de enlace por correo

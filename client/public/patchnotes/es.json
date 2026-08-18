@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.5.0",
+    "highlights": [
+      "Empieza el combate: fija objetivos, dispara y ponte a prueba contra dos cruceros enemigos que patrullan el sistema.",
+      "Tu nave inicial pasa a ser un crucero, a juego con el primer armamento del juego.",
+      "Tres barras nuevas: escudo, estructura y energía. Pilotar bien reduce el daño que recibes — literalmente."
+    ]
+  },
+  {
     "version": "v0.4.0",
     "highlights": [
       "Durante las pruebas no se pide identificación: entras directo y tu progreso se guarda igual. El login queda listo para activarlo cuando haya más jugadores.",

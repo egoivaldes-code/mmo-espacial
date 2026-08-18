@@ -18,7 +18,7 @@ import {
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.4.0";
+const GAME_VERSION = "v0.5.0";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -120,7 +120,11 @@ const MAX_CHARACTERS = 5;
 // client/public/naveteca/index.html. El sprite y el sonido salen de
 // client/public/ships/ — es la MISMA carpeta que usa la naveteca, así que
 // cambiar esos archivos ahí cambia lo que se ve/oye en el juego también.
-const STARTING_SHIP_ID = "shuttle_01";
+// El armamento Medium (8.4.5) está calibrado para escala de crucero: probarlo
+// con la lanzadera no diría nada útil, así que la nave inicial pasa a ser el
+// FHI Warden. El enemigo NPC (server/rooms/ChunkRoom.js) usa el FHI Bastion.
+const STARTING_SHIP_ID = "cruiser_01";
+const NPC_SHIP_ID = "cruiser_04";
 
 // Misma clave de localStorage que usa client/public/naveteca/index.html.
 const SHIP_OVERRIDES_KEY = "spacemmo_ship_overrides";
@@ -338,6 +342,72 @@ const ICONS = {
 // El mismo atlas visto como lista lineal (0..15), que es como lo indexa
 // Phaser al cargarlo como hoja de sprites. Se deriva de ICONS para que no
 // puedan quedar desincronizados nunca.
+// --- Combate: referencias DOM ----------------------------------------------
+const shieldFillEl = document.getElementById("shield-fill");
+const structureFillEl = document.getElementById("structure-fill");
+const capacitorFillEl = document.getElementById("capacitor-fill");
+const combatButtonsEl = document.getElementById("combat-buttons");
+const fireBtn = document.getElementById("fire-btn");
+const autoshootCheck = document.getElementById("autoshoot-check");
+const autoshootLabel = document.getElementById("autoshoot-label");
+const targetPanelEl = document.getElementById("target-panel");
+const targetNameEl = document.getElementById("target-name");
+const targetShieldFillEl = document.getElementById("target-shield-fill");
+const targetStructureFillEl = document.getElementById("target-structure-fill");
+
+// Último estado de combate recibido del servidor. Es la fuente de verdad
+// para dibujar el HUD; el cliente no calcula nada de esto por su cuenta.
+let combatState = null;
+
+function setBarWidth(el, ratio) {
+  el.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
+}
+
+function updateCombatHud() {
+  if (!combatState) {
+    combatButtonsEl.classList.add("empty");
+    targetPanelEl.classList.remove("visible");
+    return;
+  }
+
+  setBarWidth(capacitorFillEl, combatState.capacitor / combatState.capacitorMax);
+
+  const activo = combatState.targets.find((t) => t.active) || null;
+  const bloqueado = Boolean(activo?.locked);
+
+  // El botón de disparo (15.4.1) solo existe con objetivo fijado Y
+  // bloqueado. Sin eso no hay a qué disparar, así que no ocupa sitio.
+  combatButtonsEl.classList.toggle("empty", !bloqueado);
+  if (bloqueado) {
+    fireBtn.classList.toggle("active", combatState.firing);
+    fireBtn.classList.toggle("no-energy", combatState.capacitor < 18);
+  }
+  autoshootCheck.checked = combatState.autoShoot;
+}
+
+// El servidor manda escudo/estructura del objetivo dentro de los mensajes
+// de disparo (shot/hit); este panel se rellena con lo último que se sepa,
+// no con una réplica completa por tick.
+const targetInfo = { kind: null, id: null, name: "", shield: 1, structure: 1 };
+
+function refreshTargetPanel() {
+  const activo = combatState?.targets.find((t) => t.active && t.locked);
+  if (!activo) {
+    targetPanelEl.classList.remove("visible");
+    return;
+  }
+  targetPanelEl.classList.add("visible");
+  targetNameEl.textContent = targetInfo.name || t("combat.target");
+  setBarWidth(targetShieldFillEl, targetInfo.shield);
+  setBarWidth(targetStructureFillEl, targetInfo.structure);
+}
+
+// Máximos de crucero, en espejo con server/rooms/ChunkRoom.js. Solo sirven
+// para dibujar barras: el número real de vida SÍ lo manda el servidor
+// (player.shield / player.structure), esto únicamente da la escala 0..1.
+const CRUISER_SHIELD_MAX = 420;
+const CRUISER_STRUCTURE_MAX = 698;
+
 const ICON_FRAMES = Object.fromEntries(
   Object.entries(ICONS).map(([name, [col, row]]) => [name, row * 4 + col])
 );
@@ -408,6 +478,16 @@ function stopHoldAction() {
   const scene = getActiveScene();
   if (scene) scene.touchInput.mining = false;
 }
+
+// --- Botones de disparo y autodisparo --------------------------------------
+fireBtn.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  getActiveScene()?.room?.send("fireToggle", !combatState?.firing);
+});
+
+autoshootCheck.addEventListener("change", () => {
+  getActiveScene()?.room?.send("autoShoot", autoshootCheck.checked);
+});
 
 actionBtn.addEventListener("pointerdown", (e) => {
   e.preventDefault();
@@ -755,6 +835,7 @@ function applyStaticTranslations() {
   charSignoutBtn.textContent = t("login.signOut");
 
   warpBtnLabel.textContent = t("controls.warp");
+  autoshootLabel.textContent = t("combat.auto");
   if (currentAction) actionBtnLabel.textContent = t(`controls.action.${currentAction.kind}`);
   optionsTitleEl.textContent = t("menu.title");
   optionsVersionEl.textContent = GAME_VERSION;
@@ -867,6 +948,10 @@ class ChunkScene extends Phaser.Scene {
     } else {
       this.load.audio(`ship-${STARTING_SHIP_ID}-hum`, `${base}sounds/${STARTING_SHIP_ID}_hum.wav`);
     }
+
+    // Sprite del NPC enemigo. Sin sonido: no hay una nave propia que
+    // escuchar, así que no se carga el audio del Bastion.
+    this.load.image(`ship-${NPC_SHIP_ID}`, `${base}sprites/${NPC_SHIP_ID}.png`);
   }
 
   async create() {
@@ -1033,6 +1118,9 @@ class ChunkScene extends Phaser.Scene {
 
         if (isMe) {
           this.updateStatusText(player);
+          setBarWidth(shieldFillEl, player.shield / CRUISER_SHIELD_MAX);
+          setBarWidth(structureFillEl, player.structure / CRUISER_STRUCTURE_MAX);
+          structureFillEl.classList.toggle("critical", player.shield <= 0);
         }
       });
 
@@ -1064,6 +1152,50 @@ class ChunkScene extends Phaser.Scene {
       }
     });
 
+    this.npcEntities = new Map();
+    this.room.state.npcs.onAdd((npc, id) => {
+      const sprite = this.add.image(0, 0, `ship-${npc.shipId}`).setScale(0.5);
+      sprite.setTint(0xff8866);
+      // Tocable para fijar objetivo (ver el manejador de pointerdown más
+      // abajo). El radio de toque es generoso a propósito: en un móvil
+      // acertar justo sobre el sprite es difícil mientras la nave se mueve.
+      sprite.setInteractive(
+        new Phaser.Geom.Circle(sprite.width / 2, sprite.height / 2, Math.max(sprite.width, sprite.height) * 0.9),
+        Phaser.Geom.Circle.Contains
+      );
+      sprite.combatTarget = { kind: "npc", id };
+      const label = this.add
+        .text(0, 22, npc.name, { fontSize: "10px", color: "#ffb8a0" })
+        .setOrigin(0.5, 0);
+      const container = this.add.container(npc.x, npc.y, [sprite, label]);
+      this.worldLayer.add(container);
+      this.npcEntities.set(id, { container, sprite, serverX: npc.x, serverY: npc.y, rotation: npc.rotation });
+
+      npc.onChange(() => {
+        const entry = this.npcEntities.get(id);
+        if (!entry) return;
+        entry.serverX = npc.x;
+        entry.serverY = npc.y;
+        entry.rotation = npc.rotation;
+        if (targetInfo.kind === "npc" && targetInfo.id === id) {
+          targetInfo.shield = npc.shield / 380;
+          targetInfo.structure = npc.structure / 632;
+          refreshTargetPanel();
+        }
+      });
+    });
+    this.room.state.npcs.onRemove((npc, id) => {
+      const entry = this.npcEntities.get(id);
+      if (!entry) return;
+      entry.container.destroy();
+      this.npcEntities.delete(id);
+      if (targetInfo.kind === "npc" && targetInfo.id === id) {
+        targetInfo.kind = null;
+        targetInfo.id = null;
+        refreshTargetPanel();
+      }
+    });
+
     this.room.state.asteroids.onAdd((asteroid, id) => {
       // Antes era un círculo gris dibujado a mano. Ahora usa el icono de
       // asteroide del atlas (frame 11), teñido de gris piedra: se lee como
@@ -1089,6 +1221,43 @@ class ChunkScene extends Phaser.Scene {
       setContextAction(action);
       this.showActionReticle(action);
     });
+
+    // Estado de combate: capacitor, objetivos, si se está disparando. Mensaje
+    // privado, solo a este cliente, solo cuando cambia (8.4.8).
+    this.room.onMessage("combat", (msg) => {
+      combatState = msg;
+      updateCombatHud();
+      refreshTargetPanel();
+    });
+
+    // Resultado de CADA disparo propio. Se enseñan los factores por
+    // separado para que el jugador entienda por qué el disparo fue flojo
+    // y aprenda a colocarse, en vez de ver solo un número (8.4.10).
+    this.room.onMessage("shot", (msg) => {
+      if (msg.kind === targetInfo.kind && msg.id === targetInfo.id) {
+        // No se conoce el máximo de vida del objetivo en el cliente, así
+        // que se aproxima por la última barra conocida menos el daño
+        // proporcional. Es una estimación visual, no un dato exacto.
+        targetInfo.structure = Math.max(0, targetInfo.structure - msg.damage / 700);
+        refreshTargetPanel();
+      }
+      this.showDamageNumber(msg);
+    });
+
+    // Golpe recibido de un NPC. Actualiza las barras propias sin esperar al
+    // próximo latido de posición.
+    this.room.onMessage("hit", (msg) => {
+      // shieldFillEl y structureFillEl se refrescan solos vía onChange del
+      // estado del jugador (más abajo), esto solo dispara el parpadeo rojo.
+      this.flashDamage();
+    });
+
+    this.room.onMessage("destroyed", () => {
+      combatState = null;
+      updateCombatHud();
+    });
+
+    this.room.onMessage("respawned", () => {});
 
     this.room.onMessage("pong", (timestamp) => {
       this.latencyMs = Date.now() - timestamp;
@@ -1140,6 +1309,14 @@ class ChunkScene extends Phaser.Scene {
     this.actionReticle?.destroy();
     this.actionReticle = null;
     setContextAction(null);
+    this.npcEntities?.forEach((e) => e.container.destroy());
+    this.npcEntities?.clear();
+    this.targetReticles?.forEach((r) => r.destroy());
+    this.targetReticles?.clear();
+    combatState = null;
+    targetInfo.kind = null;
+    targetInfo.id = null;
+    updateCombatHud();
     this.localEntry = null;
     this.localPlayerState = null;
   }
@@ -1245,7 +1422,9 @@ class ChunkScene extends Phaser.Scene {
     if (!this.room) return;
     this.predictLocalMovement(delta);
     this.interpolateRemotePlayers();
+    this.interpolateNpcs();
     this.updateActionReticle(delta);
+    this.updateTargetReticles();
   }
 
   // Coloca el emisor de la estela detrás de la nave (en el sentido
@@ -1434,6 +1613,105 @@ class ChunkScene extends Phaser.Scene {
     }
   }
 
+  // Los NPC no necesitan el búfer de interpolación completo de los
+  // jugadores: el servidor ya los mueve cada tick (no solo al pensar, ver
+  // updateNpcs), así que un suavizado simple hacia la última posición
+  // conocida es indistinguible y mucho más barato de mantener.
+  // Número de daño flotante sobre el objetivo. Puramente cosmético — el
+  // servidor ya aplicó el daño real, esto es feedback visual del disparo.
+  showDamageNumber(msg) {
+    let x, y;
+    if (msg.kind === "npc") {
+      const c = this.npcEntities?.get(msg.id)?.container;
+      if (!c) return;
+      x = c.x; y = c.y;
+    } else {
+      const c = this.playerEntities?.get(msg.id)?.container;
+      if (!c) return;
+      x = c.x; y = c.y;
+    }
+    const texto = this.add
+      .text(x, y - 30, `-${msg.damage}`, {
+        fontSize: "16px",
+        color: msg.quality >= 70 ? "#ff5555" : "#ffaa55",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.worldLayer?.add(texto);
+    this.tweens.add({
+      targets: texto,
+      y: y - 70,
+      alpha: 0,
+      duration: 900,
+      onComplete: () => texto.destroy(),
+    });
+  }
+
+  // Parpadeo rojo de pantalla al recibir daño. Breve y sutil: es un aviso,
+  // no debe tapar el HUD ni distraer de pilotar.
+  flashDamage() {
+    if (!this.damageFlash) {
+      this.damageFlash = this.add
+        .rectangle(0, 0, this.scale.width, this.scale.height, 0xff0000, 0.15)
+        .setOrigin(0)
+        .setScrollFactor(0)
+        .setDepth(1000);
+      this.hudLayer?.add(this.damageFlash);
+    }
+    this.damageFlash.setAlpha(0.22);
+    this.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 250 });
+  }
+
+  interpolateNpcs() {
+    this.npcEntities?.forEach((entry) => {
+      entry.container.x = Phaser.Math.Linear(entry.container.x, entry.serverX, 0.25);
+      entry.container.y = Phaser.Math.Linear(entry.container.y, entry.serverY, 0.25);
+      entry.sprite.rotation = entry.rotation + Math.PI / 2;
+    });
+  }
+
+  // Retícula de bloqueo sobre CADA objetivo fijado (no solo el activo),
+  // para que el jugador vea de un vistazo a qué tiene marcado sin abrir
+  // ningún panel. Se reutilizan sprites en vez de crear/destruir cada
+  // frame — ver el comentario de showActionReticle sobre el mismo motivo.
+  updateTargetReticles() {
+    if (!this.targetReticles) this.targetReticles = new Map();
+    const activos = new Set();
+
+    (combatState?.targets || []).forEach((target) => {
+      const key = `${target.kind}:${target.id}`;
+      activos.add(key);
+
+      let entidad = null;
+      if (target.kind === "npc") entidad = this.npcEntities?.get(target.id)?.container;
+      else if (target.kind === "player") entidad = this.playerEntities?.get(target.id)?.container;
+      if (!entidad) return;
+
+      let ret = this.targetReticles.get(key);
+      if (!ret) {
+        ret = this.add.image(0, 0, "ui-icons", target.locked ? ICON_FRAMES.lockDone : ICON_FRAMES.lockPending);
+        ret.setDisplaySize(70, 70);
+        this.worldLayer?.add(ret);
+        this.targetReticles.set(key, ret);
+      }
+      // Naranja mientras se fija, verde una vez bloqueado — coherente con
+      // la retícula de acción contextual, que usa el mismo naranja para
+      // "en progreso".
+      ret.setTint(target.locked ? 0x66ff88 : 0xffb066);
+      ret.setFrame(target.locked ? ICON_FRAMES.lockDone : ICON_FRAMES.lockPending);
+      ret.setPosition(entidad.x, entidad.y);
+      ret.rotation += 0.02;
+    });
+
+    // Se retiran las retículas de objetivos que ya no están en la lista.
+    this.targetReticles.forEach((ret, key) => {
+      if (!activos.has(key)) {
+        ret.destroy();
+        this.targetReticles.delete(key);
+      }
+    });
+  }
+
   interpolateRemotePlayers() {
     const renderTime = performance.now() - INTERP_DELAY_MS;
 
@@ -1548,6 +1826,26 @@ class ChunkScene extends Phaser.Scene {
       // botones de minar/warp/opciones son HTML normal, colocados por
       // encima del canvas; un toque sobre ellos ni siquiera llega hasta
       // aquí (el navegador se lo entrega al botón, no al canvas debajo).
+
+      // Fijar objetivo: si el toque cae sobre una nave marcada como
+      // tocable, se manda el mensaje de fijado y NO se interpreta como
+      // inicio de joystick. Va antes que cualquier otra comprobación
+      // porque, a diferencia de los botones HTML, los sprites del mundo
+      // sí pasan por este mismo manejador.
+      const objetos = this.input.hitTestPointer(pointer);
+      const blanco = objetos.find((o) => o.combatTarget);
+      if (blanco) {
+        this.room?.send("lock", blanco.combatTarget);
+        if (blanco.combatTarget.kind === "npc") {
+          const npcState = this.room?.state.npcs.get(blanco.combatTarget.id);
+          targetInfo.kind = "npc";
+          targetInfo.id = blanco.combatTarget.id;
+          targetInfo.name = npcState?.name || t("combat.target");
+          targetInfo.shield = 1;
+          targetInfo.structure = 1;
+        }
+        return;
+      }
 
       // Ya hay un joystick confirmado o un pellizco en marcha — no se
       // reconoce un tercer gesto simultáneo, se ignora este dedo extra.

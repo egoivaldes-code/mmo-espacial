@@ -2,7 +2,11 @@ const { Schema, type } = require("@colyseus/schema");
 
 /**
  * Estado sincronizado de una nave/jugador dentro del chunk.
- * Fase 0: solo posición, rotación y un contador simple de recurso minado.
+ * Solo lo que TODOS necesitan ver. Deliberadamente NO están aquí:
+ *  - energía: cambia cada tick y solo le importa a su dueño → mensaje privado
+ *  - objetivo fijado: idem
+ *  - recarga de armas: el cliente la cuenta sola desde el disparo
+ * (ver 8.4.8 del documento de diseño)
  */
 class Player extends Schema {
   constructor() {
@@ -11,7 +15,12 @@ class Player extends Schema {
     this.y = 0;
     this.rotation = 0;
     this.name = "Piloto";
-    this.hp = 100;
+    this.shield = 0;      // primera capa; se regenera sola
+    this.structure = 100; // casco + blindaje + interior, NO se regenera solo
+    this.signature = 120; // tamaño aparente: cuanto mayor, más fácil de acertar
+    this.locking = false; // true mientras se está fijando un objetivo
+    this.lockProgress = 0; // 0..1, para dibujar la retícula llenándose
+    this.alive = true;
     this.cargo = 0; // recurso minado, prototipo simple sin tipos todavía
     this.warpCharging = false; // true durante la cuenta atrás de carga
     this.warpChargeRemaining = 0; // segundos restantes de carga
@@ -24,7 +33,12 @@ type("number")(Player.prototype, "x");
 type("number")(Player.prototype, "y");
 type("number")(Player.prototype, "rotation");
 type("string")(Player.prototype, "name");
-type("number")(Player.prototype, "hp");
+type("number")(Player.prototype, "shield");
+type("number")(Player.prototype, "structure");
+type("number")(Player.prototype, "signature");
+type("boolean")(Player.prototype, "locking");
+type("number")(Player.prototype, "lockProgress");
+type("boolean")(Player.prototype, "alive");
 type("number")(Player.prototype, "cargo");
 type("boolean")(Player.prototype, "warpCharging");
 type("number")(Player.prototype, "warpChargeRemaining");

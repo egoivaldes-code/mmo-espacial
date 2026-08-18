@@ -1728,6 +1728,34 @@ manual —que es donde se decidió poner toda la habilidad del juego
 (8.4.10)— dejaría de importar. El 65% no es un castigo arbitrario: es lo
 que mantiene en pie la decisión de diseño central.
 
+### 8.4.10.1.1 Fallo en producción — orden de inicialización (v0.5.0)
+
+El primer despliegue de v0.5.0 no arrancaba ninguna partida: fallaba al
+crear la sala con `Cannot read properties of undefined (reading 'set')`.
+El mensaje llegaba al jugador disfrazado de "error de conexión", que
+llevó a sospechar primero de Supabase, luego de un desfase de versión
+entre cliente y servidor, y solo al reproducirlo en aislamiento (fuera de
+Render, con un cliente Colyseus real hablando con una copia mínima de la
+sala) apareció la causa real.
+
+**La causa era trivial una vez encontrada:** `spawnNpc()` escribe en dos
+sitios, `this.state.npcs` (el estado replicado) y `this.npcBrains` (un
+`Map` normal con la IA de cada NPC). `onCreate()` llamaba a `spawnNpc()`
+casi al principio del método, pero `this.npcBrains = new Map()` se
+inicializaba más abajo, en el mismo método. El NPC llegaba a crearse en
+el estado replicado —esa escritura funcionaba— y reventaba en la
+siguiente línea, sobre un `Map` que todavía no existía.
+
+**La lección, más que el fallo en sí:** un método que depende de que
+varias piezas de `this` ya existan es frágil si se llama antes de que
+`onCreate` termine de montar todas esas piezas. La corrección no fue
+tocar `spawnNpc`, sino mover su primera llamada (junto a la de
+`spawnAsteroids`) al **final** de `onCreate`, después de todas las
+inicializaciones. Cuando un método de la sala lee o escribe varias
+propiedades de `this`, esas propiedades deben estar garantizadas antes de
+la primera llamada — idealmente inicializándolas todas al principio de
+`onCreate`, o llamando al método que las usa al final.
+
 ### 8.4.10.2 Primera implementación — v0.5.0
 
 **Primer combate jugable, en producción.** Sirve para validar si el

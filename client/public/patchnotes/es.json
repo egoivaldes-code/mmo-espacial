@@ -1,5 +1,11 @@
 [
   {
+    "version": "v0.5.1",
+    "highlights": [
+      "Arreglado un fallo que impedía entrar a jugar tras el parche de combate. Ya se puede volver a jugar con normalidad."
+    ]
+  },
+  {
     "version": "v0.5.0",
     "highlights": [
       "Empieza el combate: fija objetivos, dispara y ponte a prueba contra dos cruceros enemigos que patrullan el sistema.",

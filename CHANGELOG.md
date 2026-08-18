@@ -14,6 +14,19 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.1]
+
+### Corregido — el juego no arrancaba ninguna partida
+- v0.5.0 llegó a producción con un fallo que impedía crear la sala:
+  `spawnNpc()` escribía en `this.npcBrains` antes de que ese `Map` se
+  hubiera inicializado, porque se llamaba al principio de `onCreate()` en
+  vez de al final. El síntoma en pantalla era un "error de conexión"
+  genérico que no apuntaba a la causa real.
+- Corregido moviendo la creación de asteroides y NPCs al final de
+  `onCreate()`, después de que todas las piezas que usan estén listas.
+  Verificado con un cliente Colyseus real conectando contra el servidor,
+  no solo revisando el código.
+
 ## [v0.5.0]
 
 ### Añadido — primer combate jugable

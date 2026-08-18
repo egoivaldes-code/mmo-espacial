@@ -177,13 +177,6 @@ class ChunkRoom extends Room {
     this.setState(new ChunkState());
     this.setPatchRate(1000 / TICK_RATE);
 
-    // Con WORLD_SIZE=30.000 (56x más área que el valor de prototipo
-    // anterior), 15 asteroides quedarían invisibles la mayor parte del
-    // tiempo. 120 sigue siendo un valor de prototipo, no densidad final
-    // calibrada — solo para que el mundo no se sienta vacío al explorar.
-    this.spawnAsteroids(120);
-    for (let i = 0; i < NPC_COUNT; i++) this.spawnNpc();
-
     // Input del cliente: { up, down, left, right, mining }
     this.onMessage("input", (client, input) => {
       const player = this.state.players.get(client.sessionId);
@@ -285,6 +278,27 @@ class ChunkRoom extends Room {
     this.npcRespawnQueue = [];
     this.nextNpcId = 1;
     this.saveAccum = 0;
+
+    // spawnAsteroids/spawnNpc van AQUÍ, al final de onCreate, y no al
+    // principio.
+    //
+    // BUG REAL (v0.5.0, encontrado en producción): spawnNpc() escribe en
+    // this.npcBrains (un Map, ver arriba) además de en this.state.npcs.
+    // Llamarlo al principio del método — antes de que "this.npcBrains =
+    // new Map()" se ejecutara más abajo en el mismo onCreate — significaba
+    // que this.npcBrains todavía era undefined, y
+    // "this.npcBrains.set(id, ...)" reventaba con exactamente el mismo
+    // mensaje que dio tantas vueltas: "Cannot read properties of
+    // undefined (reading 'set')". El fallo no estaba en el schema de
+    // Colyseus ni en Npc.js — sencillamente el método se llamaba antes de
+    // que el objeto que necesitaba existiera todavía.
+    //
+    // Con WORLD_SIZE=30.000 (56x más área que el valor de prototipo
+    // anterior), 15 asteroides quedarían invisibles la mayor parte del
+    // tiempo. 120 sigue siendo un valor de prototipo, no densidad final
+    // calibrada — solo para que el mundo no se sienta vacío al explorar.
+    this.spawnAsteroids(120);
+    for (let i = 0; i < NPC_COUNT; i++) this.spawnNpc();
 
     this.setSimulationInterval((deltaMs) => this.update(deltaMs), 1000 / TICK_RATE);
   }

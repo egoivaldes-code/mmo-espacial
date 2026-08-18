@@ -14,6 +14,35 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.5]
+
+### Añadido — 32 torretas reales integradas en la Naveteca
+- Se procesaron las hojas de referencia de torretas (cinéticas, iónicas
+  —dos variantes de arte, v1 y v2— y radiológicas) recortando cada
+  modelo individual con fondo transparente: 8 cinéticas (autocañón/
+  railgun), 8 iónicas v1, 8 iónicas v2 y 8 radiológicas (proyector de
+  neutrones/cañón gamma), en S/M/L/C.
+- Nueva carpeta `client/public/turrets/` (`turrets.json` + `sprites/`)
+  con este catálogo "de fábrica": la pestaña "Eje de rotación" de la
+  Naveteca ya lo carga solo, sin tener que subir nada a mano. Se puede
+  seguir subiendo torretas propias además de las de fábrica.
+- Las torretas de fábrica no se pueden borrar del repo desde el
+  navegador, pero sí **ocultar** de la lista (con botón para
+  restaurarlas), y su pivote/nombre se puede reajustar localmente sin
+  tocar el original — todo como "overrides" hasta que se exporte el
+  parche.
+- **Ajuste fino por coordenadas**: cada slot de torreta en una nave
+  ahora tiene también dos campos numéricos de x/y, para mover con
+  precisión además de arrastrar.
+- **Torretas recomendadas por clase de nave**: al elegir una nave en
+  "Slots de torretas" se muestra una cifra orientativa (p. ej.
+  "recomendado: 5 torretas — crucero"). Es un punto de partida editable,
+  no una regla de balance cerrada (pendiente real en 8.4.11).
+- Probado de extremo a extremo en navegador: carga de las 41 naves y
+  las 32 torretas, simetría al colocar slots, asignación de torreta a
+  un slot con vista previa girada, ajuste fino por coordenadas, y
+  ocultar/restaurar una torreta de fábrica.
+
 ## [v0.5.4]
 
 ### Añadido — herramienta de hardpoints en la Naveteca

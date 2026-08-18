@@ -1,0 +1,418 @@
+[
+  {
+    "id": "kinetic_autocanon_s",
+    "name": "Autocañón Small (corto, cinético)",
+    "file": "sprites/kinetic_autocanon_s.png",
+    "size": {
+      "w": 85,
+      "h": 141
+    },
+    "pivot": {
+      "x": 42.5,
+      "y": 115.6
+    }
+  },
+  {
+    "id": "kinetic_railgun_s",
+    "name": "Railgun Small (largo, cinético)",
+    "file": "sprites/kinetic_railgun_s.png",
+    "size": {
+      "w": 73,
+      "h": 152
+    },
+    "pivot": {
+      "x": 36.5,
+      "y": 124.6
+    }
+  },
+  {
+    "id": "kinetic_autocanon_m",
+    "name": "Autocañón Medium (corto, cinético)",
+    "file": "sprites/kinetic_autocanon_m.png",
+    "size": {
+      "w": 110,
+      "h": 176
+    },
+    "pivot": {
+      "x": 55.0,
+      "y": 144.3
+    }
+  },
+  {
+    "id": "kinetic_railgun_m",
+    "name": "Railgun Medium (largo, cinético)",
+    "file": "sprites/kinetic_railgun_m.png",
+    "size": {
+      "w": 98,
+      "h": 237
+    },
+    "pivot": {
+      "x": 49.0,
+      "y": 194.3
+    }
+  },
+  {
+    "id": "kinetic_autocanon_l",
+    "name": "Autocañón Large (corto, cinético)",
+    "file": "sprites/kinetic_autocanon_l.png",
+    "size": {
+      "w": 169,
+      "h": 253
+    },
+    "pivot": {
+      "x": 84.5,
+      "y": 207.5
+    }
+  },
+  {
+    "id": "kinetic_railgun_l",
+    "name": "Railgun Large (largo, cinético)",
+    "file": "sprites/kinetic_railgun_l.png",
+    "size": {
+      "w": 146,
+      "h": 328
+    },
+    "pivot": {
+      "x": 73.0,
+      "y": 269.0
+    }
+  },
+  {
+    "id": "kinetic_autocanon_c",
+    "name": "Autocañón Capital (corto, cinético)",
+    "file": "sprites/kinetic_autocanon_c.png",
+    "size": {
+      "w": 269,
+      "h": 390
+    },
+    "pivot": {
+      "x": 134.5,
+      "y": 319.8
+    }
+  },
+  {
+    "id": "kinetic_railgun_c",
+    "name": "Railgun Capital (largo, cinético)",
+    "file": "sprites/kinetic_railgun_c.png",
+    "size": {
+      "w": 273,
+      "h": 539
+    },
+    "pivot": {
+      "x": 136.5,
+      "y": 442.0
+    }
+  },
+  {
+    "id": "ionico_v1_corto_s",
+    "name": "Cañón Iónico S (corto)",
+    "file": "sprites/ionico_v1_corto_s.png",
+    "size": {
+      "w": 112,
+      "h": 244
+    },
+    "pivot": {
+      "x": 56.0,
+      "y": 200.1
+    }
+  },
+  {
+    "id": "ionico_v1_corto_m",
+    "name": "Cañón Iónico M (corto)",
+    "file": "sprites/ionico_v1_corto_m.png",
+    "size": {
+      "w": 135,
+      "h": 336
+    },
+    "pivot": {
+      "x": 67.5,
+      "y": 275.5
+    }
+  },
+  {
+    "id": "ionico_v1_corto_l",
+    "name": "Cañón Iónico L (corto)",
+    "file": "sprites/ionico_v1_corto_l.png",
+    "size": {
+      "w": 145,
+      "h": 383
+    },
+    "pivot": {
+      "x": 72.5,
+      "y": 314.1
+    }
+  },
+  {
+    "id": "ionico_v1_corto_c",
+    "name": "Cañón Iónico C (corto)",
+    "file": "sprites/ionico_v1_corto_c.png",
+    "size": {
+      "w": 167,
+      "h": 456
+    },
+    "pivot": {
+      "x": 83.5,
+      "y": 373.9
+    }
+  },
+  {
+    "id": "ionico_v1_largo_s",
+    "name": "Acelerador de Partículas S (largo)",
+    "file": "sprites/ionico_v1_largo_s.png",
+    "size": {
+      "w": 105,
+      "h": 277
+    },
+    "pivot": {
+      "x": 52.5,
+      "y": 227.1
+    }
+  },
+  {
+    "id": "ionico_v1_largo_m",
+    "name": "Acelerador de Partículas M (largo)",
+    "file": "sprites/ionico_v1_largo_m.png",
+    "size": {
+      "w": 133,
+      "h": 357
+    },
+    "pivot": {
+      "x": 66.5,
+      "y": 292.7
+    }
+  },
+  {
+    "id": "ionico_v1_largo_l",
+    "name": "Acelerador de Partículas L (largo)",
+    "file": "sprites/ionico_v1_largo_l.png",
+    "size": {
+      "w": 146,
+      "h": 429
+    },
+    "pivot": {
+      "x": 73.0,
+      "y": 351.8
+    }
+  },
+  {
+    "id": "ionico_v1_largo_c",
+    "name": "Acelerador de Partículas C (largo)",
+    "file": "sprites/ionico_v1_largo_c.png",
+    "size": {
+      "w": 167,
+      "h": 464
+    },
+    "pivot": {
+      "x": 83.5,
+      "y": 380.5
+    }
+  },
+  {
+    "id": "ionico_v2_corto_s",
+    "name": "Cañón Iónico (v2) S (corto)",
+    "file": "sprites/ionico_v2_corto_s.png",
+    "size": {
+      "w": 113,
+      "h": 265
+    },
+    "pivot": {
+      "x": 56.5,
+      "y": 217.3
+    }
+  },
+  {
+    "id": "ionico_v2_corto_m",
+    "name": "Cañón Iónico (v2) M (corto)",
+    "file": "sprites/ionico_v2_corto_m.png",
+    "size": {
+      "w": 136,
+      "h": 330
+    },
+    "pivot": {
+      "x": 68.0,
+      "y": 270.6
+    }
+  },
+  {
+    "id": "ionico_v2_corto_l",
+    "name": "Cañón Iónico (v2) L (corto)",
+    "file": "sprites/ionico_v2_corto_l.png",
+    "size": {
+      "w": 149,
+      "h": 393
+    },
+    "pivot": {
+      "x": 74.5,
+      "y": 322.3
+    }
+  },
+  {
+    "id": "ionico_v2_corto_c",
+    "name": "Cañón Iónico (v2) C (corto)",
+    "file": "sprites/ionico_v2_corto_c.png",
+    "size": {
+      "w": 187,
+      "h": 449
+    },
+    "pivot": {
+      "x": 93.5,
+      "y": 368.2
+    }
+  },
+  {
+    "id": "ionico_v2_largo_s",
+    "name": "Acelerador de Partículas (v2) S (largo)",
+    "file": "sprites/ionico_v2_largo_s.png",
+    "size": {
+      "w": 117,
+      "h": 340
+    },
+    "pivot": {
+      "x": 58.5,
+      "y": 278.8
+    }
+  },
+  {
+    "id": "ionico_v2_largo_m",
+    "name": "Acelerador de Partículas (v2) M (largo)",
+    "file": "sprites/ionico_v2_largo_m.png",
+    "size": {
+      "w": 140,
+      "h": 410
+    },
+    "pivot": {
+      "x": 70.0,
+      "y": 336.2
+    }
+  },
+  {
+    "id": "ionico_v2_largo_l",
+    "name": "Acelerador de Partículas (v2) L (largo)",
+    "file": "sprites/ionico_v2_largo_l.png",
+    "size": {
+      "w": 157,
+      "h": 495
+    },
+    "pivot": {
+      "x": 78.5,
+      "y": 405.9
+    }
+  },
+  {
+    "id": "ionico_v2_largo_c",
+    "name": "Acelerador de Partículas (v2) C (largo)",
+    "file": "sprites/ionico_v2_largo_c.png",
+    "size": {
+      "w": 183,
+      "h": 538
+    },
+    "pivot": {
+      "x": 91.5,
+      "y": 441.2
+    }
+  },
+  {
+    "id": "radiologico_corto_s",
+    "name": "Proyector de Neutrones S (corto)",
+    "file": "sprites/radiologico_corto_s.png",
+    "size": {
+      "w": 122,
+      "h": 185
+    },
+    "pivot": {
+      "x": 61.0,
+      "y": 151.7
+    }
+  },
+  {
+    "id": "radiologico_corto_m",
+    "name": "Proyector de Neutrones M (corto)",
+    "file": "sprites/radiologico_corto_m.png",
+    "size": {
+      "w": 138,
+      "h": 325
+    },
+    "pivot": {
+      "x": 69.0,
+      "y": 266.5
+    }
+  },
+  {
+    "id": "radiologico_corto_l",
+    "name": "Proyector de Neutrones L (corto)",
+    "file": "sprites/radiologico_corto_l.png",
+    "size": {
+      "w": 144,
+      "h": 399
+    },
+    "pivot": {
+      "x": 72.0,
+      "y": 327.2
+    }
+  },
+  {
+    "id": "radiologico_corto_c",
+    "name": "Proyector de Neutrones C (corto)",
+    "file": "sprites/radiologico_corto_c.png",
+    "size": {
+      "w": 182,
+      "h": 461
+    },
+    "pivot": {
+      "x": 91.0,
+      "y": 378.0
+    }
+  },
+  {
+    "id": "radiologico_largo_s",
+    "name": "Cañón Gamma S (largo)",
+    "file": "sprites/radiologico_largo_s.png",
+    "size": {
+      "w": 98,
+      "h": 265
+    },
+    "pivot": {
+      "x": 49.0,
+      "y": 217.3
+    }
+  },
+  {
+    "id": "radiologico_largo_m",
+    "name": "Cañón Gamma M (largo)",
+    "file": "sprites/radiologico_largo_m.png",
+    "size": {
+      "w": 131,
+      "h": 368
+    },
+    "pivot": {
+      "x": 65.5,
+      "y": 301.8
+    }
+  },
+  {
+    "id": "radiologico_largo_l",
+    "name": "Cañón Gamma L (largo)",
+    "file": "sprites/radiologico_largo_l.png",
+    "size": {
+      "w": 141,
+      "h": 438
+    },
+    "pivot": {
+      "x": 70.5,
+      "y": 359.2
+    }
+  },
+  {
+    "id": "radiologico_largo_c",
+    "name": "Cañón Gamma C (largo)",
+    "file": "sprites/radiologico_largo_c.png",
+    "size": {
+      "w": 171,
+      "h": 468
+    },
+    "pivot": {
+      "x": 85.5,
+      "y": 383.8
+    }
+  }
+]

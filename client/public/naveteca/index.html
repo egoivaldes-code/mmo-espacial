@@ -175,6 +175,12 @@
   .mirror-tag { font-size: 10px; color: #6fd68a; background: #12241a; padding: 1px 6px; border-radius: 4px; }
   .slot-del { background: transparent; border: none; color: #d08080; cursor: pointer; font-size: 12px; }
   .slot-coords { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .slot-coords-fine { display: flex; gap: 8px; margin-bottom: 6px; font-size: 11px; color: var(--muted); }
+  .slot-coords-fine label { display: flex; align-items: center; gap: 4px; }
+  .slot-coords-fine input[type=number] {
+    width: 56px; padding: 3px 5px; border-radius: 5px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 11px;
+  }
   .slot-turret { width: 100%; padding: 5px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 11px; }
   .empty-note { font-size: 12px; color: var(--muted); }
 
@@ -259,6 +265,7 @@
     </div>
     <div id="slots-list-panel">
       <h2>Slots de <span id="slots-ship-name">—</span></h2>
+      <div id="slots-recommendation" style="font-size:11px;color:var(--muted);margin-bottom:10px;"></div>
       <div id="slots-list"><div class="empty-note">Elige una nave a la izquierda.</div></div>
     </div>
   </div>
@@ -359,7 +366,7 @@ function spriteSrc(ship) {
 
 async function init() {
   loadOverrides();
-  loadTurretData();
+  await loadTurretData();
   const res = await fetch("../ships/ships.json");
   SHIPS = await res.json();
   renderClassFilters();
@@ -707,40 +714,91 @@ function downloadJSON(filename, obj) {
 // y se mueven juntos. mx/my indican si ESTE slot concreto es el
 // reflejo en X y/o en Y respecto al que se colocó originalmente.
 let turretSlots = {};
-let turretCatalog = []; // [{id,name,fileName,dataUrl,width,height,pivot:{x,y}}]
-let turretImageCache = {}; // id -> HTMLImageElement (cargada) | "loading"
 let slotsSelectedShipId = null;
 let slotsImg = null;
 let slotsScale = 6;
 let symX = false, symY = false;
 let slotsDragId = null;
 
+// Torretas recomendadas por clase de nave — punto de partida editable,
+// no una regla cerrada (pendiente de balance real, ver 8.4.11 del
+// documento de diseño). Sirve solo de guía dentro de la herramienta.
+const RECOMMENDED_TURRETS = {
+  shuttle: 0, frigate: 3, destroyer: 4, cruiser: 5,
+  battlecruiser: 6, battleship: 7, carrier: 4, dreadnought: 5,
+};
+
+// ---- Catálogo de torretas: base (repo) + overrides + personalizadas ----
+// baseTurretCatalog: viene de ../turrets/turrets.json, es de solo lectura
+// (no se reescribe desde el navegador — para eso está el parche .zip).
+// turretOverrides: ediciones locales sobre una torreta base (pivote fino,
+// nombre, o "hidden" si se ha ocultado desde esta herramienta).
+// customTurrets: torretas subidas desde el botón "+ Añadir torreta",
+// completas (con su propia imagen en base64) porque no existen en el repo.
+let baseTurretCatalog = [];
+let turretOverrides = {};
+let customTurrets = [];
+let turretImageCache = {}; // id -> HTMLImageElement (cargada) | "loading"
+
+function effectiveTurretCatalog() {
+  const fromBase = baseTurretCatalog
+    .filter((t) => !turretOverrides[t.id]?.hidden)
+    .map((t) => ({
+      id: t.id,
+      name: turretOverrides[t.id]?.name ?? t.name,
+      width: t.size.w,
+      height: t.size.h,
+      pivot: turretOverrides[t.id]?.pivot ?? t.pivot,
+      src: `../turrets/${t.file}`,
+      isBase: true,
+    }));
+  const fromCustom = customTurrets.map((t) => ({
+    id: t.id, name: t.name, width: t.width, height: t.height,
+    pivot: t.pivot, src: t.dataUrl, isBase: false,
+  }));
+  return [...fromBase, ...fromCustom];
+}
+
+function findTurret(id) {
+  return effectiveTurretCatalog().find((t) => t.id === id) || null;
+}
+
 function getTurretImage(turretId) {
   const cached = turretImageCache[turretId];
   if (cached && cached !== "loading") return cached;
   if (cached === "loading") return null;
-  const t = turretCatalog.find((x) => x.id === turretId);
+  const t = findTurret(turretId);
   if (!t) return null;
   turretImageCache[turretId] = "loading";
   const img = new Image();
   img.onload = () => { turretImageCache[turretId] = img; drawSlotsCanvas(); };
-  img.src = t.dataUrl;
+  img.src = t.src;
   return null;
 }
 
-function loadTurretData() {
+async function loadTurretData() {
   try { turretSlots = JSON.parse(localStorage.getItem("spacemmo_turret_slots") || "{}"); } catch { turretSlots = {}; }
-  try { turretCatalog = JSON.parse(localStorage.getItem("spacemmo_turret_catalog") || "[]"); } catch { turretCatalog = []; }
+  try { turretOverrides = JSON.parse(localStorage.getItem("spacemmo_turret_overrides") || "{}"); } catch { turretOverrides = {}; }
+  try { customTurrets = JSON.parse(localStorage.getItem("spacemmo_turret_custom") || "[]"); } catch { customTurrets = []; }
+  try {
+    const res = await fetch("../turrets/turrets.json");
+    baseTurretCatalog = res.ok ? await res.json() : [];
+  } catch {
+    baseTurretCatalog = [];
+  }
 }
 function saveTurretSlots() {
   localStorage.setItem("spacemmo_turret_slots", JSON.stringify(turretSlots));
 }
-function saveTurretCatalog() {
+function saveTurretOverrides() {
+  localStorage.setItem("spacemmo_turret_overrides", JSON.stringify(turretOverrides));
+}
+function saveCustomTurrets() {
   try {
-    localStorage.setItem("spacemmo_turret_catalog", JSON.stringify(turretCatalog));
+    localStorage.setItem("spacemmo_turret_custom", JSON.stringify(customTurrets));
     return true;
   } catch (err) {
-    alert("No se pudo guardar: " + err.message + "\n\nPrueba con una imagen de torreta más pequeña, o exporta el parche y borra alguna torreta del catálogo para liberar espacio.");
+    alert("No se pudo guardar: " + err.message + "\n\nPrueba con una imagen de torreta más pequeña, o exporta el parche y borra alguna torreta subida para liberar espacio.");
     return false;
   }
 }
@@ -769,7 +827,13 @@ function renderSlotsShipList() {
 function selectSlotsShip(shipId) {
   slotsSelectedShipId = shipId;
   const ship = SHIPS.find((s) => s.id === shipId);
-  document.getElementById("slots-ship-name").textContent = effectiveShip(ship).name;
+  const eff = effectiveShip(ship);
+  document.getElementById("slots-ship-name").textContent = eff.name;
+  const rec = RECOMMENDED_TURRETS[eff.class];
+  const recEl = document.getElementById("slots-recommendation");
+  recEl.textContent = (rec === undefined)
+    ? ""
+    : `Recomendado para ${eff.classLabel.toLowerCase()}: ${rec} torreta${rec === 1 ? "" : "s"} (punto de partida, ajustable)`;
   renderSlotsShipList();
   renderSlotsList();
   const img = new Image();
@@ -817,7 +881,7 @@ function drawSlotsCanvas() {
     const px = slot.x * scale, py = slot.y * scale;
 
     if (slot.turretId) {
-      const t = turretCatalog.find((x) => x.id === slot.turretId);
+      const t = findTurret(slot.turretId);
       const img = t ? getTurretImage(slot.turretId) : null;
       if (t && img) {
         const drawW = t.width * scale, drawH = t.height * scale;
@@ -899,6 +963,14 @@ function moveSlotTo(id, nx, ny) {
   drawSlotsCanvas();
 }
 
+// Ajuste fino desde los campos numéricos de la lista: igual que arrastrar,
+// pero guarda y refresca la lista al momento (arrastrar solo guarda al soltar).
+function setSlotCoordsFromInput(id, x, y) {
+  moveSlotTo(id, x, y);
+  saveTurretSlots();
+  renderSlotsList();
+}
+
 function deleteSlot(id) {
   const entry = turretSlots[slotsSelectedShipId];
   if (!entry) return;
@@ -912,19 +984,33 @@ function deleteSlot(id) {
 function renderSlotsList() {
   const panel = document.getElementById("slots-list");
   if (!slotsSelectedShipId) { panel.innerHTML = '<div class="empty-note">Elige una nave a la izquierda.</div>'; return; }
-  const slots = turretSlots[slotsSelectedShipId]?.slots || [];
+  const entry = turretSlots[slotsSelectedShipId];
+  const slots = entry?.slots || [];
+  const catalog = effectiveTurretCatalog();
   if (slots.length === 0) { panel.innerHTML = '<div class="empty-note">Toca sobre la nave para añadir el primer slot.</div>'; return; }
   panel.innerHTML = slots.map((s, i) => `
     <div class="slot-row">
       <div class="slot-row-head"><b>#${i + 1}</b> ${s.groupId ? '<span class="mirror-tag">simetría</span>' : ""} <button class="slot-del" data-id="${s.id}">✕ quitar</button></div>
-      <div class="slot-coords">x: ${Math.round(s.x)} · y: ${Math.round(s.y)}</div>
+      <div class="slot-coords-fine">
+        <label>x <input type="number" class="slot-x" data-id="${s.id}" value="${Math.round(s.x * 10) / 10}" step="0.5" min="0" max="${entry.w}" /></label>
+        <label>y <input type="number" class="slot-y" data-id="${s.id}" value="${Math.round(s.y * 10) / 10}" step="0.5" min="0" max="${entry.h}" /></label>
+      </div>
       <select class="slot-turret" data-id="${s.id}">
         <option value="">— sin torreta asignada —</option>
-        ${turretCatalog.map((t) => `<option value="${t.id}" ${s.turretId === t.id ? "selected" : ""}>${escapeHtml(t.name)}</option>`).join("")}
+        ${catalog.map((t) => `<option value="${t.id}" ${s.turretId === t.id ? "selected" : ""}>${escapeHtml(t.name)}</option>`).join("")}
       </select>
     </div>
   `).join("");
   panel.querySelectorAll(".slot-del").forEach((btn) => btn.onclick = () => deleteSlot(btn.dataset.id));
+  panel.querySelectorAll(".slot-x, .slot-y").forEach((inp) => {
+    inp.addEventListener("change", () => {
+      const id = inp.dataset.id;
+      const row = inp.closest(".slot-row");
+      const x = Number(row.querySelector(".slot-x").value) || 0;
+      const y = Number(row.querySelector(".slot-y").value) || 0;
+      setSlotCoordsFromInput(id, x, y);
+    });
+  });
   panel.querySelectorAll(".slot-turret").forEach((sel) => {
     sel.onchange = () => {
       const slots2 = turretSlots[slotsSelectedShipId].slots;
@@ -970,11 +1056,11 @@ let pivotDragging = false;
 
 function selectTurret(id) {
   pivotSelectedId = id;
-  const t = turretCatalog.find((x) => x.id === id);
+  const t = findTurret(id);
   if (!t) { pivotImg = null; renderTurretList(); return; }
   const img = new Image();
   img.onload = () => { pivotImg = img; drawTurretCanvas(); };
-  img.src = t.dataUrl;
+  img.src = t.src;
   document.getElementById("turret-name-input").value = t.name;
   renderTurretList();
 }
@@ -983,29 +1069,53 @@ function renderTurretList() {
   const container = document.getElementById("turret-list");
   const empty = document.getElementById("turret-empty");
   const wrap = document.getElementById("pivote-app");
-  if (turretCatalog.length === 0) {
+  const catalog = effectiveTurretCatalog();
+  const hiddenCount = baseTurretCatalog.filter((t) => turretOverrides[t.id]?.hidden).length;
+
+  if (catalog.length === 0) {
     container.innerHTML = '<div class="empty-note">Sube tu primera torreta con el botón de arriba.</div>';
     wrap.style.display = "none";
     empty.style.display = "flex";
+    renderHiddenNote(hiddenCount);
     return;
   }
   wrap.style.display = "flex";
   empty.style.display = "none";
-  container.innerHTML = turretCatalog.map((t) => `
+  container.innerHTML = catalog.map((t) => `
     <div class="turret-row ${t.id === pivotSelectedId ? "selected" : ""}" data-id="${t.id}">
-      <img src="${t.dataUrl}" />
+      <img src="${t.src}" />
       <div class="name">${escapeHtml(t.name)}</div>
     </div>
   `).join("");
   container.querySelectorAll(".turret-row").forEach((row) => row.onclick = () => selectTurret(row.dataset.id));
-  if (!pivotSelectedId || !turretCatalog.find((t) => t.id === pivotSelectedId)) {
-    selectTurret(turretCatalog[0].id);
+  renderHiddenNote(hiddenCount);
+  if (!pivotSelectedId || !catalog.find((t) => t.id === pivotSelectedId)) {
+    selectTurret(catalog[0].id);
   }
+}
+
+function renderHiddenNote(hiddenCount) {
+  let note = document.getElementById("turret-hidden-note");
+  if (!note) {
+    note = document.createElement("div");
+    note.id = "turret-hidden-note";
+    note.style.fontSize = "11px";
+    note.style.color = "var(--muted)";
+    note.style.marginTop = "10px";
+    document.getElementById("turret-sidebar").appendChild(note);
+  }
+  if (hiddenCount === 0) { note.innerHTML = ""; return; }
+  note.innerHTML = `${hiddenCount} torreta${hiddenCount === 1 ? "" : "s"} del catálogo base oculta${hiddenCount === 1 ? "" : "s"}. <button id="turret-restore-btn" style="background:transparent;border:1px solid var(--border);color:var(--accent);border-radius:5px;padding:3px 7px;font-size:10px;cursor:pointer;">Restaurar</button>`;
+  document.getElementById("turret-restore-btn").onclick = () => {
+    baseTurretCatalog.forEach((t) => { if (turretOverrides[t.id]) turretOverrides[t.id].hidden = false; });
+    saveTurretOverrides();
+    renderTurretList();
+  };
 }
 
 function drawTurretCanvas() {
   const canvas = document.getElementById("turret-canvas");
-  const t = turretCatalog.find((x) => x.id === pivotSelectedId);
+  const t = findTurret(pivotSelectedId);
   if (!t || !pivotImg) { canvas.width = 1; canvas.height = 1; return; }
   const scale = pivotScale;
   canvas.width = t.width * scale;
@@ -1032,6 +1142,24 @@ function drawTurretCanvas() {
   ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
 }
 
+function setTurretPivot(id, x, y) {
+  const isBase = baseTurretCatalog.some((t) => t.id === id);
+  if (isBase) {
+    const base = baseTurretCatalog.find((t) => t.id === id);
+    x = clamp(x, 0, base.size.w); y = clamp(y, 0, base.size.h);
+    turretOverrides[id] = { ...(turretOverrides[id] || {}), pivot: { x, y } };
+    saveTurretOverrides();
+  } else {
+    const t = customTurrets.find((x2) => x2.id === id);
+    if (!t) return;
+    t.pivot = { x: clamp(x, 0, t.width), y: clamp(y, 0, t.height) };
+    saveCustomTurrets();
+  }
+  drawTurretCanvas();
+  turretImageCache = turretImageCache; // no-op, la imagen no cambia — solo el pivote
+  drawSlotsCanvas();
+}
+
 document.getElementById("turret-canvas").addEventListener("pointerdown", (e) => {
   if (!pivotSelectedId) return;
   pivotDragging = true;
@@ -1043,16 +1171,15 @@ document.getElementById("turret-canvas").addEventListener("pointermove", (e) => 
   setPivotFromEvent(e);
 });
 document.getElementById("turret-canvas").addEventListener("pointerup", () => {
-  if (pivotDragging) { pivotDragging = false; saveTurretCatalog(); }
+  pivotDragging = false;
 });
 
 function setPivotFromEvent(e) {
   const canvas = document.getElementById("turret-canvas");
-  const t = turretCatalog.find((x) => x.id === pivotSelectedId);
+  const t = findTurret(pivotSelectedId);
   if (!t) return;
   const { x, y } = canvasPointToNative(canvas, e, pivotScale);
-  t.pivot = { x: clamp(x, 0, t.width), y: clamp(y, 0, t.height) };
-  drawTurretCanvas();
+  setTurretPivot(pivotSelectedId, x, y);
 }
 
 document.getElementById("turret-add-btn").onclick = () => document.getElementById("turret-add-input").click();
@@ -1068,15 +1195,15 @@ document.getElementById("turret-add-input").addEventListener("change", async (e)
   img.onload = () => {
     const entry = {
       id: uid("t"),
-      name: `Torreta ${turretCatalog.length + 1}`,
+      name: `Torreta ${customTurrets.length + 1}`,
       fileName: file.name,
       dataUrl,
       width: img.naturalWidth,
       height: img.naturalHeight,
       pivot: { x: img.naturalWidth / 2, y: img.naturalHeight / 2 },
     };
-    turretCatalog.push(entry);
-    saveTurretCatalog();
+    customTurrets.push(entry);
+    saveCustomTurrets();
     pivotSelectedId = entry.id;
     renderTurretList();
     pivotImg = img;
@@ -1087,23 +1214,40 @@ document.getElementById("turret-add-input").addEventListener("change", async (e)
 });
 
 document.getElementById("turret-name-input").addEventListener("change", (e) => {
-  const t = turretCatalog.find((x) => x.id === pivotSelectedId);
-  if (!t) return;
-  t.name = e.target.value.trim() || t.name;
-  saveTurretCatalog();
+  const id = pivotSelectedId;
+  const isBase = baseTurretCatalog.some((t) => t.id === id);
+  const val = e.target.value.trim();
+  if (!val) return;
+  if (isBase) {
+    turretOverrides[id] = { ...(turretOverrides[id] || {}), name: val };
+    saveTurretOverrides();
+  } else {
+    const t = customTurrets.find((x) => x.id === id);
+    if (t) { t.name = val; saveCustomTurrets(); }
+  }
   renderTurretList();
 });
 document.getElementById("turret-zoom").oninput = (e) => { pivotScale = Number(e.target.value); drawTurretCanvas(); };
 document.getElementById("turret-del-btn").onclick = () => {
-  const t = turretCatalog.find((x) => x.id === pivotSelectedId);
+  const id = pivotSelectedId;
+  const t = findTurret(id);
   if (!t) return;
-  if (!confirm(`¿Borrar la torreta "${t.name}" del catálogo? También se quitará de cualquier slot que la tuviera asignada.`)) return;
-  turretCatalog = turretCatalog.filter((x) => x.id !== t.id);
-  delete turretImageCache[t.id];
+  const isBase = baseTurretCatalog.some((x) => x.id === id);
+  const question = isBase
+    ? `¿Ocultar "${t.name}" de la lista? Sigue en el repo — solo deja de verse en esta herramienta (y se puede restaurar). También se quitará de cualquier slot que la tuviera asignada.`
+    : `¿Borrar "${t.name}" del catálogo? También se quitará de cualquier slot que la tuviera asignada.`;
+  if (!confirm(question)) return;
+  if (isBase) {
+    turretOverrides[id] = { ...(turretOverrides[id] || {}), hidden: true };
+    saveTurretOverrides();
+  } else {
+    customTurrets = customTurrets.filter((x) => x.id !== id);
+    saveCustomTurrets();
+  }
+  delete turretImageCache[id];
   Object.values(turretSlots).forEach((entry) => {
-    entry.slots.forEach((s) => { if (s.turretId === t.id) s.turretId = null; });
+    entry.slots.forEach((s) => { if (s.turretId === id) s.turretId = null; });
   });
-  saveTurretCatalog();
   saveTurretSlots();
   pivotSelectedId = null;
   pivotImg = null;
@@ -1116,12 +1260,14 @@ document.getElementById("turret-del-btn").onclick = () => {
 // ============================================================
 document.getElementById("slots-export-btn").onclick = async () => {
   const shipsWithSlots = Object.entries(turretSlots).filter(([, e]) => e.slots && e.slots.length > 0);
-  if (shipsWithSlots.length === 0 && turretCatalog.length === 0) {
-    alert("Todavía no hay slots ni torretas que exportar.");
+  const hasOverrides = Object.keys(turretOverrides).length > 0;
+  const hasCustom = customTurrets.length > 0;
+  if (shipsWithSlots.length === 0 && !hasOverrides && !hasCustom) {
+    alert("Todavía no hay slots, ediciones de torretas ni torretas nuevas que exportar.");
     return;
   }
   const zip = new JSZip();
-  const turretFolder = zip.folder("turrets");
+  const turretFolder = zip.folder("turrets/sprites");
 
   const shipsOut = {};
   shipsWithSlots.forEach(([shipId, entry]) => {
@@ -1137,17 +1283,28 @@ document.getElementById("slots-export-btn").onclick = async () => {
     };
   });
 
-  const turretsOut = turretCatalog.map((t) => ({
-    id: t.id,
-    name: t.name,
-    file: `turrets/${t.fileName}`,
-    size: { w: t.width, h: t.height },
-    pivot: { x: Math.round(t.pivot.x * 100) / 100, y: Math.round(t.pivot.y * 100) / 100 },
-  }));
+  // turrets.json de salida = catálogo base con overrides fusionados (sin
+  // las ocultas) + las nuevas subidas desde esta herramienta.
+  const turretsOut = baseTurretCatalog
+    .filter((t) => !turretOverrides[t.id]?.hidden)
+    .map((t) => ({
+      id: t.id,
+      name: turretOverrides[t.id]?.name ?? t.name,
+      file: t.file,
+      size: t.size,
+      pivot: turretOverrides[t.id]?.pivot ?? t.pivot,
+    }))
+    .concat(customTurrets.map((t) => ({
+      id: t.id,
+      name: t.name,
+      file: `sprites/${t.fileName}`,
+      size: { w: t.width, h: t.height },
+      pivot: { x: Math.round(t.pivot.x * 100) / 100, y: Math.round(t.pivot.y * 100) / 100 },
+    })));
 
   zip.file("turret-slots.json", JSON.stringify(shipsOut, null, 2));
   zip.file("turrets.json", JSON.stringify(turretsOut, null, 2));
-  turretCatalog.forEach((t) => { if (t.dataUrl) turretFolder.file(t.fileName, dataUrlToBlob(t.dataUrl)); });
+  customTurrets.forEach((t) => { if (t.dataUrl) turretFolder.file(t.fileName, dataUrlToBlob(t.dataUrl)); });
 
   zip.file("README.md", `# Parche de armamento — slots de torretas y ejes de rotación
 
@@ -1160,18 +1317,20 @@ Generado desde la pestaña "Slots de torretas" / "Eje de rotación" del Naveteca
   izquierda de la imagen de la nave), su grupo de simetría
   (\`mirrorGroup\`: mismo valor = pensados para moverse/existir juntos)
   y qué torreta tiene asignada (\`turretId\`, puede ser \`null\`).
-- \`turrets.json\`: catálogo de modelos de torreta con el tamaño de su
-  imagen y el punto \`pivot\` (píxeles nativos de la imagen de la
-  torreta) sobre el que debe girar al apuntar.
-- \`turrets/\`: las imágenes .png de las torretas subidas desde esta
-  herramienta.
+- \`turrets.json\`: catálogo COMPLETO de torretas (las que ya había en el
+  repo, con cualquier ajuste de nombre/pivote que se haya hecho aquí, más
+  las nuevas subidas desde esta herramienta). Sustituye por completo al
+  \`turrets.json\` existente, no se fusiona a mano.
+- \`turrets/sprites/\`: solo las imágenes de las torretas NUEVAS subidas
+  desde esta herramienta (las que ya estaban en el repo no se duplican).
 
 ## Cómo aplicarlo
-1. Copia \`turret-slots.json\` y \`turrets.json\`, y el contenido de
-   \`turrets/\`, a la carpeta que el código del cliente/servidor vaya a
-   usar para leerlos (de momento no existe una carpeta fija en el repo
-   para esto — se sugiere \`client/public/turrets/\`).
-2. Commit + push a main como el resto de parches.
+1. Sustituye \`client/public/turrets/turrets.json\` por el de este zip.
+2. Copia cualquier archivo de \`turrets/sprites/\` a
+   \`client/public/turrets/sprites/\`.
+3. Aplica \`turret-slots.json\` donde el código de cliente/servidor vaya
+   a leerlo (aún no hay carpeta fija — se sugiere junto a \`ships.json\`).
+4. Commit + push a main como el resto de parches.
 
 Nota: si el sprite de una nave cambia de tamaño más adelante, sus slots
 guardados aquí (en píxeles del sprite anterior) dejarán de encajar y
@@ -1184,6 +1343,8 @@ habrá que revisarlos.
   a.href = url; a.download = "armamento-parche.zip"; a.click();
   URL.revokeObjectURL(url);
 };
+
+init();
 
 init();
 </script>

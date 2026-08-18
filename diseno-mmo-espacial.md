@@ -1885,18 +1885,33 @@ el navegador, `client/public/naveteca/`) incorpora dos pestañas nuevas:
 
 - **Slots de torretas**: sobre el sprite de cada nave se marcan los
   puntos donde van montadas las torretas, con simetría opcional en eje X
-  y/o eje Y para colocar pares a la vez.
-- **Eje de rotación (torretas)**: por cada modelo de torreta (imagen
-  subida aparte) se marca el punto exacto sobre el que debe girar al
-  apuntar, que no tiene por qué ser el centro de la imagen.
+  y/o eje Y para colocar pares a la vez, más ajuste fino por coordenadas
+  x/y además de arrastrar. Al elegir una nave se muestra una cifra
+  orientativa de torretas recomendadas según su clase (tabla
+  `RECOMMENDED_TURRETS` en el propio HTML) — punto de partida editable,
+  no sustituye la definición real de "ranuras por casco" que sigue
+  pendiente en 8.4.11.
+- **Eje de rotación (torretas)**: por cada modelo de torreta se marca el
+  punto exacto sobre el que debe girar al apuntar, que no tiene por qué
+  ser el centro de la imagen.
+
+Existe ya un catálogo de fábrica en `client/public/turrets/`
+(`turrets.json` + `sprites/`) con **32 torretas** recortadas de las
+hojas de referencia: 8 cinéticas (autocañón/railgun), 8 iónicas v1, 8
+iónicas v2 (variante de arte más fina — ambas conviven; se puede ocultar
+la que no se quiera usar) y 8 radiológicas (proyector de neutrones/cañón
+gamma), todas en tamaños S/M/L/C. Cada una lleva un pivote por defecto
+(estimado, cerca de la base) pensado para revisar a mano. Falta la
+familia térmica (plasma/láser) y falta EWAR/minado si se arman como
+"torretas" propias más adelante.
 
 El resultado se exporta como `turret-slots.json` (posición de cada slot
 por nave, en píxeles nativos del sprite, con su grupo de simetría y qué
-torreta tiene asignada) y `turrets.json` + las imágenes de torreta
-(pivote incluido). **Pendiente:** aún no existe una carpeta fija en el
-repo para estos archivos (se propone `client/public/turrets/`) ni el
-código de cliente/servidor que los lea para dibujar y girar las
-torretas en combate — de momento es solo la herramienta de autoría.
+torreta tiene asignada) y un `turrets.json` que sustituye por completo
+al de fábrica (con cualquier ajuste de pivote/nombre hecho en la
+herramienta ya fusionado). **Pendiente:** el código de cliente/servidor
+que lea estos archivos para dibujar y girar las torretas en combate —
+de momento todo esto es solo la herramienta y el material de autoría.
 
 ### 8.5 Bootstrap del jugador nuevo
 

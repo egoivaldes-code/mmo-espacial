@@ -1539,6 +1539,68 @@ acorazados, 3 carriers, **1 dreadnought y ningún supercarrier**. Las
 lanzaderas tampoco encajan como clase de combate. Habrá que ampliar el
 catálogo por arriba o recortar las clases capitales del diseño.
 
+#### 8.4.6.1 Estadísticas físicas reales por clase — implementado (v0.5.7)
+
+Hasta esta versión, giro y aceleración eran **una única constante global**
+para todo el juego (180°/s, 300u/s²) — literalmente los valores pensados
+para la lanzadera FHI Wren, aplicados también al crucero del jugador y al
+crucero NPC. HP/escudo/firma sí eran ya del crucero (Warden/Bastion), pero
+a mano, sin catálogo detrás. Resultado: un crucero con la vida de un
+crucero pero el manejo de una lanzadera.
+
+Corregido con un catálogo real en el servidor
+(`server/data/shipStats.js`, copia recortada — solo id/clase/HP/velocidad
+— del catálogo del cliente en `client/public/ships/ships.json`, para no
+depender de rutas cruzadas al desplegar en Render):
+
+- **Modelo de masa, no números sueltos.** Giro y aceleración no son un
+  valor fijo por clase: salen de dividir el **empuje/par del motor**
+  (fijo por clase — es el diseño del casco) entre la **masa** de esa nave
+  concreta (F = m·a). Motivo: cuando en el futuro haya carga en bodega,
+  blindaje extra o módulos de estabilización de inercia, todos esos
+  sistemas cambian "cuánto pesa la nave ahora mismo" — con masa como
+  número central, tocar UN valor cambia giro Y aceleración de forma
+  coherente, sin retocar dos stats a mano por cada efecto.
+- **Simplificación de este prototipo: masa = HP.** No es realista (el HP
+  mezcla blindaje, casco e interior, que no pesan igual), pero da una
+  nave más pesada dentro de su propia clase un pelín más torpe que una
+  más ligera de la misma clase — mismo tipo de variación que ya tenían
+  HP y velocidad entre naves de una clase. El día que haya masa "real"
+  separada del HP, se cambia solo de dónde sale `ship.mass`, sin tocar el
+  resto.
+- **Empuje y par son del casco** (fijos por clase, iguales para toda la
+  clase — representan los motores de fábrica de ese diseño), calibrados
+  para que en la masa media de la clase el giro/aceleración caigan cerca
+  de un objetivo de diseño (de 260°/s y 520u/s² en lanzadera a 9°/s y
+  30u/s² en dreadnought) — es lo que hace que un dreadnought SE SIENTA
+  pesado y no solo "tenga más HP".
+- **Por nave individual dentro de su clase**: escudo = 60% del HP (mismo
+  ratio que ya se usaba a mano para Warden y Bastion) y firma = una
+  constante × √HP, calibrada para que el crucero del jugador dé ≈120 de
+  firma — el valor fijo que ya llevaba todo el combate (jugador, NPC, y
+  `signatureRef` del arma en 8.4.3) — así el crucero apenas cambia y el
+  resto de clases queda escalado de forma consistente a partir de ese
+  punto real.
+
+**Sigue siendo solo una nave por rol** (jugador = crucero Warden
+`cruiser_01`, NPC hostil = crucero Bastion `cruiser_04`) — la selección
+de nave por el jugador (13, "Todavía fuera del prototipo") no está
+implementada todavía. Lo que cambia es que ahora esos dos roles leen sus
+números reales de un catálogo con las 41 naves ya cargadas, en vez de
+constantes sueltas — el día que haya selección de nave, cada jugador se
+resuelve por su `shipId` sin tocar la física del servidor.
+
+**Bug real encontrado al probar esto en caliente (no relacionado con el
+catálogo, pero descubierto gracias a él):** el esquema `Player` pone
+`structure = 100` por defecto en su constructor. El código que debía
+aplicar las stats del crucero comprobaba `if (!player.structure)` antes
+de asignarlas — pero 100 es un valor verdadero, así que esa comprobación
+nunca disparaba. Un piloto invitado, o un personaje recién creado sin
+partida guardada todavía, entraba con 100 HP fijos en vez de los 698 del
+crucero. Corregido distinguiendo explícitamente "se restauró de una
+partida guardada" de "es la primera vez" en vez de fiarse de si el campo
+ya tenía algo dentro.
+
 ### 8.4.7 Alcance contra degradación — restricción dura
 
 **Decisión: hay francotiradores de verdad. Por tanto el radio de
@@ -1849,6 +1911,70 @@ carga. El diseño (8.4) exige que morir cueste la nave entera, pero eso
 necesita inventario, seguro y equidad de pérdida — ninguno existe aún. Una
 penalización a medias sería peor que ninguna, así que se pospone entera en
 vez de improvisar una versión floja.
+
+### 8.4.10.3 Joystick analógico 360° y piloto crucero — implementado (v0.5.7)
+
+Hasta esta versión el control era de 8 direcciones (WASD y el joystick
+táctil cuantizaban a arriba/abajo/izquierda/derecha, sin diagonales
+intermedias reales) y el joystick táctil era todo-o-nada: cualquier
+desplazamiento por encima de la zona muerta empujaba a tope. Corregido con
+tres cambios relacionados, todos server-authoritative:
+
+- **360° reales.** El input ya no manda 4 booleans — manda un ángulo
+  (radianes) y una magnitud (0..1, cuánto se ha desplazado el joystick;
+  el teclado manda magnitud fija a tope). El servidor gira la nave hacia
+  ESE ángulo exacto, no hacia el más cercano de 8 posibles.
+- **Pivotar sin empuje.** Por debajo de `THRUST_THRESHOLD` (0.45) la nave
+  gira hacia el rumbo marcado pero NO acelera — deja apuntar con un toque
+  suave sin salir disparado. El giro en sí siempre va a velocidad angular
+  completa en cuanto se supera `PIVOT_THRESHOLD` (0.12, la zona muerta
+  real): un toque leve ya orienta la nave igual de rápido que uno a
+  fondo, solo cambia si además empuja.
+- **Empuje progresivo.** Por encima de `THRUST_THRESHOLD` el empuje entra
+  gradual (0% justo en el umbral, 100% con el joystick a tope), no de
+  golpe — mismos umbrales en servidor y cliente (predicción local).
+
+**Piloto crucero — dejar la nave viajando sin mantener el dedo pulsado.**
+Gesto: mover el joystick de verdad (por encima de `THRUST_THRESHOLD`),
+soltar, y volver a tocar SIN arrastrar (un tap limpio, no un nuevo
+arrastre) — eso activa `player.cruising` (replicado, para que el cliente
+pueda mostrarlo) y la nave sigue viajando sola a la velocidad y rumbo que
+llevaba en ese instante: sin fricción, sin input, hasta que:
+- se vuelve a tocar el joystick de verdad (magnitud > `PIVOT_THRESHOLD`)
+  — se cancela en el mismo tick, del lado del servidor, no hace falta que
+  el cliente avise;
+- se activa el warp (`player.cruising` se pone a `false` al completarse
+  la carga — no tiene sentido combinar ambos);
+- la nave muere (se limpia al morir y de nuevo al reaparecer, para no
+  dejar el flag pegado).
+
+Pensado explícitamente para trayectos largos sin depender de mantener el
+dedo en la pantalla — en escritorio, con teclado, queda pendiente decidir
+el gesto equivalente (una tecla dedicada es la candidata obvia, no
+implementado todavía).
+
+### 8.4.10.4 Fijar automáticamente a quien te ataca — implementado (v0.5.7)
+
+**Preferencia del jugador, activada por defecto.** Cuando un NPC te
+elige como objetivo — ya sea por contraataque (le disparaste y no tenía
+a nadie más) o por agresión de rango (te acercaste demasiado y no tenías
+nada fijado todavía) — el servidor te fija automáticamente de vuelta a
+ese NPC, ahorrándote el toque manual justo en el momento en que más
+ocupado estás esquivando.
+
+- **Se puede desactivar** desde el menú de opciones (casilla "Fijar
+  automáticamente a quien me ataque"), por defecto marcada. Es una
+  preferencia de CLIENTE — se guarda en su `localStorage`, no en
+  Supabase, y se manda al servidor al conectar y cada vez que cambia.
+- **Quien decide fijar de verdad sigue siendo el servidor** (15.5): el
+  auto-fijado pasa por el mismo `startLock` de un toque manual, así que
+  respeta exactamente las mismas reglas — límite de `MAX_TARGETS`
+  simultáneos, rango de fijado (`LOCK_RANGE`), y no duplica un objetivo
+  que ya estuviera fijado. El cliente nunca "finge" un fijado por su
+  cuenta, solo manda su preferencia.
+- **No salta el tiempo de fijado** (`LOCK_TIME`, 4s) — automatiza el
+  TOQUE, no el proceso de fijar en sí. Sigue viéndose la retícula
+  llenándose igual que con un fijado manual.
 
 ### 8.4.11 Pendiente en combate
 
@@ -2364,6 +2490,33 @@ que se vaya llenando. Si un objeto admite varias cosas (atracar en una estación
 además repararse), la acción contextual es solo la principal —
 "atracar" — y el resto vive dentro del panel de la estación, no en el
 HUD de vuelo.
+
+#### 15.4.2 Referencia fuera de pantalla / demasiado lejos para leerse — implementado (v0.5.7)
+
+Dos problemas de lectura distintos, mismo remedio: un punto de tamaño
+**fijo en pantalla** (no se encoge con el zoom — se contrarresta con
+`setScale(1/zoom)` en el cliente, ya que un objeto colocado en el mundo
+se escala igual que todo lo demás si no se hace nada).
+
+- **Zoom muy alejado**: por debajo de `OFFSCREEN_SHIP_ZOOM_THRESHOLD`
+  (0,15) el sprite de una nave (NPC u otro jugador) se reduce a un par de
+  píxeles y se pierde visualmente. Se sustituye por el punto, en su
+  posición real, sin esperar a que además esté fuera de cámara.
+- **Objetivo fijado fuera de la parte de mundo visible**: pasa a
+  CUALQUIER zoom, no hace falta estar alejado — el punto se coloca en el
+  borde de la vista de cámara (con un margen constante en píxeles), en la
+  dirección real hacia el objetivo, para no tener que alejar la cámara
+  solo para encontrarlo.
+
+**Los objetivos fijados llevan el tratamiento siempre** (offscreen o
+demasiado pequeños); el resto de naves solo cuando el zoom está muy
+alejado — así no se llena la pantalla de puntos con el zoom normal de
+combate. Color: blanco para naves genéricas, naranja (mismo tono que la
+retícula de bloqueo) para objetivos fijados, para que se lean como "lo
+mismo" de un vistazo. Radios pequeños a propósito (4-6px en pantalla) —
+son referencia, no deben competir visualmente con los sprites reales. La
+propia nave del jugador nunca necesita marcador: la cámara la sigue
+siempre, así que nunca está fuera de vista.
 
 ### 15.5 Quién decide la acción — el servidor
 

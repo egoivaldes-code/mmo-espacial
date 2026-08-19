@@ -354,6 +354,12 @@
     }
     .lang-option.current { color: #66ccff; }
     .lang-option:active { background: #141a24; }
+    .options-check-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 16px;
+      padding-top: 14px; border-top: 1px solid #223; font-size: 12px;
+      color: #cfe8ff; cursor: pointer;
+    }
+    .options-check-row input { width: 16px; height: 16px; accent-color: #66ccff; flex-shrink: 0; }
     #options-close-dismiss {
       position: absolute; top: 10px; right: 12px; background: none; border: none;
       color: #889; font-size: 16px; cursor: pointer;
@@ -459,6 +465,10 @@
       <div class="panel-version" id="options-version"></div>
       <div class="panel-section-label" id="options-lang-label">Idioma</div>
       <div id="lang-options"></div>
+      <label id="autotarget-back-row" class="options-check-row">
+        <input id="autotarget-back-check" type="checkbox" checked />
+        <span id="autotarget-back-label"></span>
+      </label>
       <button id="close-game-btn">Cerrar juego</button>
     </div>
   </div>

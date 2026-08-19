@@ -5,6 +5,7 @@ const combat = require("../combat");
 const { Npc } = require("../schema/Npc");
 const { Player } = require("../schema/Player");
 const { Asteroid } = require("../schema/Asteroid");
+const { getShipStats } = require("../data/shipStats");
 
 // Ajustes simples del prototipo. Nada de esto es definitivo, es fase 0.
 const WORLD_SIZE = 30000; // el "chunk" es grande en espacio, poco denso — tamaño de diseño (5.5)
@@ -16,21 +17,31 @@ const RECONNECT_GRACE_S = 90; // ventana para volver tras un corte de socket
 // Física de vuelo — modelo tipo Asteroids/Newtoniano, no "velocidad
 // instantánea en la dirección del input". El input marca hacia dónde
 // QUIERE girar la nave (rumbo deseado); el morro gira hacia ahí a una
-// velocidad angular limitada (TURN_RATE); el empuje (ACCELERATION) se
-// aplica en la dirección hacia la que la nave está físicamente orientada
-// en ESE instante, no hacia el rumbo deseado. Girar rápido a alta
-// velocidad no es instantáneo — de ahí la deriva/elipses en vez de
-// círculos perfectos al intentar orbitar algo.
+// velocidad angular limitada por nave (ver PLAYER_SHIP_STATS.turnRate);
+// el empuje se aplica en la dirección hacia la que la nave está
+// físicamente orientada en ESE instante, no hacia el rumbo deseado.
+// Girar rápido a alta velocidad no es instantáneo — de ahí la
+// deriva/elipses en vez de círculos perfectos al intentar orbitar algo.
 //
-// Estos valores son los de la única nave que hay en el juego ahora mismo
-// (FHI Wren, lanzadera — nave nimble por diseño). Cuando exista selección
-// real de nave, cada clase debería tener los suyos (más grande/pesada =
-// TURN_RATE y ACCELERATION más bajos) — ver ships.json en
-// client/public/ships/ como fuente de esos stats por clase a futuro.
-const TURN_RATE = Math.PI; // rad/s — 180°/seg
-const ACCELERATION = 300; // unidades/s²
-const MAX_SPEED = 240; // unidades/s
+// Ahora mismo solo hay una nave por rol (crucero para jugador, crucero
+// para NPC — ver DEFAULT_PLAYER_SHIP_ID / DEFAULT_NPC_SHIP_ID más abajo),
+// pero sus valores de giro/empuje/velocidad/escudo/firma ya salen del
+// catálogo real por clase (server/data/shipStats.js) en vez de estar
+// escritos a mano. Cuando exista selección de nave, cada jugador tendrá
+// los suyos según su shipId sin tocar este archivo.
 const DRAG = 0.6; // fracción de velocidad perdida por segundo (fricción suave)
+
+// Joystick analógico (8.4.10.3 del diseño): por debajo de PIVOT_THRESHOLD
+// no hay dirección — es la zona muerta del centro. Entre PIVOT_THRESHOLD y
+// THRUST_THRESHOLD la nave SOLO gira hacia esa dirección, sin empuje —
+// deja pivotar/apuntar con un toque suave sin salir disparado. Por
+// encima de THRUST_THRESHOLD el empuje entra progresivamente, de 0 en el
+// umbral a 100% con el joystick a tope — no es un interruptor de golpe.
+const PIVOT_THRESHOLD = 0.12;
+const THRUST_THRESHOLD = 0.45;
+
+const DEFAULT_PLAYER_SHIP_ID = "cruiser_01"; // FHI Warden
+const DEFAULT_NPC_SHIP_ID = "cruiser_04"; // FHI Bastion
 
 // Sistema de warp — pensado como "impulso" en la dirección actual de
 // vuelo, no como salto a un punto elegido (eso se dejó para más
@@ -99,29 +110,31 @@ const LOCK_TIME = 4.0;        // segundos para fijar un objetivo
 const LOCK_RANGE = 2000;      // no se puede fijar más lejos
 const MAX_TARGETS = 3;        // objetivos simultáneos por nave
 
-const CRUISER_SHIELD = 420;
 const CRUISER_SHIELD_REGEN = 5;    // por segundo; la estructura NO se regenera
 // Simulado con este balance (crucero vs crucero, ambos disparando 3s/ciclo):
 //   quieto todo el combate     -> gana en ~24s, llega con 127/698 estructura
 //   orbitando a 550u (rango)   -> gana en ~42s, llega con 133/698
 //   orbitando pegado a 300u    -> gana en ~63s, llega con 231/698 (el más seguro)
 // Orbitar sigue siendo la opción defensiva real, pero deja de ser inmunidad.
-const CRUISER_STRUCTURE = 698;     // FHI Warden, del catálogo
-const CRUISER_SIGNATURE = 120;
+// (HP/escudo/firma reales del Warden — ver PLAYER_SHIP_STATS más abajo)
 
 const CAPACITOR_MAX = 1000;
 const CAPACITOR_REGEN = 22;   // por segundo
 
 // El enemigo: FHI Bastion, algo más blando que el jugador para que la primera
-// pelea se pueda ganar mientras se aprende a colocarse.
-const NPC_SHIELD = 380;
-const NPC_STRUCTURE = 632;
-const NPC_SIGNATURE = 120;
+// pelea se pueda ganar mientras se aprende a colocarse. Sus stats reales
+// (HP/escudo/firma/velocidad) salen del catálogo — ver NPC_SHIP_STATS.
 const NPC_COUNT = 2;
 const NPC_RESPAWN_S = 30;
 const NPC_AGGRO_RANGE = 1400;   // a partir de aquí te ataca
 const NPC_ORBIT_RANGE = 550;    // distancia a la que intenta mantenerse
-const NPC_SPEED = 248;          // FHI Bastion
+
+// Resueltos una vez al arrancar la sala — ambos son homogéneos hoy (una
+// sola nave por rol), así que no hace falta recalcular por jugador/NPC.
+// El día que haya selección de nave, el jugador pasa a resolverse por
+// persona en onJoin (ver más abajo) igual que ya se prepara aquí.
+const PLAYER_SHIP_STATS = getShipStats(DEFAULT_PLAYER_SHIP_ID);
+const NPC_SHIP_STATS = getShipStats(DEFAULT_NPC_SHIP_ID);
 
 // La IA piensa 4 veces por segundo, no 20. Reevaluar la maniobra cada 250 ms
 // basta de sobra para orbitar y disparar, y cuesta la quinta parte. Con
@@ -177,11 +190,47 @@ class ChunkRoom extends Room {
     this.setState(new ChunkState());
     this.setPatchRate(1000 / TICK_RATE);
 
-    // Input del cliente: { up, down, left, right, mining }
+    // Input del cliente: { angle, magnitude, mining }. `angle` en radianes
+    // (o null si no se toca el mando) y `magnitude` 0..1 (cuánto se ha
+    // desplazado el joystick, o 1 fijo para teclado). Nunca nos fiamos de
+    // lo que manda el cliente sin acotar — un magnitude fuera de rango o
+    // un angle no numérico rompería la física del tick.
     this.onMessage("input", (client, input) => {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
-      player.input = input; // se guarda para procesarlo en el loop de simulación
+      const angle =
+        typeof input?.angle === "number" && Number.isFinite(input.angle) ? input.angle : null;
+      const magnitude =
+        typeof input?.magnitude === "number" && Number.isFinite(input.magnitude)
+          ? clamp(input.magnitude, 0, 1)
+          : 0;
+      player.input = { angle, magnitude, mining: Boolean(input?.mining) };
+
+      // Tocar el mando para dirigir la nave cancela el crucero — es la
+      // forma de "soltar el piloto automático" (8.4.10.3). El umbral es
+      // el mismo PIVOT_THRESHOLD que decide si hay dirección de verdad,
+      // así que un roce accidental no lo desactiva por error.
+      if (player.cruising && angle !== null && magnitude > PIVOT_THRESHOLD) {
+        player.cruising = false;
+      }
+    });
+
+    // Activa/desactiva el "piloto crucero": la nave sigue viajando sola a
+    // la velocidad y rumbo que llevaba en ese momento, sin fricción ni
+    // input, hasta que se vuelve a tocar el mando (ver arriba) o se entra
+    // en warp. Pensado para dejar la nave viajando largo trecho sin tener
+    // que mantener el dedo en la pantalla — ver 8.4.10.3.
+    this.onMessage("cruiseToggle", (client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player || !player.alive) return;
+      if (player.warping || player.warpCharging) return; // no tiene sentido en warp
+      if (player.cruising) {
+        player.cruising = false;
+        return;
+      }
+      const speed = Math.hypot(player.vx || 0, player.vy || 0);
+      if (speed < 5) return; // parado no hay nada que "dejar viajando"
+      player.cruising = true;
     });
 
     // Ping/pong para que el cliente pueda medir su latencia.
@@ -197,6 +246,18 @@ class ChunkRoom extends Room {
       if (!player || typeof name !== "string") return;
       const trimmed = name.trim().slice(0, 16);
       if (trimmed) player.name = trimmed;
+    });
+
+    // Preferencia del jugador (por defecto activada): si un NPC te
+    // marca como objetivo, tú lo fijas automáticamente de vuelta — ver
+    // el disparo real en updateNpcs(). Es ajuste de cliente (se guarda
+    // en su localStorage, no en Supabase), pero quien decide FIJAR de
+    // verdad sigue siendo el servidor (15.5) — el cliente solo manda su
+    // preferencia, nunca el fijado en sí.
+    this.onMessage("setAutoTargetBack", (client, value) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+      player.autoTargetBack = Boolean(value);
     });
 
     // Un único mensaje conmuta los tres estados del warp: si está
@@ -353,6 +414,20 @@ class ChunkRoom extends Room {
     this.sendCombatState(client);
   }
 
+  // Si un NPC ACABA de elegir a este jugador como objetivo (ver
+  // updateNpcs: contraataque y agresión por rango), y el jugador tiene
+  // activada la preferencia (por defecto sí), se le fija automáticamente
+  // de vuelta — le ahorra el toque manual justo cuando más ocupado está
+  // esquivando. Pasa por el mismo startLock de siempre: respeta el
+  // límite de objetivos simultáneos y el rango de fijado, nada especial.
+  intentarAutoTargetBack(sessionId, npcId) {
+    const player = this.state.players.get(sessionId);
+    if (!player || !player.alive || player.autoTargetBack === false) return;
+    const client = this.clients.find((c) => c.sessionId === sessionId);
+    if (!client) return;
+    this.startLock(client, player, "npc", npcId);
+  }
+
   // Avance del fijado y disparo, por jugador. Se llama desde update().
   updateCombat(deltaMs) {
     const dt = deltaMs / 1000;
@@ -372,7 +447,7 @@ class ChunkRoom extends Room {
       // Escudo: se regenera solo. La estructura no, y esa asimetría es lo
       // que hace que perder el escudo importe de verdad.
       if (player.alive) {
-        combat.regenerarEscudo(player, CRUISER_SHIELD, CRUISER_SHIELD_REGEN, dt);
+        combat.regenerarEscudo(player, PLAYER_SHIP_STATS.shield, CRUISER_SHIELD_REGEN, dt);
       }
 
       // Avance de los fijados. Se cae el objetivo que desaparece o se aleja.
@@ -457,7 +532,10 @@ class ChunkRoom extends Room {
       if (destruida) this.destruirNpc(cs.activeTarget.id);
       // El NPC devuelve el golpe a quien le pega.
       const brain = this.npcBrains.get(cs.activeTarget.id);
-      if (brain && !brain.targetSessionId) brain.targetSessionId = client.sessionId;
+      if (brain && !brain.targetSessionId) {
+        brain.targetSessionId = client.sessionId;
+        this.intentarAutoTargetBack(client.sessionId, cs.activeTarget.id);
+      }
     } else if (cs.activeTarget.kind === "player") {
       const otro = this.state.players.get(cs.activeTarget.id);
       if (otro) {
@@ -510,11 +588,11 @@ class ChunkRoom extends Room {
     const dist = 1500 + Math.random() * 1500;
     npc.x = Math.cos(ang) * dist;
     npc.y = Math.sin(ang) * dist;
-    npc.shipId = "cruiser_04";
+    npc.shipId = DEFAULT_NPC_SHIP_ID;
     npc.name = "Hostil";
-    npc.shield = NPC_SHIELD;
-    npc.structure = NPC_STRUCTURE;
-    npc.signature = NPC_SIGNATURE;
+    npc.shield = NPC_SHIP_STATS.shield;
+    npc.structure = NPC_SHIP_STATS.hp;
+    npc.signature = NPC_SHIP_STATS.signature;
     this.state.npcs.set(id, npc);
     this.npcBrains.set(id, {
       targetSessionId: null,
@@ -555,7 +633,7 @@ class ChunkRoom extends Room {
       npc.x += brain.vx * dt;
       npc.y += brain.vy * dt;
       if (brain.vx || brain.vy) npc.rotation = Math.atan2(brain.vy, brain.vx) + Math.PI / 2;
-      combat.regenerarEscudo(npc, NPC_SHIELD, CRUISER_SHIELD_REGEN * 0.5, dt);
+      combat.regenerarEscudo(npc, NPC_SHIP_STATS.shield, CRUISER_SHIELD_REGEN * 0.5, dt);
     });
 
     // Decisión: solo 4 veces por segundo.
@@ -584,6 +662,7 @@ class ChunkRoom extends Room {
         });
         brain.targetSessionId = mejor;
         objetivo = mejor ? this.state.players.get(mejor) : null;
+        if (mejor) this.intentarAutoTargetBack(mejor, id);
       }
 
       if (!objetivo) {
@@ -614,8 +693,8 @@ class ChunkRoom extends Room {
       const tangX = -uy * brain.orbitDir;
       const tangY = ux * brain.orbitDir;
 
-      const deseadaX = (ux * acercarse + tangX * 0.9) * NPC_SPEED;
-      const deseadaY = (uy * acercarse + tangY * 0.9) * NPC_SPEED;
+      const deseadaX = (ux * acercarse + tangX * 0.9) * NPC_SHIP_STATS.maxSpeed;
+      const deseadaY = (uy * acercarse + tangY * 0.9) * NPC_SHIP_STATS.maxSpeed;
 
       // Suavizado: la nave no cambia de rumbo instantáneamente.
       brain.vx += (deseadaX - brain.vx) * Math.min(1, pensarDt * 2);
@@ -665,6 +744,7 @@ class ChunkRoom extends Room {
     player.alive = false;
     player.shield = 0;
     player.structure = 0;
+    player.cruising = false;
 
     const client = this.clients.find((c) => c.sessionId === sessionId);
     if (client) client.send("destroyed", {});
@@ -676,9 +756,10 @@ class ChunkRoom extends Room {
       p.y = (Math.random() - 0.5) * 400;
       p.vx = 0;
       p.vy = 0;
-      p.shield = CRUISER_SHIELD;
-      p.structure = CRUISER_STRUCTURE;
+      p.shield = PLAYER_SHIP_STATS.shield;
+      p.structure = PLAYER_SHIP_STATS.hp;
       p.alive = true;
+      p.cruising = false;
       const cs = this.combatState.get(sessionId);
       if (cs) {
         cs.targets = [];
@@ -740,6 +821,7 @@ class ChunkRoom extends Room {
 
     const player = new Player();
     player.input = null;
+    let restauradoDeGuardado = false;
 
     if (auth?.guest || !auth?.character) {
       // Modo sin persistencia: piloto de usar y tirar.
@@ -762,6 +844,7 @@ class ChunkRoom extends Room {
         player.structure = character.state.hp;
         player.shield = character.state.shield ?? 0;
         player.cargo = character.state.cargo;
+        restauradoDeGuardado = true;
       } else {
         // Primera vez que vuela este personaje.
         player.x = (Math.random() - 0.5) * 400;
@@ -771,12 +854,26 @@ class ChunkRoom extends Room {
       persistence.touchLastPlayed(character.id);
     }
 
-    // Valores de crucero. Cuando existan varias naves esto se leerá del
-    // catálogo por shipId en vez de estar fijo.
-    player.signature = CRUISER_SIGNATURE;
-    if (!player.structure) player.structure = CRUISER_STRUCTURE;
-    if (!player.shield) player.shield = CRUISER_SHIELD;
+    // Stats reales del crucero (Warden) desde el catálogo por clase —
+    // ver server/data/shipStats.js. Cuando exista selección de nave, el
+    // shipId dejará de estar fijo y esto se resolverá por jugador.
+    //
+    // BUG REAL corregido aquí (presente desde antes de este catálogo):
+    // el esquema Player pone structure=100 por defecto en su constructor,
+    // así que el guard "if (!player.structure)" NUNCA disparaba — 100 es
+    // un valor verdadero. Un piloto invitado o un personaje recién creado
+    // (sin estado guardado todavía) se quedaba con 100 HP fijos, no con
+    // los del crucero. Solo se respeta lo guardado si de verdad se
+    // restauró una partida anterior; en cualquier otro caso, catálogo.
+    player.signature = PLAYER_SHIP_STATS.signature;
+    if (!restauradoDeGuardado) {
+      player.structure = PLAYER_SHIP_STATS.hp;
+      player.shield = PLAYER_SHIP_STATS.shield;
+    }
     player.alive = true;
+    // Por defecto activado — el cliente lo corrige justo tras unirse si el
+    // jugador lo tenía desactivado en una sesión anterior (ver setName).
+    player.autoTargetBack = true;
 
     this.combatState.set(client.sessionId, this.nuevoCombatState());
     this.state.players.set(client.sessionId, player);
@@ -786,7 +883,7 @@ class ChunkRoom extends Room {
   async savePlayer(player) {
     if (!player?.characterId) return;
     await persistence.saveCharacterState(player.characterId, {
-      shipId: "shuttle_01",
+      shipId: DEFAULT_PLAYER_SHIP_ID,
       x: player.x,
       y: player.y,
       vx: player.vx || 0,
@@ -887,12 +984,13 @@ class ChunkRoom extends Room {
             // no hacia donde mires — necesitas ya estar en movimiento.
             const dirX = player.vx / currentSpeed;
             const dirY = player.vy / currentSpeed;
-            const warpSpeed = MAX_SPEED * WARP_SPEED_MULTIPLIER;
+            const warpSpeed = PLAYER_SHIP_STATS.maxSpeed * WARP_SPEED_MULTIPLIER;
             player.vx = dirX * warpSpeed;
             player.vy = dirY * warpSpeed;
             player.rotation = Math.atan2(dirY, dirX);
             player.warping = true;
             player.invulnerable = true;
+            player.cruising = false; // el warp manda, no tiene sentido combinarlo con crucero
           }
           // Si la velocidad era ~0, la carga termina sin efecto (no hay
           // dirección de vuelo en la que impulsarse) — se pierde el
@@ -902,34 +1000,37 @@ class ChunkRoom extends Room {
 
       // --- Movimiento: en warp no hay control manual (ni giro ni
       // empuje ni fricción) — viaja en línea recta a velocidad fija
-      // hasta que se cancela o topa con el borde del mundo. Fuera de
-      // warp, la física normal de giro+empuje+fricción de siempre. ---
+      // hasta que se cancela o topa con el borde del mundo. En crucero
+      // (8.4.10.3) tampoco hay fricción NI input: la velocidad se
+      // congela tal cual estaba al activarlo, así viaja sola. Fuera de
+      // warp/crucero, física normal de giro+empuje+fricción de siempre,
+      // ahora en 360° reales (el input trae un ángulo, no 4 booleans). ---
       const input = player.input;
 
-      if (!player.warping) {
-        let dx = 0;
-        let dy = 0;
-        if (input) {
-          if (input.up) dy -= 1;
-          if (input.down) dy += 1;
-          if (input.left) dx -= 1;
-          if (input.right) dx += 1;
-        }
-        const hasInput = dx !== 0 || dy !== 0;
+      if (!player.warping && !player.cruising) {
+        const hasDirection = input && input.angle !== null && input.magnitude > PIVOT_THRESHOLD;
 
-        if (hasInput) {
-          const desiredAngle = Math.atan2(dy, dx);
-          const diff = angleDiff(player.rotation, desiredAngle);
-          const maxStep = TURN_RATE * dt;
+        if (hasDirection) {
+          // Gira siempre a velocidad angular completa hacia el rumbo
+          // deseado — un toque suave del joystick apunta la nave igual
+          // de rápido que uno a fondo, solo cambia si además empuja.
+          const diff = angleDiff(player.rotation, input.angle);
+          const maxStep = PLAYER_SHIP_STATS.turnRate * dt;
           player.rotation += Math.abs(diff) <= maxStep ? diff : Math.sign(diff) * maxStep;
 
-          player.vx += Math.cos(player.rotation) * ACCELERATION * dt;
-          player.vy += Math.sin(player.rotation) * ACCELERATION * dt;
+          if (input.magnitude > THRUST_THRESHOLD) {
+            // Empuje progresivo: 0 justo en el umbral, 100% con el
+            // joystick a tope — no es todo o nada.
+            const thrustFactor = (input.magnitude - THRUST_THRESHOLD) / (1 - THRUST_THRESHOLD);
+            const accel = PLAYER_SHIP_STATS.acceleration * thrustFactor;
+            player.vx += Math.cos(player.rotation) * accel * dt;
+            player.vy += Math.sin(player.rotation) * accel * dt;
 
-          const speed = Math.hypot(player.vx, player.vy);
-          if (speed > MAX_SPEED) {
-            player.vx = (player.vx / speed) * MAX_SPEED;
-            player.vy = (player.vy / speed) * MAX_SPEED;
+            const speed = Math.hypot(player.vx, player.vy);
+            if (speed > PLAYER_SHIP_STATS.maxSpeed) {
+              player.vx = (player.vx / speed) * PLAYER_SHIP_STATS.maxSpeed;
+              player.vy = (player.vy / speed) * PLAYER_SHIP_STATS.maxSpeed;
+            }
           }
         }
 

@@ -18,7 +18,7 @@ import {
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.5.6";
+const GAME_VERSION = "v0.5.7";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -26,17 +26,34 @@ const GAME_VERSION = "v0.5.6";
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:2567";
 
 // Debe coincidir con las constantes homónimas del servidor
-// (server/rooms/ChunkRoom.js). Candidatas a mover a un archivo de config
-// compartido más adelante.
-// Física de vuelo — DEBE coincidir exactamente con las constantes
-// homónimas de server/rooms/ChunkRoom.js (es la misma simulación
-// replicada en cliente para la predicción local). Ver el comentario
-// largo allí para la explicación completa del modelo.
-const TURN_RATE = Math.PI; // rad/s
-const ACCELERATION = 300; // unidades/s²
-const MAX_SPEED = 240; // unidades/s
+// (server/rooms/ChunkRoom.js + server/data/shipStats.js). Candidatas a
+// mover a un archivo de config compartido más adelante.
+//
+// Física de vuelo — modelo de MASA, no números sueltos (ver 8.4.6.1 del
+// diseño): giro y aceleración salen de dividir el empuje/par del motor
+// (fijo por clase) entre la masa de la nave. Aquí solo hace falta el
+// resultado ya calculado para el crucero del jugador (Warden,
+// cruiser_01) porque es la única nave que existe hoy — si cambia algo en
+// server/data/shipStats.js hay que replicarlo aquí, o la predicción
+// local empieza a desincronizarse del servidor (rubber-banding visible).
+const CRUISER_MASS = 698; // = HP del Warden (cruiser_01)
+const CRUISER_CLASS_REFERENCE_MASS = 650; // HP medio de la clase crucero
+const CRUISER_CLASS_ACCEL_AT_REF = 250; // u/s² objetivo en la masa de referencia
+const CRUISER_CLASS_TURN_DEG_AT_REF = 85; // °/s objetivo en la masa de referencia
+const CRUISER_THRUST = CRUISER_CLASS_REFERENCE_MASS * CRUISER_CLASS_ACCEL_AT_REF;
+const CRUISER_TORQUE = CRUISER_CLASS_REFERENCE_MASS * (CRUISER_CLASS_TURN_DEG_AT_REF * Math.PI / 180);
+
+const TURN_RATE = CRUISER_TORQUE / CRUISER_MASS; // rad/s
+const ACCELERATION = CRUISER_THRUST / CRUISER_MASS; // unidades/s²
+const MAX_SPEED = 242; // unidades/s — velocidad del Warden, ver ships.json
 const DRAG = 0.6;
 const WARP_SPEED_MULTIPLIER = 5; // debe coincidir con el servidor
+
+// Joystick analógico (8.4.10.3): mismos umbrales que el servidor — por
+// debajo de PIVOT_THRESHOLD no hay dirección, entre PIVOT y THRUST solo
+// gira sin empuje, por encima el empuje entra progresivo hasta el tope.
+const PIVOT_THRESHOLD = 0.12;
+const THRUST_THRESHOLD = 0.45;
 
 const WORLD_SIZE = 30000;
 
@@ -145,6 +162,15 @@ function getLocalShipOverride(shipId) {
 const MIN_ZOOM = 0.025; // con WORLD_SIZE=30.000, hace falta esto de bajo para ver el sistema entero
 const MAX_ZOOM = 2.5;
 const DEFAULT_ZOOM = 1;
+
+// Referencia fuera de pantalla / demasiado lejos para leerse como sprite.
+// Radios en PÍXELES DE PANTALLA (constantes, no se encogen con el zoom —
+// ver updateOffscreenMarkers). Cuidado con pasarse de escala: son puntos
+// de referencia, no deben competir visualmente con los sprites reales.
+const OFFSCREEN_MARKER_MARGIN_PX = 36; // separación del borde real de la vista
+const OFFSCREEN_SHIP_ZOOM_THRESHOLD = 0.15; // por debajo de esto, un sprite ya no se lee
+const OFFSCREEN_DOT_RADIUS_PX = 4;
+const OFFSCREEN_TARGET_RADIUS_PX = 6;
 
 const ui = document.getElementById("ui");
 
@@ -452,6 +478,32 @@ const optionsLangLabelEl = document.getElementById("options-lang-label");
 const langOptionsEl = document.getElementById("lang-options");
 const closeGameBtn = document.getElementById("close-game-btn");
 const gameClosedOverlay = document.getElementById("game-closed-overlay");
+const autotargetBackCheck = document.getElementById("autotarget-back-check");
+const autotargetBackLabel = document.getElementById("autotarget-back-label");
+
+// --- Fijar automáticamente a quien me ataque -------------------------------
+// Preferencia del jugador, por defecto activada. Se guarda en localStorage
+// (no en Supabase — es un ajuste de cliente, no progreso de personaje) para
+// que sobreviva a recargar la página, y se manda al servidor porque es
+// SERVIDOR quien decide fijar el objetivo (mismo principio que 15.5: el
+// cliente no puede simplemente "fingir" un fijado sin pasar por lock real).
+const AUTOTARGET_BACK_KEY = "spacemmo_autotarget_back";
+
+function getAutoTargetBackPref() {
+  const stored = localStorage.getItem(AUTOTARGET_BACK_KEY);
+  return stored === null ? true : stored === "1"; // por defecto activado
+}
+
+function setAutoTargetBackPref(value) {
+  localStorage.setItem(AUTOTARGET_BACK_KEY, value ? "1" : "0");
+}
+
+autotargetBackCheck.checked = getAutoTargetBackPref();
+
+autotargetBackCheck.addEventListener("change", () => {
+  setAutoTargetBackPref(autotargetBackCheck.checked);
+  getActiveScene()?.room?.send("setAutoTargetBack", autotargetBackCheck.checked);
+});
 
 // La escena activa de Phaser expone `room` y `touchInput` — los botones
 // HTML necesitan llegar hasta ahí para mandar mensajes / marcar minado
@@ -851,6 +903,7 @@ function applyStaticTranslations() {
   optionsTitleEl.textContent = t("menu.title");
   optionsVersionEl.textContent = GAME_VERSION;
   optionsLangLabelEl.textContent = t("menu.language");
+  autotargetBackLabel.textContent = t("menu.autoTargetBack");
   closeGameBtn.textContent = t("menu.closeGame");
   renderLangOptions();
 }
@@ -879,7 +932,7 @@ class ChunkScene extends Phaser.Scene {
     super("chunk");
     this.playerEntities = new Map(); // sessionId -> { container, sprite, label, isMe, buffer }
     this.asteroidSprites = new Map(); // id -> Phaser.GameObjects
-    this.touchInput = { up: false, down: false, left: false, right: false, mining: false };
+    this.touchInput = { angle: null, magnitude: 0, mining: false };
     this.localEntry = null;
     this.localPlayerState = null;
     this.manualLeave = false;
@@ -1068,6 +1121,7 @@ class ChunkScene extends Phaser.Scene {
     }
 
     this.room.send("setName", CHOSEN_NAME);
+    this.room.send("setAutoTargetBack", getAutoTargetBackPref());
     ui.textContent = t("hud.connectedSession", { id: this.room.sessionId });
 
     this.bindRoomEvents();
@@ -1328,6 +1382,8 @@ class ChunkScene extends Phaser.Scene {
     this.npcEntities?.clear();
     this.targetReticles?.forEach((r) => r.destroy());
     this.targetReticles?.clear();
+    this.offscreenMarkers?.forEach((d) => d.destroy());
+    this.offscreenMarkers?.clear();
     combatState = null;
     targetInfo.kind = null;
     targetInfo.id = null;
@@ -1424,11 +1480,33 @@ class ChunkScene extends Phaser.Scene {
   }
 
   currentInput() {
+    // Teclado: 8 direcciones con magnitud fija a tope (no es analógico,
+    // así que empuja siempre al máximo si hay alguna tecla). El táctil
+    // manda si está activo, porque ese sí es analógico de verdad — ver
+    // setupTouchMovementAndZoom.
+    let kbDx = 0;
+    let kbDy = 0;
+    if (this.keys.W.isDown) kbDy -= 1;
+    if (this.keys.S.isDown) kbDy += 1;
+    if (this.keys.A.isDown) kbDx -= 1;
+    if (this.keys.D.isDown) kbDx += 1;
+    const kbActive = kbDx !== 0 || kbDy !== 0;
+
+    const touchActive = this.touchInput.angle !== null && this.touchInput.magnitude > 0;
+
+    let angle = null;
+    let magnitude = 0;
+    if (touchActive) {
+      angle = this.touchInput.angle;
+      magnitude = this.touchInput.magnitude;
+    } else if (kbActive) {
+      angle = Math.atan2(kbDy, kbDx);
+      magnitude = 1;
+    }
+
     return {
-      up: this.keys.W.isDown || this.touchInput.up,
-      down: this.keys.S.isDown || this.touchInput.down,
-      left: this.keys.A.isDown || this.touchInput.left,
-      right: this.keys.D.isDown || this.touchInput.right,
+      angle,
+      magnitude,
       mining: this.keys.SPACE.isDown || this.touchInput.mining,
     };
   }
@@ -1440,6 +1518,7 @@ class ChunkScene extends Phaser.Scene {
     this.interpolateNpcs();
     this.updateActionReticle(delta);
     this.updateTargetReticles();
+    this.updateOffscreenMarkers();
   }
 
   // Coloca el emisor de la estela detrás de la nave (en el sentido
@@ -1558,15 +1637,14 @@ class ChunkScene extends Phaser.Scene {
     }
 
     const input = this.currentInput();
-    let dx = 0;
-    let dy = 0;
-    if (input.up) dy -= 1;
-    if (input.down) dy += 1;
-    if (input.left) dx -= 1;
-    if (input.right) dx += 1;
-    const hasInput = dx !== 0 || dy !== 0;
+    const isCruising = !!this.localPlayerState?.cruising;
+    const hasDirection = !isCruising && input.angle !== null && input.magnitude > PIVOT_THRESHOLD;
 
-    this.updateEngineSound(hasInput);
+    // El sonido de motor y la estela reflejan EMPUJE real, no solo
+    // "hay dirección" — con el joystick a media asta (solo pivotando) el
+    // motor no debería sonar como si estuviera acelerando.
+    const isThrusting = hasDirection && input.magnitude > THRUST_THRESHOLD;
+    this.updateEngineSound(isThrusting);
 
     if (this.localEntry.vx === undefined) {
       this.localEntry.vx = 0;
@@ -1576,32 +1654,39 @@ class ChunkScene extends Phaser.Scene {
       this.localEntry.facing = 0;
     }
 
-    if (hasInput) {
-      // Gira el morro hacia el rumbo deseado, limitado por TURN_RATE —
-      // igual que en el servidor, no salta directo a esa dirección.
-      const desiredAngle = Math.atan2(dy, dx);
-      const diff = angleDiff(this.localEntry.facing, desiredAngle);
-      const maxStep = TURN_RATE * dt;
-      this.localEntry.facing += Math.abs(diff) <= maxStep ? diff : Math.sign(diff) * maxStep;
+    if (!isCruising) {
+      if (hasDirection) {
+        // Gira siempre a velocidad angular completa hacia el rumbo
+        // deseado — igual que el servidor, un toque suave ya apunta la
+        // nave aunque no empuje todavía.
+        const diff = angleDiff(this.localEntry.facing, input.angle);
+        const maxStep = TURN_RATE * dt;
+        this.localEntry.facing += Math.abs(diff) <= maxStep ? diff : Math.sign(diff) * maxStep;
 
-      // El empuje va en la dirección hacia la que la nave está orientada
-      // AHORA, no hacia el rumbo deseado — de ahí la deriva al girar
-      // rápido sin haber terminado de orientarse.
-      this.localEntry.vx += Math.cos(this.localEntry.facing) * ACCELERATION * dt;
-      this.localEntry.vy += Math.sin(this.localEntry.facing) * ACCELERATION * dt;
+        if (isThrusting) {
+          // Empuje progresivo: 0 justo en el umbral, 100% con el
+          // joystick a tope — igual que el servidor, no es todo o nada.
+          const thrustFactor = (input.magnitude - THRUST_THRESHOLD) / (1 - THRUST_THRESHOLD);
+          const accel = ACCELERATION * thrustFactor;
+          this.localEntry.vx += Math.cos(this.localEntry.facing) * accel * dt;
+          this.localEntry.vy += Math.sin(this.localEntry.facing) * accel * dt;
 
-      const speed = Math.hypot(this.localEntry.vx, this.localEntry.vy);
-      if (speed > MAX_SPEED) {
-        this.localEntry.vx = (this.localEntry.vx / speed) * MAX_SPEED;
-        this.localEntry.vy = (this.localEntry.vy / speed) * MAX_SPEED;
+          const speed = Math.hypot(this.localEntry.vx, this.localEntry.vy);
+          if (speed > MAX_SPEED) {
+            this.localEntry.vx = (this.localEntry.vx / speed) * MAX_SPEED;
+            this.localEntry.vy = (this.localEntry.vy / speed) * MAX_SPEED;
+          }
+        }
       }
+
+      const dragFactor = Math.max(0, 1 - DRAG * dt);
+      this.localEntry.vx *= dragFactor;
+      this.localEntry.vy *= dragFactor;
     }
+    // En crucero: vx/vy se dejan tal cual están (sin fricción, sin
+    // empuje) — la nave sigue viajando sola, igual que en el servidor.
 
-    const dragFactor = Math.max(0, 1 - DRAG * dt);
-    this.localEntry.vx *= dragFactor;
-    this.localEntry.vy *= dragFactor;
-
-    this.updateEngineTrailPosition(this.localEntry, hasInput, Math.hypot(this.localEntry.vx, this.localEntry.vy));
+    this.updateEngineTrailPosition(this.localEntry, isThrusting, Math.hypot(this.localEntry.vx, this.localEntry.vy));
 
     const half = WORLD_SIZE / 2;
     this.localEntry.container.x = Phaser.Math.Clamp(
@@ -1727,6 +1812,79 @@ class ChunkScene extends Phaser.Scene {
     });
   }
 
+  // ---- Referencia fuera de pantalla / demasiado lejos para leerse ------
+  // Dos problemas distintos, mismo remedio: un punto de tamaño FIJO en
+  // pantalla (se contrarresta el zoom con setScale(1/zoom), así no se
+  // encoge igual que el resto del mundo).
+  //  1) Muy alejado el zoom: el sprite de una nave se reduce a un par de
+  //     píxeles y se pierde — se sustituye por el punto en su posición
+  //     real, sin esperar a que esté fuera de cámara.
+  //  2) Objetivo fijado fuera de la parte de mundo visible: pasa a
+  //     CUALQUIER zoom, no hace falta estar alejado — el punto se coloca
+  //     en el borde de la vista, en la dirección real hacia el objetivo,
+  //     para no tener que alejar la cámara solo para encontrarlo.
+  // Los objetivos fijados llevan el tratamiento SIEMPRE (offscreen o
+  // demasiado pequeños); el resto de naves solo cuando el zoom está muy
+  // alejado — así no se llena la pantalla de puntos con zoom normal.
+  updateOffscreenMarkers() {
+    if (!this.offscreenMarkers) this.offscreenMarkers = new Map(); // key -> circle
+
+    const cam = this.cameras.main;
+    const view = cam.worldView;
+    const marginWorld = OFFSCREEN_MARKER_MARGIN_PX / cam.zoom;
+    const minX = view.x + marginWorld;
+    const maxX = view.x + view.width - marginWorld;
+    const minY = view.y + marginWorld;
+    const maxY = view.y + view.height - marginWorld;
+    const zoomTooSmall = cam.zoom < OFFSCREEN_SHIP_ZOOM_THRESHOLD;
+    const invZoom = 1 / cam.zoom;
+
+    const lockedKeys = new Set((combatState?.targets || []).map((t) => `${t.kind}:${t.id}`));
+    const activeKeys = new Set();
+
+    const consider = (key, worldX, worldY, isTarget) => {
+      const offscreen = worldX < minX || worldX > maxX || worldY < minY || worldY > maxY;
+      // A los objetivos fijados no les hace falta estar lejos de zoom
+      // para ganarse el marcador — solo estar fuera de la vista (o,
+      // igual que cualquier otra nave, ser ilegible por zoom).
+      if (!offscreen && !zoomTooSmall) return;
+
+      activeKeys.add(key);
+      let dot = this.offscreenMarkers.get(key);
+      if (!dot) {
+        dot = this.add.circle(0, 0, 1, 0xffffff, 0.95).setDepth(80);
+        this.worldLayer?.add(dot);
+        this.offscreenMarkers.set(key, dot);
+      }
+      const clampedX = Phaser.Math.Clamp(worldX, minX, maxX);
+      const clampedY = Phaser.Math.Clamp(worldY, minY, maxY);
+      dot.setPosition(clampedX, clampedY);
+      dot.setScale(invZoom); // tamaño constante en pantalla, no se encoge con el zoom
+      dot.setRadius(isTarget ? OFFSCREEN_TARGET_RADIUS_PX : OFFSCREEN_DOT_RADIUS_PX);
+      // Naranja para objetivos fijados (mismo tono que la retícula de
+      // bloqueo, para que se lean como "lo mismo"); blanco para el resto.
+      dot.setFillStyle(isTarget ? 0xffb066 : 0xffffff, 0.95);
+    };
+
+    this.npcEntities?.forEach((entry, id) => {
+      const key = `npc:${id}`;
+      consider(key, entry.container.x, entry.container.y, lockedKeys.has(key));
+    });
+
+    this.playerEntities?.forEach((entry, sessionId) => {
+      if (entry.isMe) return; // la propia cámara la sigue — nunca está fuera de vista
+      const key = `player:${sessionId}`;
+      consider(key, entry.container.x, entry.container.y, lockedKeys.has(key));
+    });
+
+    this.offscreenMarkers.forEach((dot, key) => {
+      if (!activeKeys.has(key)) {
+        dot.destroy();
+        this.offscreenMarkers.delete(key);
+      }
+    });
+  }
+
   interpolateRemotePlayers() {
     const renderTime = performance.now() - INTERP_DELAY_MS;
 
@@ -1780,10 +1938,23 @@ class ChunkScene extends Phaser.Scene {
   // margen corto (JOYSTICK_COMMIT_DELAY) por si llega un segundo dedo, en
   // cuyo caso el gesto se reinterpreta como pellizco en vez de arrancar
   // el joystick.
+  //
+  // --- Piloto crucero (8.4.10.3) ------------------------------------
+  // Gesto: mover el joystick (empujar de verdad, por encima de
+  // THRUST_THRESHOLD), soltar, y VOLVER A TOCAR sin arrastrar (un tap
+  // limpio, no un nuevo arrastre) — eso bloquea la nave viajando a la
+  // velocidad/rumbo que llevaba, sin tener que mantener el dedo en la
+  // pantalla. Se rastrea con dos variables: `lastReleaseHadThrust`
+  // (¿el joystick anterior llegó a empujar de verdad antes de soltarse?)
+  // y, en cada nuevo toque, cuánto se arrastra el dedo antes de soltarlo
+  // — si es un tap (arrastre mínimo) Y el anterior tuvo empuje real, se
+  // manda cruiseToggle. Tocar el joystick y MOVERLO ya cancela el
+  // crucero solo con eso, por el lado del servidor (ver ChunkRoom.js).
   setupTouchMovementAndZoom() {
     this.touchPurpose = new Map(); // pointer.id -> "joystick" | "pinch"
     const maxRadius = 60;
-    const deadzone = maxRadius * 0.2;
+    const CENTER_DEADZONE_PX = 3; // por debajo de esto, ángulo inestable — se ignora
+    const TAP_DRAG_THRESHOLD_PX = 10; // arrastre máximo para seguir contando como "tap"
     const JOYSTICK_COMMIT_DELAY = 120; // ms
 
     let base = null;
@@ -1792,16 +1963,20 @@ class ChunkScene extends Phaser.Scene {
     let pendingJoystickPointer = null; // { id, x, y } — a la espera de confirmación
     let pendingTimer = null;
 
-    const resetDirections = () => {
-      this.touchInput.up = false;
-      this.touchInput.down = false;
-      this.touchInput.left = false;
-      this.touchInput.right = false;
+    let joystickMaxDragPx = 0; // arrastre máximo (px) durante este toque — decide si fue "tap"
+    let joystickMaxMagnitude = 0; // magnitud máxima alcanzada — decide si hubo empuje real
+    let lastReleaseHadThrust = false; // ¿el joystick ANTERIOR llegó a empujar antes de soltarse?
+
+    const resetDirection = () => {
+      this.touchInput.angle = null;
+      this.touchInput.magnitude = 0;
     };
 
     const commitJoystick = ({ id, x, y }) => {
       joystickPointerId = id;
       this.touchPurpose.set(id, "joystick");
+      joystickMaxDragPx = 0;
+      joystickMaxMagnitude = 0;
       base = this.add
         .circle(x, y, maxRadius, 0x66ccff, 0.15)
         .setDepth(90)
@@ -1817,7 +1992,20 @@ class ChunkScene extends Phaser.Scene {
       base = null;
       thumb = null;
       joystickPointerId = null;
-      resetDirections();
+      resetDirection();
+
+      const wasTap = joystickMaxDragPx < TAP_DRAG_THRESHOLD_PX;
+      if (wasTap && lastReleaseHadThrust) {
+        // Tap limpio justo después de un uso con empuje real: activa (o
+        // cancela, si ya estaba activo) el crucero con la velocidad que
+        // el servidor tenga en ese momento — el cliente no manda ningún
+        // número, solo el "clic".
+        this.room?.send("cruiseToggle");
+        lastReleaseHadThrust = false;
+      } else {
+        // Este toque decide si el SIGUIENTE puede activar crucero.
+        lastReleaseHadThrust = joystickMaxMagnitude > THRUST_THRESHOLD;
+      }
     };
 
     const startPinch = (p1, p2) => {
@@ -1902,19 +2090,25 @@ class ChunkScene extends Phaser.Scene {
       if (purpose === "joystick" && joystickPointerId === pointer.id && base) {
         const dx = pointer.x - base.x;
         const dy = pointer.y - base.y;
-        const dist = Math.min(Math.hypot(dx, dy), maxRadius);
+        const rawDist = Math.hypot(dx, dy);
+        const dist = Math.min(rawDist, maxRadius);
         const angle = Math.atan2(dy, dx);
 
         thumb.x = base.x + Math.cos(angle) * dist;
         thumb.y = base.y + Math.sin(angle) * dist;
 
-        if (dist < deadzone) {
-          resetDirections();
+        joystickMaxDragPx = Math.max(joystickMaxDragPx, rawDist);
+
+        if (dist < CENTER_DEADZONE_PX) {
+          resetDirection();
         } else {
-          this.touchInput.right = Math.cos(angle) > 0.3;
-          this.touchInput.left = Math.cos(angle) < -0.3;
-          this.touchInput.down = Math.sin(angle) > 0.3;
-          this.touchInput.up = Math.sin(angle) < -0.3;
+          // Analógico real: el servidor decide con estos mismos umbrales
+          // (PIVOT_THRESHOLD/THRUST_THRESHOLD) si solo pivota o si además
+          // empuja, y con qué fuerza — aquí solo se manda la magnitud tal
+          // cual, 0..1, sin cuantizar a 8 direcciones.
+          this.touchInput.angle = angle;
+          this.touchInput.magnitude = dist / maxRadius;
+          joystickMaxMagnitude = Math.max(joystickMaxMagnitude, this.touchInput.magnitude);
         }
         return;
       }

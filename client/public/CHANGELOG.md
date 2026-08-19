@@ -14,6 +14,66 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.7]
+
+### Corregido — el crucero giraba y aceleraba como una lanzadera
+- Giro y aceleración eran una constante global única para todo el juego
+  (180°/s, 300u/s²), literalmente pensada para la lanzadera FHI Wren.
+  Vida/escudo ya eran del crucero (Warden/Bastion) pero a mano, sin
+  catálogo real detrás.
+- Corregido con un catálogo de físicas por clase en el servidor, basado
+  en **masa real** (F = m·a): cada clase tiene un empuje/par de motor
+  fijo (el diseño del casco), y giro/aceleración salen de dividir eso
+  entre la masa de cada nave — no son números sueltos. Así, dentro de la
+  misma clase, una nave más pesada gira y acelera un pelín peor que una
+  más ligera, y el día que haya carga en bodega o módulos que cambien la
+  masa, afectan al manejo automáticamente sin tocar más código.
+- Escudo (60% del HP) y firma (proporcional a la raíz del HP) también
+  pasan a calcularse por nave individual, con el mismo ratio que ya se
+  usaba a mano para el Warden y el Bastion.
+- Bug real encontrado probando esto en caliente: pilotos invitados o
+  personajes recién creados entraban con 100 HP fijos (el valor por
+  defecto del esquema) en vez de los 698 del crucero — la comprobación
+  que debía asignar las stats reales nunca disparaba porque 100 ya es un
+  valor "verdadero". Corregido.
+- De paso, corregido un bug menor: al guardar la partida se escribía
+  siempre `shipId: "shuttle_01"` aunque el jugador vuela un crucero.
+- **Fix relacionado, mismo parche**: la predicción local del CLIENTE
+  tenía sus propias constantes de física de lanzadera, nunca
+  sincronizadas con el arreglo de arriba — sin esto, la nave se habría
+  visto con tirones (el cliente prediciendo un manejo, el servidor
+  aplicando otro). Ya sincronizado con el modelo de masa real.
+
+### Añadido — joystick analógico 360°, pivotar sin acelerar, piloto crucero
+- El movimiento ya no se cuantiza a 8 direcciones — el joystick manda
+  ángulo real, la nave gira hacia exactamente ahí.
+- Tocar el joystick un poco ahora solo pivota la nave (gira sin empuje);
+  el empuje entra progresivo pasado cierto desplazamiento, no de golpe.
+- **Piloto crucero**: mover el joystick de verdad, soltar, y volver a
+  tocar SIN arrastrar (un tap limpio) deja la nave viajando sola a la
+  velocidad/rumbo que llevaba, sin fricción ni tener el dedo en
+  pantalla — se cancela en cuanto se vuelve a tocar el joystick de
+  verdad, o al entrar en warp.
+
+### Añadido — punto de referencia para naves y objetivos fuera de vista
+- Con el zoom muy alejado, las naves que se reducen a un par de píxeles
+  se sustituyen por un punto de tamaño fijo en pantalla (no se encoge
+  con el zoom).
+- Los objetivos fijados llevan este mismo tratamiento SIEMPRE, a
+  cualquier zoom: si están fuera de la parte de mundo visible, el punto
+  aparece en el borde de la pantalla señalando hacia dónde están, sin
+  tener que alejar la cámara para encontrarlos.
+
+### Añadido — fijar automáticamente a quien te ataca
+- Cuando un NPC te elige como objetivo (contraataque o por acercarte
+  demasiado), el servidor te fija automáticamente de vuelta — te ahorra
+  el toque manual justo cuando más ocupado estás esquivando.
+- Activado por defecto; se puede desactivar desde el menú de opciones
+  ("Fijar automáticamente a quien me ataque"). Preferencia de cliente
+  (se guarda en el propio dispositivo), pero quien decide fijar de
+  verdad sigue siendo el servidor — pasa por las mismas reglas que un
+  fijado manual (rango, límite de objetivos simultáneos).
+
 ## [v0.5.6]
 
 ### Corregido — iónica v1 fuera, halo magenta eliminado

@@ -45,6 +45,7 @@
     "title": "Options",
     "closeGame": "Close game",
     "language": "Language",
+    "autoTargetBack": "Auto-target whoever attacks me",
     "gameClosedLine1": "Game closed.",
     "gameClosedLine2": "Reload the page to play again."
   },

@@ -45,6 +45,7 @@
     "title": "Opciones",
     "closeGame": "Cerrar juego",
     "language": "Idioma",
+    "autoTargetBack": "Fijar automáticamente a quien me ataque",
     "gameClosedLine1": "Juego cerrado.",
     "gameClosedLine2": "Recarga la página para volver a jugar."
   },

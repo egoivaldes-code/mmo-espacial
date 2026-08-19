@@ -27,6 +27,10 @@ class Player extends Schema {
     this.warping = false; // true durante el viaje en línea recta a máxima velocidad
     this.invulnerable = false; // true mientras dura el warp
     this.warpCooldownRemaining = 0; // segundos restantes de enfriamiento
+    // true mientras la nave "viaja sola" a la última velocidad/rumbo que
+    // llevaba, ignorando fricción e input — ver 8.4.10.3 (piloto crucero).
+    // Se replica para que el cliente pueda mostrar un indicador.
+    this.cruising = false;
   }
 }
 type("number")(Player.prototype, "x");
@@ -45,5 +49,6 @@ type("number")(Player.prototype, "warpChargeRemaining");
 type("boolean")(Player.prototype, "warping");
 type("boolean")(Player.prototype, "invulnerable");
 type("number")(Player.prototype, "warpCooldownRemaining");
+type("boolean")(Player.prototype, "cruising");
 
 module.exports = { Player };

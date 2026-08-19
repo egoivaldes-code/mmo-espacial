@@ -524,24 +524,37 @@ class ChunkRoom extends Room {
 
     cs.capacitor -= ARMA_MEDIUM_CORTA.energyCost;
 
+    // BUG REAL corregido aquí (crash en producción, v0.5.7): kind/id se
+    // capturan en variables locales AHORA, porque más abajo destruirNpc()
+    // recorre TODOS los clientes — incluido este mismo — y si el objetivo
+    // que se acaba de destruir era el activeTarget de este jugador (el
+    // caso normal: le disparas y lo matas), le reasigna cs.activeTarget a
+    // otro objetivo fijado o a null. Seguir leyendo cs.activeTarget.kind/
+    // .id DESPUÉS de esa llamada podía leer de un cs.activeTarget ya
+    // puesto a null por la propia destrucción que acababa de causar este
+    // disparo — de ahí el "Cannot read properties of null (reading 'id')"
+    // que tumbaba el proceso entero (y con él, a todos los conectados).
+    const targetKind = cs.activeTarget.kind;
+    const targetId = cs.activeTarget.id;
+
     let destruida = false;
-    if (cs.activeTarget.kind === "npc") {
-      const npc = this.state.npcs.get(cs.activeTarget.id);
+    if (targetKind === "npc") {
+      const npc = this.state.npcs.get(targetId);
       const efecto = combat.aplicarDano(npc, resultado.damage);
       destruida = efecto.destruida;
-      if (destruida) this.destruirNpc(cs.activeTarget.id);
+      if (destruida) this.destruirNpc(targetId);
       // El NPC devuelve el golpe a quien le pega.
-      const brain = this.npcBrains.get(cs.activeTarget.id);
+      const brain = this.npcBrains.get(targetId);
       if (brain && !brain.targetSessionId) {
         brain.targetSessionId = client.sessionId;
-        this.intentarAutoTargetBack(client.sessionId, cs.activeTarget.id);
+        this.intentarAutoTargetBack(client.sessionId, targetId);
       }
-    } else if (cs.activeTarget.kind === "player") {
-      const otro = this.state.players.get(cs.activeTarget.id);
+    } else if (targetKind === "player") {
+      const otro = this.state.players.get(targetId);
       if (otro) {
         const efecto = combat.aplicarDano(otro, resultado.damage);
         destruida = efecto.destruida;
-        if (destruida) this.matarJugador(cs.activeTarget.id);
+        if (destruida) this.matarJugador(targetId);
       }
     }
 
@@ -549,8 +562,8 @@ class ChunkRoom extends Room {
     // que poder ver POR QUÉ el disparo fue flojo, o no aprenderá a colocarse
     // y concluirá que pilotar no sirve de nada (8.4.10).
     client.send("shot", {
-      kind: cs.activeTarget.kind,
-      id: cs.activeTarget.id,
+      kind: targetKind,
+      id: targetId,
       damage: Math.round(resultado.damage),
       quality: Math.round(resultado.quality * 100),
       angular: Math.round(resultado.angular * 100),

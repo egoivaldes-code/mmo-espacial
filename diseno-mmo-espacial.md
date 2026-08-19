@@ -1976,6 +1976,39 @@ ocupado estás esquivando.
   TOQUE, no el proceso de fijar en sí. Sigue viéndose la retícula
   llenándose igual que con un fijado manual.
 
+### 8.4.10.5 Fallo en producción — crash del proceso entero (v0.5.8)
+
+**Encontrado revisando los logs de Render tras un aviso de caída con
+jugadores dentro.** `dispararCiclo()` leía `cs.activeTarget.kind`/`.id`
+en varios puntos a lo largo de la función, incluyendo DESPUÉS de llamar a
+`destruirNpc()` cuando el disparo mataba al objetivo. El problema:
+`destruirNpc()` recorre a TODOS los jugadores conectados — incluido el
+que acaba de disparar — y a cualquiera cuyo `activeTarget` fuera
+justo el NPC destruido le reasigna ese campo a otro objetivo fijado o a
+`null`. Si el NPC destruido era el ÚNICO objetivo fijado del propio
+tirador (el caso más normal: le disparas, lo matas), su
+`cs.activeTarget` quedaba en `null` DENTRO del mismo ciclo de disparo que
+lo había causado — y el código de después, que seguía leyendo
+`cs.activeTarget.kind`/`.id` sin comprobar que existiera, lanzaba
+`TypeError: Cannot read properties of null (reading 'id')`.
+
+Una excepción sin capturar en el bucle de simulación de Colyseus no tumba
+solo ESE disparo: tumba el proceso Node.js ENTERO — se cae la partida
+para todos los conectados en ese momento, no solo para quien disparó.
+Render lo reinicia solo (segundos después), pero de golpe y sin aviso.
+
+Corregido capturando `kind`/`id` en variables locales justo después de
+resolver el objetivo, ANTES de la llamada que puede vaciar
+`cs.activeTarget`, y usando esas variables locales el resto de la
+función en vez de releer un estado compartido que puede cambiar por
+debajo. Confirmado con los logs de Supabase que ningún progreso se
+perdió — el guardado automático de personaje ya había corrido justo en
+el segundo del crash.
+
+Bug pre-existente en el código (no introducido en v0.5.7 — ya estaba en
+v0.5.6 y probablemente antes), solo detectado ahora al revisar logs de
+producción reales tras un reporte de caída.
+
 ### 8.4.11 Pendiente en combate
 
 - **Qué módulos van a botón y cuáles ciclan solos.** Los cinco de 8.4.10

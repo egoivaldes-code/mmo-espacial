@@ -14,6 +14,27 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.8]
+
+### Corregido — crash del servidor entero al destruir tu propio objetivo
+- **Bug crítico en producción**, encontrado revisando los logs de Render
+  tras un aviso de caída con jugadores dentro. Al disparar el tiro que
+  destruye tu ÚNICO objetivo fijado, `destruirNpc()` recorre a TODOS los
+  jugadores conectados (incluido el que acaba de disparar) y le pone su
+  propio `activeTarget` a `null` si era ese el NPC destruido — pero el
+  código de después seguía leyendo `cs.activeTarget.kind`/`.id` sin
+  comprobar que siguiera existiendo, y crasheaba el proceso Node.js
+  ENTERO: no solo el disparo fallaba, se caía la partida para todos los
+  conectados en ese momento (Render lo reinicia solo, pero de golpe).
+- Corregido capturando el objetivo del disparo en variables locales
+  ANTES de la llamada que puede vaciar `cs.activeTarget`, y usando esas
+  variables el resto de la función en vez de releer el estado que puede
+  haber cambiado por debajo.
+- Confirmado con Supabase que ningún progreso se perdió — el guardado
+  automático ya había corrido justo en el momento del crash.
+- Bug pre-existente (no introducido en v0.5.7, solo encontrado ahora al
+  revisar los logs de producción tras el aviso de caída).
+
 ## [v0.5.7]
 
 ### Corregido — el crucero giraba y aceleraba como una lanzadera

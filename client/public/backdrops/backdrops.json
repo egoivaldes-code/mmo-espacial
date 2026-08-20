@@ -1,0 +1,380 @@
+[
+  {
+    "file": "hero_spiral_galaxy.png",
+    "w": 700,
+    "h": 467,
+    "tier": "hero"
+  },
+  {
+    "file": "hero_pillars_nebula.png",
+    "w": 700,
+    "h": 467,
+    "tier": "hero"
+  },
+  {
+    "file": "hero_butterfly_nebula.png",
+    "w": 700,
+    "h": 467,
+    "tier": "hero"
+  },
+  {
+    "file": "hero_collision_a.png",
+    "w": 700,
+    "h": 464,
+    "tier": "hero"
+  },
+  {
+    "file": "hero_pillars_b.png",
+    "w": 700,
+    "h": 467,
+    "tier": "hero"
+  },
+  {
+    "file": "hero_spiral_b.png",
+    "w": 700,
+    "h": 459,
+    "tier": "hero"
+  },
+  {
+    "file": "hero_collision_b.png",
+    "w": 700,
+    "h": 472,
+    "tier": "hero"
+  },
+  {
+    "file": "sheet45293_obj_041.png",
+    "w": 281,
+    "h": 249,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_001.png",
+    "w": 160,
+    "h": 133,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_028.png",
+    "w": 160,
+    "h": 145,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_136.png",
+    "w": 128,
+    "h": 128,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_052.png",
+    "w": 136,
+    "h": 128,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_085.png",
+    "w": 140,
+    "h": 122,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_039.png",
+    "w": 142,
+    "h": 111,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_137.png",
+    "w": 137,
+    "h": 122,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_022.png",
+    "w": 137,
+    "h": 122,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_069.png",
+    "w": 108,
+    "h": 134,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_097.png",
+    "w": 140,
+    "h": 123,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_115.png",
+    "w": 172,
+    "h": 115,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_149.png",
+    "w": 131,
+    "h": 121,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_074.png",
+    "w": 135,
+    "h": 115,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_151.png",
+    "w": 142,
+    "h": 108,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_153.png",
+    "w": 122,
+    "h": 110,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_113.png",
+    "w": 140,
+    "h": 121,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_073.png",
+    "w": 119,
+    "h": 111,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_027.png",
+    "w": 117,
+    "h": 102,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_025.png",
+    "w": 119,
+    "h": 115,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_126.png",
+    "w": 114,
+    "h": 115,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_059.png",
+    "w": 167,
+    "h": 108,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_139.png",
+    "w": 107,
+    "h": 108,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_033.png",
+    "w": 103,
+    "h": 103,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_105.png",
+    "w": 117,
+    "h": 106,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_135.png",
+    "w": 126,
+    "h": 117,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_150.png",
+    "w": 111,
+    "h": 112,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45293_obj_010.png",
+    "w": 180,
+    "h": 92,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_049.png",
+    "w": 125,
+    "h": 109,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_050.png",
+    "w": 124,
+    "h": 136,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_086.png",
+    "w": 123,
+    "h": 115,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_105.png",
+    "w": 130,
+    "h": 120,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_001.png",
+    "w": 122,
+    "h": 103,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_097.png",
+    "w": 121,
+    "h": 109,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_141.png",
+    "w": 117,
+    "h": 108,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_019.png",
+    "w": 119,
+    "h": 108,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_100.png",
+    "w": 129,
+    "h": 92,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_068.png",
+    "w": 114,
+    "h": 106,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_146.png",
+    "w": 116,
+    "h": 91,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_143.png",
+    "w": 119,
+    "h": 107,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_104.png",
+    "w": 146,
+    "h": 89,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_140.png",
+    "w": 102,
+    "h": 112,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_032.png",
+    "w": 105,
+    "h": 101,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_066.png",
+    "w": 112,
+    "h": 104,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_075.png",
+    "w": 106,
+    "h": 98,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_014.png",
+    "w": 110,
+    "h": 105,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_072.png",
+    "w": 114,
+    "h": 88,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_036.png",
+    "w": 127,
+    "h": 86,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_003.png",
+    "w": 144,
+    "h": 107,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_118.png",
+    "w": 90,
+    "h": 106,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_085.png",
+    "w": 109,
+    "h": 98,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_101.png",
+    "w": 120,
+    "h": 108,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_136.png",
+    "w": 107,
+    "h": 98,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_015.png",
+    "w": 100,
+    "h": 103,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_039.png",
+    "w": 103,
+    "h": 103,
+    "tier": "medium"
+  },
+  {
+    "file": "sheet45294_obj_004.png",
+    "w": 112,
+    "h": 105,
+    "tier": "medium"
+  }
+]

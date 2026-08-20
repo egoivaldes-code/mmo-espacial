@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.7.0";
+const GAME_VERSION = "v0.8.0";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -57,6 +57,58 @@ const PIVOT_THRESHOLD = 0.12;
 const THRUST_THRESHOLD = 0.45;
 
 const WORLD_SIZE = 30000;
+
+// --- Decoración de fondo cósmico ------------------------------------------
+// 7 "hero" (nebulosas/galaxias grandes, tier "hero" en backdrops.json) +
+// 56 "medium" (recortadas de las dos hojas de sprites, las de más área de
+// cada una). Lista fija en vez de leída de backdrops.json en tiempo de
+// ejecución — mismo motivo que EXPLOSION_TIERS en effects.js: hace falta
+// conocer los nombres ANTES de que termine de cargar el propio manifest,
+// para poder encolar this.load.image de todos a la vez en preload().
+// backdrops.json se conserva en el repo como referencia/documentación del
+// recorte, no lo lee el juego.
+const BACKDROP_FILES = [
+  "hero_spiral_galaxy.png", "hero_pillars_nebula.png", "hero_butterfly_nebula.png",
+  "hero_collision_a.png", "hero_pillars_b.png", "hero_spiral_b.png", "hero_collision_b.png",
+  "sheet45293_obj_041.png", "sheet45293_obj_001.png", "sheet45293_obj_028.png",
+  "sheet45293_obj_136.png", "sheet45293_obj_052.png", "sheet45293_obj_085.png",
+  "sheet45293_obj_039.png", "sheet45293_obj_137.png", "sheet45293_obj_022.png",
+  "sheet45293_obj_069.png", "sheet45293_obj_097.png", "sheet45293_obj_115.png",
+  "sheet45293_obj_149.png", "sheet45293_obj_074.png", "sheet45293_obj_151.png",
+  "sheet45293_obj_153.png", "sheet45293_obj_113.png", "sheet45293_obj_073.png",
+  "sheet45293_obj_027.png", "sheet45293_obj_025.png", "sheet45293_obj_126.png",
+  "sheet45293_obj_059.png", "sheet45293_obj_139.png", "sheet45293_obj_033.png",
+  "sheet45293_obj_105.png", "sheet45293_obj_135.png", "sheet45293_obj_150.png",
+  "sheet45293_obj_010.png", "sheet45294_obj_049.png", "sheet45294_obj_050.png",
+  "sheet45294_obj_086.png", "sheet45294_obj_105.png", "sheet45294_obj_001.png",
+  "sheet45294_obj_097.png", "sheet45294_obj_141.png", "sheet45294_obj_019.png",
+  "sheet45294_obj_100.png", "sheet45294_obj_068.png", "sheet45294_obj_146.png",
+  "sheet45294_obj_143.png", "sheet45294_obj_104.png", "sheet45294_obj_140.png",
+  "sheet45294_obj_032.png", "sheet45294_obj_066.png", "sheet45294_obj_075.png",
+  "sheet45294_obj_014.png", "sheet45294_obj_072.png", "sheet45294_obj_036.png",
+  "sheet45294_obj_003.png", "sheet45294_obj_118.png", "sheet45294_obj_085.png",
+  "sheet45294_obj_101.png", "sheet45294_obj_136.png", "sheet45294_obj_015.png",
+  "sheet45294_obj_039.png", "sheet45294_obj_004.png",
+];
+const BACKDROP_HERO_COUNT = 7; // los 7 primeros de la lista de arriba
+
+// Semilla fija: el universo es determinista por semilla (mismo principio
+// que CONCORD o el mundo por chunks — ver diseño), así que la decoración
+// de fondo tiene que salir IGUAL en todos los clientes sin que el
+// servidor tenga que mandar ni una coordenada. Un mulberry32 simple (PRNG
+// determinista de una sola función, sin dependencias) generado a partir
+// de esta semilla siempre produce la misma secuencia.
+const BACKDROP_SEED = 0x5eed1e5;
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 // Recorta el padding transparente alrededor del sprite real dentro del
 // PNG. Los sprites de naveteca vienen en lienzos de tamaño uniforme con
@@ -470,6 +522,15 @@ let combatState = null;
 const targetHealthByKey = new Map(); // "npc:id" -> {name, shield, structure}
 const NPC_SHIELD_MAX = 380;
 const NPC_STRUCTURE_MAX = 632;
+// PvP de pruebas (8.4.x): un jugador también puede ser objetivo, y sus
+// máximos de vida son los de la nave de jugador (más abajo,
+// CRUISER_SHIELD_MAX/CRUISER_STRUCTURE_MAX), no los del NPC.
+function shieldMaxFor(kind) {
+  return kind === "player" ? CRUISER_SHIELD_MAX : NPC_SHIELD_MAX;
+}
+function structureMaxFor(kind) {
+  return kind === "player" ? CRUISER_STRUCTURE_MAX : NPC_STRUCTURE_MAX;
+}
 
 function setBarWidth(el, ratio) {
   el.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
@@ -523,16 +584,20 @@ function updateCombatHud() {
     let health = targetHealthByKey.get(key);
     if (!health) {
       // Llega aquí sin haber pasado por el tap (p. ej. auto-fijado de
-      // vuelta cuando un NPC te ataca primero — startLock en el servidor,
-      // sin intervención del cliente) — se siembra con lo que ya se sepa
-      // del NPC en el estado replicado, en vez de quedarse en 100% fijo
-      // hasta el primer disparo.
-      const npcState = target.kind === "npc" ? getActiveScene()?.room?.state?.npcs?.get(target.id) : null;
-      seedTargetHealth(target.kind, target.id, npcState?.name);
+      // vuelta cuando un NPC o un jugador te ataca primero — startLock en
+      // el servidor, sin intervención del cliente) — se siembra con lo
+      // que ya se sepa en el estado replicado, en vez de quedarse en 100%
+      // fijo hasta el primer disparo.
+      const scene = getActiveScene();
+      const liveState =
+        target.kind === "npc" ? scene?.room?.state?.npcs?.get(target.id)
+        : target.kind === "player" ? scene?.room?.state?.players?.get(target.id)
+        : null;
+      seedTargetHealth(target.kind, target.id, liveState?.name);
       health = targetHealthByKey.get(key);
-      if (npcState) {
-        health.shield = npcState.shield / NPC_SHIELD_MAX;
-        health.structure = npcState.structure / NPC_STRUCTURE_MAX;
+      if (liveState) {
+        health.shield = liveState.shield / shieldMaxFor(target.kind);
+        health.structure = liveState.structure / structureMaxFor(target.kind);
       }
     }
     card.nameEl.textContent = health.name || t("combat.target");
@@ -563,7 +628,7 @@ function applyStructureDamageEstimate(kind, id, damage) {
   // que se aproxima por la última barra conocida menos el daño
   // proporcional. Es una estimación visual, no un dato exacto — el
   // servidor es quien de verdad decide cuándo muere.
-  health.structure = Math.max(0, health.structure - damage / NPC_STRUCTURE_MAX);
+  health.structure = Math.max(0, health.structure - damage / structureMaxFor(kind));
 }
 
 // Máximos de crucero, en espejo con server/rooms/ChunkRoom.js. Solo sirven
@@ -1158,6 +1223,16 @@ class ChunkScene extends Phaser.Scene {
 
     // Explosiones y chispazos de escudo (VFX de combate) — ver effects.js.
     preloadEffects(this);
+
+    // Decoración de fondo cósmico (nebulosas/galaxias recortadas de hojas
+    // de referencia, mismo pipeline de despill que las torretas/VFX) — ver
+    // BACKDROP_FILES y spawnBackdrops(). 7 "hero" grandes (dispersión
+    // rala) + 56 medianas (de las dos hojas de ~160 objetos cada una,
+    // quedándose con las de más área — las estrellas puntuales sueltas ya
+    // las cubre el starfield procedural, no hacía falta duplicarlas).
+    for (const file of BACKDROP_FILES) {
+      this.load.image(`backdrop-${file}`, `${import.meta.env.BASE_URL}backdrops/${file}`);
+    }
   }
 
   async create() {
@@ -1198,6 +1273,7 @@ class ChunkScene extends Phaser.Scene {
 
     this.engineSound = this.sound.add(`ship-${STARTING_SHIP_ID}-hum`, { loop: true, volume: 0.12 });
 
+    this.spawnBackdrops();
     this.starfield();
     this.drawWorldBorder();
     this.createOwnShipIndicator();
@@ -1248,6 +1324,49 @@ class ChunkScene extends Phaser.Scene {
     const show = Boolean(this.localEntry) && this.cameras.main.zoom < OWN_SHIP_INDICATOR_ZOOM_THRESHOLD;
     this.ownShipIndicator.setVisible(show);
     if (show) this.ownShipIndicator.rotation = this.localEntry.facing + Math.PI / 2;
+  }
+
+  // Nebulosas/galaxias de fondo, dispersas por todo el mundo con posición,
+  // rotación y escala aleatorias — MISMA secuencia en todos los clientes
+  // (mulberry32 con semilla fija, ver BACKDROP_SEED), así que el universo
+  // se ve igual para todos sin que el servidor tenga que mandar nada.
+  //
+  // Capa "estrellas/galaxias de ambientación" (por debajo de planeta/
+  // estación/naves — ver diseño 8.x de capas gráficas): se añaden aquí,
+  // en create(), ANTES que cualquier nave, así que por orden de inserción
+  // quedan siempre detrás de todo lo que se cree después (mismo truco que
+  // ya usa starfield(), sin necesidad de gestionar profundidad a mano).
+  //
+  // scrollFactor < 1 les da algo de parallax (se sienten más lejanas que
+  // las naves), y NO se contrarresta el zoom (a diferencia de las
+  // estrellas-punto): son manchas de área real, tiene que dar la sensación
+  // de que están ahí fuera en el mundo, no pegadas a la pantalla.
+  spawnBackdrops() {
+    const rand = mulberry32(BACKDROP_SEED);
+    const half = WORLD_SIZE * 0.9; // un poco más allá del borde jugable, como el starfield
+    const HERO_COUNT = 22; // dispersión rala de las grandes
+    const MEDIUM_COUNT = 130; // más densas, reutilizando las 56 texturas medianas
+
+    const place = (fileIndex, isHero) => {
+      const key = `backdrop-${BACKDROP_FILES[fileIndex]}`;
+      const x = (rand() * 2 - 1) * half;
+      const y = (rand() * 2 - 1) * half;
+      const img = this.add.image(x, y, key);
+      img.setRotation(rand() * Math.PI * 2);
+      img.setScale((isHero ? 0.5 : 0.35) + rand() * (isHero ? 0.6 : 0.55));
+      img.setAlpha((isHero ? 0.22 : 0.3) + rand() * 0.22);
+      img.setScrollFactor(isHero ? 0.35 : 0.55);
+      img.setBlendMode(Phaser.BlendModes.ADD);
+      this.worldLayer.add(img);
+    };
+
+    for (let i = 0; i < HERO_COUNT; i++) {
+      place(Math.floor(rand() * BACKDROP_HERO_COUNT), true);
+    }
+    for (let i = 0; i < MEDIUM_COUNT; i++) {
+      const idx = BACKDROP_HERO_COUNT + Math.floor(rand() * (BACKDROP_FILES.length - BACKDROP_HERO_COUNT));
+      place(idx, false);
+    }
   }
 
   starfield() {
@@ -1355,6 +1474,17 @@ class ChunkScene extends Phaser.Scene {
       const isMe = sessionId === this.room.sessionId;
       const sprite = this.add.image(0, 0, `ship-${STARTING_SHIP_ID}`).setScale(0.5);
       sprite.setTint(isMe ? 0x9fd6ff : 0xffb090);
+      if (!isMe) {
+        // PvP de pruebas (8.4.x): cualquier otro jugador es tocable para
+        // fijar objetivo, igual que un NPC — mismo patrón de hitArea
+        // generosa (difícil acertar justo sobre el sprite mientras se
+        // mueve en móvil).
+        sprite.setInteractive(
+          new Phaser.Geom.Circle(sprite.width / 2, sprite.height / 2, Math.max(sprite.width, sprite.height) * 0.9),
+          Phaser.Geom.Circle.Contains
+        );
+        sprite.combatTarget = { kind: "player", id: sessionId };
+      }
       // El nombre no se muestra sobre la propia nave — solo tiene
       // sentido para identificar a los demás jugadores en pantalla.
       const label = this.add
@@ -1394,6 +1524,17 @@ class ChunkScene extends Phaser.Scene {
           setBarWidth(shieldFillEl, player.shield / CRUISER_SHIELD_MAX);
           setBarWidth(structureFillEl, player.structure / CRUISER_STRUCTURE_MAX);
           structureFillEl.classList.toggle("critical", player.shield <= 0);
+        } else {
+          // Si este jugador está entre mis objetivos fijados, su tarjeta
+          // se actualiza igual que la de un NPC — cambios de vida por
+          // cualquier causa (otro jugador disparándole, no solo mis
+          // propios disparos).
+          const health = targetHealthByKey.get(`player:${sessionId}`);
+          if (health) {
+            health.shield = player.shield / CRUISER_SHIELD_MAX;
+            health.structure = player.structure / CRUISER_STRUCTURE_MAX;
+            updateCombatHud();
+          }
         }
       });
 
@@ -2400,6 +2541,9 @@ class ChunkScene extends Phaser.Scene {
         if (blanco.combatTarget.kind === "npc") {
           const npcState = this.room?.state.npcs.get(blanco.combatTarget.id);
           seedTargetHealth("npc", blanco.combatTarget.id, npcState?.name || t("combat.target"));
+        } else if (blanco.combatTarget.kind === "player") {
+          const otherState = this.room?.state.players.get(blanco.combatTarget.id);
+          seedTargetHealth("player", blanco.combatTarget.id, otherState?.name || t("combat.target"));
         }
         return;
       }

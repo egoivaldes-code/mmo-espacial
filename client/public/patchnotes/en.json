@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.0",
+    "highlights": [
+      "You can now attack other players! Tap their ship to target it, just like an enemy — testing-only for now, no rewards or penalties.",
+      "The universe isn't just black with dots anymore — real nebulae and galaxies now decorate the background, the same for everyone."
+    ]
+  },
+  {
     "version": "v0.7.0",
     "highlights": [
       "Enemies no longer carry a permanent orange tint — they're now marked with a red box+dot indicator, white for other ships.",

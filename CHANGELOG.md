@@ -14,6 +14,28 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.8.0]
+
+### Añadido — PvP de pruebas (targetear/atacar/matar a otros jugadores) + decoración de fondo cósmico
+- **PvP de pruebas**: cualquier otro jugador es tocable/fijable igual que
+  un NPC. Antes el servidor ya calculaba el daño en la rama `player` de
+  `dispararCiclo` pero nunca avisaba a la víctima — ahora recibe `hit`
+  con el mismo formato que un golpe de NPC (shieldDamage/structureDamage
+  desglosados), así que el HUD, la vida estimada y los VFX de
+  escudo/explosión funcionan sin ninguna rama especial. Auto-fijado de
+  vuelta también funciona si te dispara otro jugador. Deliberadamente
+  solo el mecanismo — sin balance, recompensa ni penalización por matar
+  a otro jugador todavía (eso sigue pendiente, ver 8.4.11).
+- **Decoración de fondo cósmico**: 63 nebulosas/galaxias recortadas de
+  hojas de referencia (mismo pipeline de despill que las torretas y el
+  VFX de combate) dispersas por todo el mundo — posición, rotación y
+  escala aleatorias pero DETERMINISTAS por semilla fija, así que todos
+  los clientes ven el mismo universo sin que el servidor mande ni una
+  coordenada. Capa de ambientación, por debajo de estación/naves, con
+  parallax y mezcla aditiva para que no compita visualmente con el
+  gameplay.
+- Ver diseño 8.4.15 y 8.4.16 para el detalle completo.
+
 ## [v0.7.0]
 
 ### Añadido — HUD de combate rediseñado: contactos, objetivos múltiples, estelas por clase

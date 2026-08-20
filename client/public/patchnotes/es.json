@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.0",
+    "highlights": [
+      "¡Ya puedes atacar a otros jugadores! Toca su nave para fijarla como objetivo, igual que a un enemigo — de pruebas por ahora, sin recompensas ni penalizaciones.",
+      "El universo ya no es solo negro con puntitos — nebulosas y galaxias de verdad decoran el fondo, iguales para todo el mundo."
+    ]
+  },
+  {
     "version": "v0.7.0",
     "highlights": [
       "Los enemigos ya no llevan un tinte naranja fijo — ahora se identifican por un marcador rojo (caja + punto) alrededor, blanco para el resto de naves.",

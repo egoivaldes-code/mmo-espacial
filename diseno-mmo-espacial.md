@@ -2253,11 +2253,102 @@ progreso de bloqueo individual — ver `startLock`/`sendCombatState` en
 
 **Pendiente:**
 - Límite de objetivos por clase de casco, no plano (ver 8.4.11).
-- Sin PvP: solo los NPC son tocables/fijables — el `kind:"player"` que
-  ya acepta `startLock` en el servidor no tiene forma de activarse desde
-  el cliente todavía.
 - No se validó con Playwright por la misma limitación de red del
   sandbox que 8.4.13.
+
+### 8.4.15 PvP de pruebas — targetear, atacar y matar a otros jugadores (v0.8.0)
+
+Hasta v0.7.0 solo los NPC eran tocables/fijables — el servidor ya
+aceptaba `kind:"player"` en `startLock`/`resolverEntidad`/`aplicarDano`
+desde antes (era genérico por diseño, ver 8.4.2/8.4.3), pero no había
+forma de activarlo desde el cliente ni de avisar a la víctima. v0.8.0
+cierra ese hueco — explícitamente **de pruebas**: el objetivo es poder
+testear mecánicas de combate real entre jugadores, no un sistema de PvP
+diseñado con todas sus consecuencias (sin flag de hostilidad, sin
+recompensa/penalización por matar a otro jugador, sin zona seguirdad ni
+CONCORD todavía — eso sigue siendo 8.4.11 y más adelante).
+
+- **Cliente**: el sprite de cualquier otro jugador (no el propio) es
+  tocable igual que un NPC — mismo `combatTarget`, misma hitArea
+  generosa. El HUD de objetivos (8.4.14) ya era genérico por `kind`, así
+  que las tarjetas, la vida estimada y los VFX de escudo/explosión
+  funcionan igual para un jugador que para un NPC sin ninguna rama
+  especial — la única pieza que faltaba de verdad era esta.
+- **Servidor**: cuando un jugador dispara a otro, la víctima ahora
+  recibe `hit` (antes `dispararCiclo` calculaba `aplicarDano` en la rama
+  `player` pero no avisaba a nadie — el atacante veía su propio `shot`,
+  la víctima no se enteraba de nada hasta que las barras cambiaban solas
+  por el `onChange` del estado). Mismo formato de mensaje que un golpe de
+  NPC (`shieldDamage`/`structureDamage` desglosados, 8.4.13).
+- **Auto-fijado de vuelta también entre jugadores**: `intentarAutoTargetBack`
+  (8.4.10.4) solo aceptaba `kind:"npc"` — ahora recibe el `kind` como
+  parámetro, así que si te dispara otro jugador (y tienes la preferencia
+  activada, por defecto sí) te lo fija de vuelta igual que a un NPC.
+- Muerte: reutiliza `matarJugador` sin cambios — ya era genérico por
+  `sessionId`, funcionaba igual si moría por NPC o (ahora) por jugador.
+
+**Pendiente:**
+- Nada de balance ni de consecuencias por matar a otro jugador — es
+  deliberadamente solo el mecanismo, para testear.
+- El tinte naranja fijo sobre las naves de otros jugadores
+  (`0xffb090`) sigue ahí — el mismo argumento de 8.4.14 para quitarlo de
+  los NPC (identificar por marcador, no por teñir el sprite entero)
+  aplicaría aquí también si el PvP deja de ser solo de pruebas.
+
+### 8.4.16 Decoración de fondo cósmico (v0.8.0)
+
+Capa "estrellas/galaxias de ambientación" de la conversación de diseño
+gráfico por capas (por debajo de planeta/estación/naves): hasta ahora
+esa capa era solo el `starfield()` procedural (900 puntos blancos). Se
+añaden nebulosas/galaxias de verdad, recortadas de hojas de referencia
+con el mismo pipeline de despill que las torretas (v0.5.6) y el VFX de
+combate (8.4.13): chroma-key sobre magenta + despill de color + recorte
+por detección de contenido real.
+
+**Material**: dos hojas de referencia de ~160 objetos cada una (galaxias,
+nebulosas, planetas, agujeros negros, campos de asteroides — arte de
+referencia variado, no todo pensado para el juego) más 7 imágenes
+sueltas de nebulosas/galaxias grandes. Del total (~330 objetos
+recortados), se curó un set de 63 texturas únicas para el juego: los 7
+grandes ("hero") + las 56 de más área de las dos hojas — se descartaron
+las estrellas puntuales sueltas porque el starfield procedural ya cubre
+ese papel, no hacía falta duplicarlo. Las imágenes "hero" se reescalaron
+a un máximo de 700px de lado (pesaban ~2.4MB cada una a resolución
+completa — nada razonable para carga inicial en móvil); el set curado
+completo pesa ~4.7MB.
+
+**Dispersión determinista por semilla, no aleatoria de verdad.** El
+mundo es determinista por semilla en otras partes del diseño (CONCORD,
+chunks) y aquí aplica el mismo principio por la misma razón: todos los
+clientes tienen que ver la MISMA decoración en las MISMAS posiciones sin
+que el servidor mande ni una coordenada. `spawnBackdrops()` en
+`main.js` usa un mulberry32 (PRNG determinista de una función, sin
+dependencias) con semilla fija (`BACKDROP_SEED`) para elegir textura,
+posición, rotación y escala de cada instancia — 22 "hero" dispersas
+ralas + 130 "medium" más densas, reutilizando las 56 texturas medianas
+en distintas posiciones/rotaciones/escalas para dar variedad sin tener
+que cargar 330 imágenes distintas (justo lo que se pidió: "puedes
+girarlos para dar más variedad").
+
+**Capa y aspecto**: se crean en `create()` antes que cualquier nave (por
+orden de inserción quedan siempre detrás — mismo truco que ya usa
+`starfield()`, sin gestionar profundidad a mano), con `scrollFactor`
+reducido (0.35-0.55) para dar sensación de parallax/lejanía, alpha bajo
+(0.22-0.52) y modo de mezcla ADD para que se lean como resplandor de
+fondo y no tapen naves/asteroides ni compitan visualmente con el HUD. A
+diferencia del `starfield()` (que sí contrarresta el zoom para mantener
+tamaño de punto constante en pantalla), las decoraciones NO se
+contrarrestan — son manchas de área real, tienen que encogerse/crecer
+con el resto del mundo al hacer zoom para sentirse parte de la escena.
+
+**Pendiente:**
+- Blend mode ADD aplicado por igual a las 63 texturas, incluidas las que
+  parecen planetas sólidos dentro del set "medium" — con alpha bajo
+  queda como resplandor de fondo aceptable, pero si algún día se usan
+  para representar un planeta real de un sistema (8.x, capa "planeta"
+  de la conversación de capas) necesitarán su propio tratamiento sin
+  ADD, como objeto opaco.
+- No se validó con Playwright, misma limitación de red del sandbox.
 
 ### 8.5 Bootstrap del jugador nuevo
 

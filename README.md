@@ -1,72 +1,68 @@
-# v0.7.0 — HUD de combate: contactos, objetivos múltiples, estelas por clase
+# v0.8.0 — PvP de pruebas + decoración de fondo cósmico
 
-**Importante:** el zip anterior (`spacemmo_v0.6.0.zip`, explosiones y
-escudo) no se llegó a subir — el repo seguía en v0.5.12 al empezar esta
-sesión. Este parche es **acumulativo**: incluye v0.6.0 entero además de
-todo lo de abajo. No subas el zip viejo, con este solo basta.
+## PvP de pruebas
+Cualquier otro jugador es tocable/fijable igual que un NPC. El servidor
+ya calculaba el daño correctamente en la rama `player` de
+`dispararCiclo` desde antes (era genérico por diseño), pero nunca
+avisaba a la víctima — ahora recibe `hit` con el mismo formato que un
+golpe de NPC, así que el HUD, la vida estimada de las tarjetas de
+objetivo y los VFX de escudo/explosión funcionan sin ninguna rama
+especial para PvP. Auto-fijado de vuelta también funciona si te dispara
+otro jugador (respeta la preferencia, como con los NPC).
 
-## Qué cambia
+**Deliberadamente solo el mecanismo**: sin balance, sin recompensa ni
+penalización por matar a otro jugador — es para poder testear combate
+real entre jugadores, no un sistema de PvP terminado (sigue pendiente en
+diseño 8.4.11: zona segura, CONCORD, etc.).
 
-**Marcadores de contacto**, a partir de feedback jugando en móvil real:
-- Fuera el velo naranja permanente sobre los NPC.
-- El punto de contacto se mantiene, pero ahora va dentro de una caja de
-  targeting (4 esquinas), **roja si es hostil de verdad** (NPC — no hay
-  bandera de hostilidad entre jugadores todavía), **blanca** si no.
-- Bug real corregido: la retícula de bloqueo no compensaba el zoom de
-  cámara — con zoom out se encogía hasta desaparecer antes de que
-  saltara el marcador de "demasiado lejos", así que el objetivo fijado
-  parecía esfumarse en una franja intermedia de zoom.
+## Decoración de fondo cósmico
+63 nebulosas/galaxias recortadas de dos hojas de referencia de ~160
+objetos cada una (mismo pipeline de despill de color que las torretas y
+el VFX de combate — chroma-key + recorte por detección de contenido
+real, no rejilla fija) dispersas por todo el mundo.
 
-**Estelas de motor en batería por clase real** (no una tabla por
-modelo — sale de `ships.json`): 1 para shuttle/frigate, 2 para
-destroyer, 3 para cruiser, 4 para battlecruiser, 2 gruesas y separadas
-para battleship/carrier/dreadnought. Auto-ajustadas al tamaño real de
-cada sprite, en fila horizontal paralela.
+- **Determinista por semilla fija** (mulberry32), no aleatorio de
+  verdad: todos los clientes ven el mismo universo en las mismas
+  posiciones sin que el servidor mande ni una coordenada — mismo
+  principio que ya usan CONCORD y los chunks.
+- 22 nebulosas grandes dispersas ralas + 130 instancias medianas
+  (reutilizando 56 texturas con distinta posición/rotación/escala cada
+  vez — variedad sin cargar cientos de imágenes).
+- Capa de ambientación por debajo de estación/naves, con parallax
+  (scrollFactor reducido) y mezcla aditiva + alpha bajo para que se lea
+  como resplandor de fondo sin competir con el gameplay.
+- Imágenes "hero" reescaladas a 700px máx (pesaban ~2.4MB cada una a
+  resolución completa) — el set completo curado pesa ~4.7MB.
 
-**Triángulo de referencia propio** (sustituye al sprite en zoom out
-extremo) tarda más en aparecer — antes tapaba la propia nave en
-acercamientos normales.
-
-**Autodisparo, arreglado de verdad**: vivía dentro del contenedor que se
-oculta entero sin objetivo bloqueado, así que se volvía intocable la
-mayor parte del tiempo aunque su estado nunca se perdiera en el
-servidor. Ahora es independiente y solo se oculta sin ningún objetivo
-fijado en absoluto.
-
-**HUD de objetivos múltiples**: el servidor ya soportaba varios
-objetivos fijados a la vez — lo que faltaba era VERLOS. Subido de 3 a 4
-objetivos, cuadrícula de 2 columnas bajo las barras de estado (1-2
-arriba, 3-4 debajo), tarjeta propia por objetivo con nombre, vida y
-borde de color según fijándose/bloqueado/con el arma apuntada. Tocar una
-tarjeta la desfija.
-
-## Pendiente (ver diseño 8.4.13 y 8.4.14)
-- Límite de objetivos por clase de casco, no un número plano para todos.
-- Sin PvP: solo los NPC son tocables/fijables.
-- No se validó con Playwright — el sandbox de esta sesión no tenía
-  salida de red para el navegador headless. Validado con `vite build`
-  limpio y revisión manual de cada bloque de código.
+## Pendiente (ver diseño 8.4.15 y 8.4.16)
+- Sin balance de PvP: solo el mecanismo de targetear/atacar/matar.
+- El tinte naranja fijo sobre otros jugadores sigue ahí (mismo argumento
+  que ya se aplicó a los NPC en v0.7.0 — identificar por marcador, no
+  por teñir el sprite entero — pendiente si el PvP deja de ser solo de
+  pruebas).
+- Blend ADD aplicado por igual a las 63 texturas de fondo, incluidas las
+  que parecen planetas — vale para decoración de fondo, no para
+  representar un planeta real de un sistema más adelante.
+- No se validó con Playwright — misma limitación de red del sandbox de
+  las últimas sesiones.
 
 ---
 
 Detalle técnico completo en `CHANGELOG.md` (raíz y
-`client/public/CHANGELOG.md`) y en `diseno-mmo-espacial.md` (8.4.13 y
-8.4.14).
+`client/public/CHANGELOG.md`) y en `diseno-mmo-espacial.md` (8.4.15 y
+8.4.16).
 
 ## Archivos de este parche
-- `client/public/effects/` + `effects.json` — de v0.6.0, incluido aquí
-  porque no se había subido todavía.
-- `client/src/effects.js` — ídem, VFX de explosiones/escudo.
-- `client/src/main.js` — VFX de v0.6.0 + todo el HUD de combate de
-  v0.7.0 (marcadores, estelas, triángulo, autodisparo, cuadrícula de
-  objetivos).
-- `client/index.html` — CSS/HTML nuevo: `#combat-hud-left`,
-  `#target-grid` (4 tarjetas), `#autoshoot-row` independiente.
-- `server/rooms/ChunkRoom.js` — `shieldDamage`/`structureDamage` en
-  `shot`/`hit` (v0.6.0) + `MAX_TARGETS` 3→4 (v0.7.0).
+- `client/src/main.js` — PvP (combatTarget en jugadores, HUD/health
+  genérico) + sistema de decoración de fondo (`BACKDROP_FILES`,
+  `spawnBackdrops()`, mulberry32).
+- `client/public/backdrops/` — 63 PNG + `backdrops.json` (manifest de
+  referencia, no lo lee el juego en tiempo de ejecución).
+- `server/rooms/ChunkRoom.js` — `hit` a la víctima en PvP,
+  `intentarAutoTargetBack` generalizado por `kind`.
 - `client/public/patchnotes/es.json` / `en.json` — historial del juego
-  puesto al día hasta v0.7.0.
+  puesto al día hasta v0.8.0.
 - `CHANGELOG.md` / `client/public/CHANGELOG.md` — historial técnico
   completo.
-- `diseno-mmo-espacial.md` — secciones 8.4.11 (actualizada), 8.4.13 y
-  8.4.14 (nuevas).
+- `diseno-mmo-espacial.md` — secciones 8.4.15 y 8.4.16 añadidas, 8.4.14
+  actualizada.

@@ -484,12 +484,12 @@ class ChunkRoom extends Room {
   // de vuelta — le ahorra el toque manual justo cuando más ocupado está
   // esquivando. Pasa por el mismo startLock de siempre: respeta el
   // límite de objetivos simultáneos y el rango de fijado, nada especial.
-  intentarAutoTargetBack(sessionId, npcId) {
+  intentarAutoTargetBack(sessionId, kind, id) {
     const player = this.state.players.get(sessionId);
     if (!player || !player.alive || player.autoTargetBack === false) return;
     const client = this.clientsBySessionId.get(sessionId);
     if (!client) return;
-    this.startLock(client, player, "npc", npcId);
+    this.startLock(client, player, kind, id);
   }
 
   // Ventana fija de 1s por sessionId (ver MESSAGE_RATE_LIMIT arriba).
@@ -632,7 +632,7 @@ class ChunkRoom extends Room {
       const brain = this.npcBrains.get(targetId);
       if (brain && !brain.targetSessionId) {
         brain.targetSessionId = client.sessionId;
-        this.intentarAutoTargetBack(client.sessionId, targetId);
+        this.intentarAutoTargetBack(client.sessionId, "npc", targetId);
       }
     } else if (targetKind === "player") {
       const otro = this.state.players.get(targetId);
@@ -641,7 +641,31 @@ class ChunkRoom extends Room {
         destruida = efecto.destruida;
         aEscudo = efecto.aEscudo;
         aEstructura = efecto.aEstructura;
-        if (destruida) this.matarJugador(targetId);
+
+        // La víctima se entera del golpe igual que si la hubiese dado un
+        // NPC — mismo mensaje "hit", mismos campos (8.4.13/8.4.14): el
+        // cliente no necesita ninguna rama especial según de dónde vino
+        // el disparo para el parpadeo de daño ni los VFX de escudo/casco.
+        const victimClient = this.clientsBySessionId.get(targetId);
+        if (victimClient) {
+          victimClient.send("hit", {
+            from: client.sessionId,
+            damage: Math.round(resultado.damage),
+            shieldDamage: Math.round(aEscudo),
+            structureDamage: Math.round(aEstructura),
+            shield: Math.round(otro.shield),
+            structure: Math.round(otro.structure),
+          });
+        }
+
+        if (destruida) {
+          this.matarJugador(targetId);
+        } else {
+          // El jugador atacado devuelve el golpe, igual que un NPC — el
+          // mismo intentarAutoTargetBack, que ya respeta la preferencia
+          // del jugador y el límite de objetivos simultáneos.
+          this.intentarAutoTargetBack(targetId, "player", client.sessionId);
+        }
       }
     }
 
@@ -764,7 +788,7 @@ class ChunkRoom extends Room {
         });
         brain.targetSessionId = mejor;
         objetivo = mejor ? this.state.players.get(mejor) : null;
-        if (mejor) this.intentarAutoTargetBack(mejor, id);
+        if (mejor) this.intentarAutoTargetBack(mejor, "npc", id);
       }
 
       if (!objetivo) {

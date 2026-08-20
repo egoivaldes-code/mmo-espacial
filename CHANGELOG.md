@@ -14,6 +14,24 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.8.1]
+
+### Arreglado — bug crítico: el juego se quedaba en pantalla negra sin conectar
+- v0.8.0 tenía un bug real: los 63 PNG de decoración de fondo se
+  añadieron al `preload()` bloqueante, que no tiene timeout por defecto.
+  Una sola petición colgada en una conexión móvil floja dejaba el juego
+  entero esperando para siempre — no solo la decoración, TODO lo que
+  viene después en `create()`, incluida la conexión real al servidor.
+  Por eso se sentía como "cuesta conectar" cuando el servidor ni
+  siquiera llegaba a intentarse contactar.
+- Fix de dos partes: (1) timeout global del loader (15s) que protege
+  cualquier carga futura, no solo esta; (2) los fondos se cargan ahora
+  en una segunda pasada DESPUÉS de conectar y ver la propia nave, nunca
+  antes — si esa carga tarda o falla, el jugador ya está dentro jugando,
+  las nebulosas solo aparecen tarde.
+- Ver diseño 8.4.17 para el detalle y el principio general que deja
+  sentado para futuros assets no imprescindibles.
+
 ## [v0.8.0]
 
 ### Añadido — PvP de pruebas (targetear/atacar/matar a otros jugadores) + decoración de fondo cósmico

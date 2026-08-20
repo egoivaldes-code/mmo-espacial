@@ -1,68 +1,48 @@
-# v0.8.0 — PvP de pruebas + decoración de fondo cósmico
+# v0.8.1 — Arregla el bug de pantalla negra / no conecta
 
-## PvP de pruebas
-Cualquier otro jugador es tocable/fijable igual que un NPC. El servidor
-ya calculaba el daño correctamente en la rama `player` de
-`dispararCiclo` desde antes (era genérico por diseño), pero nunca
-avisaba a la víctima — ahora recibe `hit` con el mismo formato que un
-golpe de NPC, así que el HUD, la vida estimada de las tarjetas de
-objetivo y los VFX de escudo/explosión funcionan sin ninguna rama
-especial para PvP. Auto-fijado de vuelta también funciona si te dispara
-otro jugador (respeta la preferencia, como con los NPC).
+**Bug crítico de v0.8.0, ya corregido.** Reporte real jugando en móvil:
+"le ha costado conectar al server, al entrar se ve todo negro y no pasa
+nada".
 
-**Deliberadamente solo el mecanismo**: sin balance, sin recompensa ni
-penalización por matar a otro jugador — es para poder testear combate
-real entre jugadores, no un sistema de PvP terminado (sigue pendiente en
-diseño 8.4.11: zona segura, CONCORD, etc.).
+## Qué pasaba
+Los 63 PNG de decoración de fondo (v0.8.0) se cargaron en el `preload()`
+de Phaser, que es **bloqueante**: nada de lo que viene después en
+`create()` arranca hasta que el loader entero termina — ni la creación
+de la nave, ni la conexión real al servidor (`connectToServer()`). El
+loader de Phaser no tiene timeout por defecto, así que una sola petición
+que se quedara colgada (dato móvil flojo, no hacía falta que fallase,
+bastaba con que no contestara) dejaba el juego entero esperando para
+siempre. Con 63 peticiones nuevas de golpe, la probabilidad de que
+alguna se atascara subió mucho — de ahí que se notara justo en v0.8.0.
 
-## Decoración de fondo cósmico
-63 nebulosas/galaxias recortadas de dos hojas de referencia de ~160
-objetos cada una (mismo pipeline de despill de color que las torretas y
-el VFX de combate — chroma-key + recorte por detección de contenido
-real, no rejilla fija) dispersas por todo el mundo.
+## El fix, dos partes
+1. **Timeout global del loader** (15s) en la config de `Phaser.Game` —
+   protege cualquier carga futura, no solo esta.
+2. **Los fondos se cargan en una segunda pasada, después de conectar.**
+   `loadBackdropsDeferred()` se lanza solo tras
+   `await this.connectToServer()`, con el jugador ya dentro viendo su
+   nave. Si esa carga tarda, falla o se cuelga, ya no bloquea nada — las
+   nebulosas simplemente aparecen tarde (o no aparecen). `spawnBackdrops()`
+   además queda en try/catch: es decoración pura, no debe poder tirar
+   nada más si algo sale mal.
 
-- **Determinista por semilla fija** (mulberry32), no aleatorio de
-  verdad: todos los clientes ven el mismo universo en las mismas
-  posiciones sin que el servidor mande ni una coordenada — mismo
-  principio que ya usan CONCORD y los chunks.
-- 22 nebulosas grandes dispersas ralas + 130 instancias medianas
-  (reutilizando 56 texturas con distinta posición/rotación/escala cada
-  vez — variedad sin cargar cientos de imágenes).
-- Capa de ambientación por debajo de estación/naves, con parallax
-  (scrollFactor reducido) y mezcla aditiva + alpha bajo para que se lea
-  como resplandor de fondo sin competir con el gameplay.
-- Imágenes "hero" reescaladas a 700px máx (pesaban ~2.4MB cada una a
-  resolución completa) — el set completo curado pesa ~4.7MB.
-
-## Pendiente (ver diseño 8.4.15 y 8.4.16)
-- Sin balance de PvP: solo el mecanismo de targetear/atacar/matar.
-- El tinte naranja fijo sobre otros jugadores sigue ahí (mismo argumento
-  que ya se aplicó a los NPC en v0.7.0 — identificar por marcador, no
-  por teñir el sprite entero — pendiente si el PvP deja de ser solo de
-  pruebas).
-- Blend ADD aplicado por igual a las 63 texturas de fondo, incluidas las
-  que parecen planetas — vale para decoración de fondo, no para
-  representar un planeta real de un sistema más adelante.
-- No se validó con Playwright — misma limitación de red del sandbox de
-  las últimas sesiones.
+## Principio para el futuro
+Cualquier asset que no sea imprescindible para entrar a la partida y ver
+la nave (decoración, catálogos opcionales) debería cargarse DESPUÉS de
+conectar, no en el `preload()` inicial. `effects.js` (VFX de
+explosión/escudo) todavía carga sus 75 imágenes en el preload original —
+funciona porque el timeout global ya evita el cuelgue infinito, pero es
+buen candidato para el mismo tratamiento si el catálogo de VFX sigue
+creciendo.
 
 ---
 
-Detalle técnico completo en `CHANGELOG.md` (raíz y
-`client/public/CHANGELOG.md`) y en `diseno-mmo-espacial.md` (8.4.15 y
-8.4.16).
+Detalle técnico completo en `CHANGELOG.md` y en `diseno-mmo-espacial.md`
+(8.4.16 actualizada con el aviso del bug, 8.4.17 nueva con el fix).
 
 ## Archivos de este parche
-- `client/src/main.js` — PvP (combatTarget en jugadores, HUD/health
-  genérico) + sistema de decoración de fondo (`BACKDROP_FILES`,
-  `spawnBackdrops()`, mulberry32).
-- `client/public/backdrops/` — 63 PNG + `backdrops.json` (manifest de
-  referencia, no lo lee el juego en tiempo de ejecución).
-- `server/rooms/ChunkRoom.js` — `hit` a la víctima en PvP,
-  `intentarAutoTargetBack` generalizado por `kind`.
-- `client/public/patchnotes/es.json` / `en.json` — historial del juego
-  puesto al día hasta v0.8.0.
-- `CHANGELOG.md` / `client/public/CHANGELOG.md` — historial técnico
-  completo.
-- `diseno-mmo-espacial.md` — secciones 8.4.15 y 8.4.16 añadidas, 8.4.14
-  actualizada.
+- `client/src/main.js` — timeout del loader, `loadBackdropsDeferred()`,
+  `spawnBackdrops()` con try/catch.
+- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.1.
+- `CHANGELOG.md` / `client/public/CHANGELOG.md` — historial técnico.
+- `diseno-mmo-espacial.md` — 8.4.16 actualizada, 8.4.17 nueva.

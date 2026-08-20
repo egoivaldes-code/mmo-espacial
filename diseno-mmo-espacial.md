@@ -2295,7 +2295,20 @@ CONCORD todavía — eso sigue siendo 8.4.11 y más adelante).
   los NPC (identificar por marcador, no por teñir el sprite entero)
   aplicaría aquí también si el PvP deja de ser solo de pruebas.
 
-### 8.4.16 Decoración de fondo cósmico (v0.8.0)
+### 8.4.16 Decoración de fondo cósmico (v0.8.0, bug de carga corregido en v0.8.1)
+
+⚠️ **v0.8.0 tenía un bug real que dejaba el juego colgado en pantalla
+negra** ("le ha costado conectar al server, al entrar se ve todo negro y
+no pasa nada" — reporte de sesión jugando en móvil real). Causa: los 63
+`this.load.image()` de esta sección se añadieron al `preload()`
+existente, que es **bloqueante** — `create()` (y con él,
+`await this.connectToServer()`) no arranca hasta que el loader entero
+termina. El loader de Phaser no tiene timeout por defecto: una sola
+petición que se quede colgada (dato móvil flojo, no necesariamente el
+propio servidor de juego) bloqueaba el juego entero para siempre, no
+solo la decoración — de ahí que pareciera un problema de conexión al
+servidor cuando en realidad el servidor nunca llegaba a intentarse
+contactar. Corregido en v0.8.1, ver el capítulo de esa versión.
 
 Capa "estrellas/galaxias de ambientación" de la conversación de diseño
 gráfico por capas (por debajo de planeta/estación/naves): hasta ahora
@@ -2321,7 +2334,7 @@ completo pesa ~4.7MB.
 mundo es determinista por semilla en otras partes del diseño (CONCORD,
 chunks) y aquí aplica el mismo principio por la misma razón: todos los
 clientes tienen que ver la MISMA decoración en las MISMAS posiciones sin
-que el servidor mande ni una coordenada. `spawnBackdrops()` en
+que el servidor mande ni una coordenada. `spawnBackdropsUnsafe()` en
 `main.js` usa un mulberry32 (PRNG determinista de una función, sin
 dependencias) con semilla fija (`BACKDROP_SEED`) para elegir textura,
 posición, rotación y escala de cada instancia — 22 "hero" dispersas
@@ -2330,10 +2343,10 @@ en distintas posiciones/rotaciones/escalas para dar variedad sin tener
 que cargar 330 imágenes distintas (justo lo que se pidió: "puedes
 girarlos para dar más variedad").
 
-**Capa y aspecto**: se crean en `create()` antes que cualquier nave (por
-orden de inserción quedan siempre detrás — mismo truco que ya usa
-`starfield()`, sin gestionar profundidad a mano), con `scrollFactor`
-reducido (0.35-0.55) para dar sensación de parallax/lejanía, alpha bajo
+**Capa y aspecto**: se crean antes que cualquier nave (por orden de
+inserción quedan siempre detrás — mismo truco que ya usa `starfield()`,
+sin gestionar profundidad a mano), con `scrollFactor` reducido
+(0.35-0.55) para dar sensación de parallax/lejanía, alpha bajo
 (0.22-0.52) y modo de mezcla ADD para que se lean como resplandor de
 fondo y no tapen naves/asteroides ni compitan visualmente con el HUD. A
 diferencia del `starfield()` (que sí contrarresta el zoom para mantener
@@ -2349,6 +2362,44 @@ con el resto del mundo al hacer zoom para sentirse parte de la escena.
   de la conversación de capas) necesitarán su propio tratamiento sin
   ADD, como objeto opaco.
 - No se validó con Playwright, misma limitación de red del sandbox.
+
+### 8.4.17 Fix: carga de assets no puede bloquear la conexión (v0.8.1)
+
+Bug real reportado jugando en móvil: v0.8.0 dejaba el juego en pantalla
+negra sin conectar. Causa raíz explicada en 8.4.16 — el `preload()` de
+Phaser es bloqueante y no tiene timeout por defecto, así que cualquier
+petición colgada (no hacía falta que fallase, bastaba con que tardase
+indefinidamente) paraba TODO lo que viene después en `create()`,
+incluida `await this.connectToServer()`. Con 63 peticiones nuevas de
+golpe en el mismo preload(), la probabilidad de que alguna se atascase
+en una red móvil floja subió mucho — de ahí que empezara a notarse justo
+en v0.8.0 y no antes.
+
+Dos correcciones, una general y una específica:
+
+1. **Timeout global del loader** (`loader: { timeout: 15000 }` en la
+   config de `Phaser.Game`): protege CUALQUIER carga futura, no solo los
+   fondos — 15s de margen de sobra en cualquier red normal, pero ya
+   ninguna petición individual puede colgar el juego para siempre.
+2. **Los 63 PNG de fondo salen del `preload()` bloqueante.** Ahora se
+   cargan en una SEGUNDA pasada del loader (`loadBackdropsDeferred()`),
+   lanzada solo DESPUÉS de `await this.connectToServer()` — con el
+   jugador ya dentro y jugando. Si esa segunda carga tarda, falla, o se
+   cuelga, el jugador ya está viendo su nave y moviéndose; las nebulosas
+   simplemente aparecen tarde (o no aparecen) en vez de bloquear nada.
+   `spawnBackdrops()` además queda envuelta en try/catch — puramente
+   decorativo, un fallo ahí no debe poder tirar nada más.
+
+**Principio general para el futuro**: cualquier asset que no sea
+imprescindible para que el jugador entre a la partida y vea su nave
+(decoración, efectos, catálogos opcionales) debería cargarse DESPUÉS de
+conectar, no en el `preload()` inicial — el `preload()` bloqueante debe
+reservarse para lo mínimo indispensable (sprite propio, catálogo de
+naves). effects.js (VFX de explosión/escudo, 8.4.13) todavía carga sus
+75 imágenes en el preload() bloqueante original — funciona hoy porque el
+timeout global de este parche ya evita el cuelgue infinito, pero sería
+buen candidato para el mismo tratamiento de carga diferida si el
+catálogo de VFX sigue creciendo.
 
 ### 8.5 Bootstrap del jugador nuevo
 

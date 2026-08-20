@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.8.0";
+const GAME_VERSION = "v0.8.1";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -1224,15 +1224,12 @@ class ChunkScene extends Phaser.Scene {
     // Explosiones y chispazos de escudo (VFX de combate) — ver effects.js.
     preloadEffects(this);
 
-    // Decoración de fondo cósmico (nebulosas/galaxias recortadas de hojas
-    // de referencia, mismo pipeline de despill que las torretas/VFX) — ver
-    // BACKDROP_FILES y spawnBackdrops(). 7 "hero" grandes (dispersión
-    // rala) + 56 medianas (de las dos hojas de ~160 objetos cada una,
-    // quedándose con las de más área — las estrellas puntuales sueltas ya
-    // las cubre el starfield procedural, no hacía falta duplicarlas).
-    for (const file of BACKDROP_FILES) {
-      this.load.image(`backdrop-${file}`, `${import.meta.env.BASE_URL}backdrops/${file}`);
-    }
+    // Los fondos NO se cargan aquí a propósito — ver loadBackdropsDeferred(),
+    // llamado después de conectar. 63 peticiones HTTP más en este preload()
+    // bloqueante (antes de poder ver la nave o hablar con el servidor) eran
+    // 63 formas nuevas de dejar el juego colgado entero por una sola
+    // petición floja en datos móviles — la decoración de fondo no tiene por
+    // qué poder impedir entrar a jugar.
   }
 
   async create() {
@@ -1273,7 +1270,6 @@ class ChunkScene extends Phaser.Scene {
 
     this.engineSound = this.sound.add(`ship-${STARTING_SHIP_ID}-hum`, { loop: true, volume: 0.12 });
 
-    this.spawnBackdrops();
     this.starfield();
     this.drawWorldBorder();
     this.createOwnShipIndicator();
@@ -1283,6 +1279,11 @@ class ChunkScene extends Phaser.Scene {
     this.setupVisibilityRetry();
 
     await this.connectToServer();
+
+    // Decoración de fondo: solo después de estar conectado y jugando (ver
+    // loadBackdropsDeferred) — nunca antes, para que no pueda retrasar ni
+    // bloquear la conexión real al servidor.
+    this.loadBackdropsDeferred();
   }
 
   // Triángulo de referencia para la PROPIA nave cuando el zoom está muy
@@ -1326,6 +1327,20 @@ class ChunkScene extends Phaser.Scene {
     if (show) this.ownShipIndicator.rotation = this.localEntry.facing + Math.PI / 2;
   }
 
+  // Carga diferida de los 63 PNG de decoración (no en preload(), ver el
+  // comentario allí) — se lanza una SEGUNDA pasada del loader ya con el
+  // juego en marcha, y spawnBackdrops() solo se ejecuta cuando esa pasada
+  // termina. Si tarda o incluso si algún archivo falla, el jugador ya
+  // está dentro y jugando; las nebulosas simplemente aparecen un poco
+  // tarde (o no aparecen, en el peor caso) en vez de bloquear nada.
+  loadBackdropsDeferred() {
+    for (const file of BACKDROP_FILES) {
+      this.load.image(`backdrop-${file}`, `${import.meta.env.BASE_URL}backdrops/${file}`);
+    }
+    this.load.once("complete", () => this.spawnBackdrops());
+    this.load.start();
+  }
+
   // Nebulosas/galaxias de fondo, dispersas por todo el mundo con posición,
   // rotación y escala aleatorias — MISMA secuencia en todos los clientes
   // (mulberry32 con semilla fija, ver BACKDROP_SEED), así que el universo
@@ -1342,6 +1357,17 @@ class ChunkScene extends Phaser.Scene {
   // estrellas-punto): son manchas de área real, tiene que dar la sensación
   // de que están ahí fuera en el mundo, no pegadas a la pantalla.
   spawnBackdrops() {
+    // Puramente decorativo: un fallo aquí (textura rara, lo que sea) no
+    // puede tirar nada más — el jugador ya está dentro y jugando cuando
+    // esto se ejecuta (ver loadBackdropsDeferred).
+    try {
+      this.spawnBackdropsUnsafe();
+    } catch (err) {
+      console.error("spawnBackdrops falló, se sigue sin decoración de fondo:", err);
+    }
+  }
+
+  spawnBackdropsUnsafe() {
     const rand = mulberry32(BACKDROP_SEED);
     const half = WORLD_SIZE * 0.9; // un poco más allá del borde jugable, como el starfield
     const HERO_COUNT = 22; // dispersión rala de las grandes
@@ -2691,5 +2717,13 @@ function launchGame() {
     input: {
       activePointers: 3, // joystick + botón de minar + un dedo extra para pellizco
     },
+    // Sin timeout, una sola petición colgada (conexión móvil floja, no
+    // necesariamente el propio servidor de juego) deja el loader
+    // esperando para siempre — y como preload()/create() son
+    // secuenciales, eso bloqueaba TODO lo de después, incluida la
+    // conexión a Colyseus. 15s de margen: de sobra para GitHub Pages en
+    // cualquier red normal, pero ya no cuelga el juego entero por un
+    // archivo que nunca contesta.
+    loader: { timeout: 15000 },
   });
 }

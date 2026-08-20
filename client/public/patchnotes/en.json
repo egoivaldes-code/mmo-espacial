@@ -1,5 +1,11 @@
 [
   {
+    "version": "v0.8.1",
+    "highlights": [
+      "Fixed an important bug: the game would sometimes get stuck on a black screen without ever connecting. Should no longer happen."
+    ]
+  },
+  {
     "version": "v0.8.0",
     "highlights": [
       "You can now attack other players! Tap their ship to target it, just like an enemy — testing-only for now, no rewards or penalties.",

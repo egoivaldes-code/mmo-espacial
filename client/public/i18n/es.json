@@ -39,7 +39,8 @@
     "connectionError": "Error de conexión: {error}",
     "warpCharging": "Cargando motor warp…{s}s",
     "warping": "En warp — pulsa WARP para cancelar",
-    "warpCooldown": "Warp enfriándose: {s}s"
+    "warpCooldown": "Warp enfriándose: {s}s",
+    "cruising": "Piloto crucero activado"
   },
   "menu": {
     "title": "Opciones",

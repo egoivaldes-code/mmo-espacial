@@ -14,6 +14,29 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.12]
+
+### Añadido — 5 iconos nuevos de HUD, generados por IA a partir del inventario de prompts
+- Nemesis generó los 5 iconos que faltaban (escudo, casco/estructura,
+  capacitor, piloto crucero, auto-fijado) con el prompt de estilo
+  compartido en el inventario anterior — llegaron los 5 juntos en una
+  sola imagen. Recortados automáticamente (detección de componentes
+  conexos con dilatación), pasados de blanco-sobre-negro a blanco con
+  transparencia real, y reescalados al mismo margen/proporción que los
+  16 iconos ya existentes (medido de un icono real del set, no a ojo).
+- La hoja de iconos (`ui/icons.png`) crece de 4×4 a 4×6 — quedan 3
+  huecos libres para el futuro. Actualizado el CSS del `mask-position`/
+  `mask-size`, que dependía del tamaño exacto de la rejilla.
+- **Usados de verdad, no solo añadidos a la hoja**:
+  - Nuevo indicador «Piloto crucero activado» en el HUD — hasta ahora,
+    activar el crucero (v0.5.7) no tenía NINGÚN reflejo visual, solo se
+    notaba por tacto.
+  - Iconos de escudo/casco/capacitor junto a sus barras de combate
+    (propias y del objetivo fijado), teñidos con el mismo color que
+    cada barra.
+  - El icono de auto-fijado queda en la hoja, reservado para un futuro
+    ajuste del panel de opciones.
+
 ## [v0.5.11]
 
 ### Añadido — primera pasada de arte real en menús (pack Wenrexa Sci-Fi UI)

@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.5.12",
+    "highlights": [
+      "5 iconos nuevos en el HUD: escudo, casco, energía y piloto crucero junto a sus barras correspondientes.",
+      "Nuevo aviso en pantalla cuando el piloto crucero está activado — antes no se notaba de ninguna forma."
+    ]
+  },
+  {
     "version": "v0.5.11",
     "highlights": [
       "Primera pasada de arte real en los menús: fondo de nebulosa, botones con esquinas en ángulo, e icono de engranaje real en el botón de opciones.",

@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.5.12",
+    "highlights": [
+      "5 new HUD icons: shield, hull, energy, and cruise pilot next to their matching bars.",
+      "New on-screen notice when cruise pilot is active — previously had no visual feedback at all."
+    ]
+  },
+  {
     "version": "v0.5.11",
     "highlights": [
       "First real art pass on the menus: nebula background, angled-corner buttons, and a real gear icon on the options button.",

@@ -39,7 +39,8 @@
     "connectionError": "Connection error: {error}",
     "warpCharging": "Charging warp drive…{s}s",
     "warping": "Warping — press WARP to cancel",
-    "warpCooldown": "Warp cooling down: {s}s"
+    "warpCooldown": "Warp cooling down: {s}s",
+    "cruising": "Cruise pilot active"
   },
   "menu": {
     "title": "Options",

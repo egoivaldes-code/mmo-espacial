@@ -234,10 +234,11 @@
     }
     #options-gear-btn:active { border-color: rgba(102, 204, 255, 0.7); }
     /* --- Iconos de interfaz --------------------------------------------
-       Los 16 iconos viven en UNA sola imagen (ui/icons.png, rejilla 4x4).
-       Una descarga en vez de dieciséis: en móvil con conexión lenta esa
-       es la diferencia entre ver el HUD al instante o verlo aparecer a
-       trozos.
+       Los iconos viven en UNA sola imagen (ui/icons.png, rejilla 4 cols
+       × 6 filas desde v0.5.12 — antes 4×4; quedan 3 huecos libres al
+       final para futuros iconos). Una descarga en vez de veintiuna: en
+       móvil con conexión lenta esa es la diferencia entre ver el HUD al
+       instante o verlo aparecer a trozos.
 
        No se pinta la imagen: se usa como MÁSCARA (mask). La imagen dice
        "qué forma tiene el icono" y el color lo pone `background-color`,
@@ -245,18 +246,22 @@
        para verde (amigo), rojo (enemigo) o gris (apagado) sin guardar
        tres imágenes distintas.
 
-       --ix / --iy son la columna y fila del icono dentro de la rejilla
-       (0 a 3). La URL la inyecta main.js, porque el juego se publica en
-       un subdirectorio y ahí la ruta correcta solo se conoce en JS. */
+       --ix / --iy son la columna (0 a 3) y fila (0 a 5) del icono dentro
+       de la rejilla. La URL la inyecta main.js, porque el juego se
+       publica en un subdirectorio y ahí la ruta correcta solo se conoce
+       en JS. mask-size es (nº columnas)×100% por (nº filas)×100%; el
+       paso de mask-position es 100/(columnas-1)% en X y 100/(filas-1)%
+       en Y — si la rejilla vuelve a crecer, estos tres números son los
+       que hay que tocar (4/6/33.3333/20), nada más. */
     .ui-icon {
       display: block;
       width: 100%; height: 100%;
       background-color: currentColor;
       -webkit-mask-image: var(--icons-url); mask-image: var(--icons-url);
-      -webkit-mask-size: 400% 400%; mask-size: 400% 400%;
+      -webkit-mask-size: 400% 600%; mask-size: 400% 600%;
       -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-      -webkit-mask-position: calc(var(--ix) * 33.3333%) calc(var(--iy) * 33.3333%);
-      mask-position: calc(var(--ix) * 33.3333%) calc(var(--iy) * 33.3333%);
+      -webkit-mask-position: calc(var(--ix) * 33.3333%) calc(var(--iy) * 20%);
+      mask-position: calc(var(--ix) * 33.3333%) calc(var(--iy) * 20%);
     }
 
     /* Fila de la casilla "mantener sesion". El <label> envuelve casilla y
@@ -277,11 +282,18 @@
        a rojo, para que el peligro se note sin tener que mirar el numero. */
     #combat-bars {
       position: fixed; top: 46px; left: 10px; z-index: 10;
-      display: flex; flex-direction: column; gap: 3px;
+      display: flex; flex-direction: column; gap: 4px;
       width: clamp(120px, 34vw, 180px);
       pointer-events: none;
     }
+    /* Icono + barra en fila — el icono da contexto sin tener que leer el
+       color (útil para quien no distinga bien azul/gris/amarillo). Se
+       tiñe con el mismo color que su barra vía `color` (el icono es una
+       máscara, hereda currentColor). */
+    .cbar-row { display: flex; align-items: center; gap: 5px; }
+    .cbar-icon { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.9; }
     .cbar-track {
+      flex: 1;
       height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12);
       overflow: hidden;
     }
@@ -290,6 +302,21 @@
     #structure-fill { background: #9fb0c0; }
     #structure-fill.critical { background: #ff5555; }
     #capacitor-fill { background: #ffcc44; }
+
+    /* --- Indicador de piloto crucero (8.4.10.3) -----------------------
+       Sin esto, activar el crucero no tenía NINGÚN reflejo visual — el
+       jugador solo lo sabía por tacto (la nave seguía moviéndose sola).
+       Arriba centrado, aparece/desaparece según player.cruising; no
+       lleva pointer-events porque es solo informativo, no interactivo. */
+    #cruise-indicator {
+      position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+      z-index: 10; display: none; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 20px;
+      background: rgba(10, 20, 30, 0.75); border: 1px solid rgba(102, 204, 255, 0.45);
+      color: #66ccff; font-family: monospace; font-size: clamp(11px, 2.6vw, 13px);
+      pointer-events: none; white-space: nowrap;
+    }
+    #cruise-indicator .ui-icon { width: 16px; height: 16px; flex-shrink: 0; }
 
     /* --- Boton de disparo y casilla de autodisparo -------------------------
        Van pegados al boton de accion, en el mismo lado (pulgar derecho).
@@ -459,16 +486,31 @@
     <div id="version-badge"></div>
     <button id="options-gear-btn" aria-label="Opciones"></button>
     <div id="combat-bars">
-      <div class="cbar-track"><div id="shield-fill" class="cbar-fill" style="width:100%"></div></div>
-      <div class="cbar-track"><div id="structure-fill" class="cbar-fill" style="width:100%"></div></div>
-      <div class="cbar-track"><div id="capacitor-fill" class="cbar-fill" style="width:100%"></div></div>
+      <div class="cbar-row">
+        <i class="ui-icon cbar-icon" style="--ix:0; --iy:4; color:#46c8ff;"></i>
+        <div class="cbar-track"><div id="shield-fill" class="cbar-fill" style="width:100%"></div></div>
+      </div>
+      <div class="cbar-row">
+        <i class="ui-icon cbar-icon" style="--ix:1; --iy:4; color:#9fb0c0;"></i>
+        <div class="cbar-track"><div id="structure-fill" class="cbar-fill" style="width:100%"></div></div>
+      </div>
+      <div class="cbar-row">
+        <i class="ui-icon cbar-icon" style="--ix:2; --iy:4; color:#ffcc44;"></i>
+        <div class="cbar-track"><div id="capacitor-fill" class="cbar-fill" style="width:100%"></div></div>
+      </div>
     </div>
 
     <div id="target-panel">
       <div id="target-name"></div>
       <div id="target-bars">
-        <div class="cbar-track"><div id="target-shield-fill" class="cbar-fill" style="width:100%"></div></div>
-        <div class="cbar-track"><div id="target-structure-fill" class="cbar-fill" style="width:100%"></div></div>
+        <div class="cbar-row">
+          <i class="ui-icon cbar-icon" style="--ix:0; --iy:4; color:#46c8ff;"></i>
+          <div class="cbar-track"><div id="target-shield-fill" class="cbar-fill" style="width:100%"></div></div>
+        </div>
+        <div class="cbar-row">
+          <i class="ui-icon cbar-icon" style="--ix:1; --iy:4; color:#9fb0c0;"></i>
+          <div class="cbar-track"><div id="target-structure-fill" class="cbar-fill" style="width:100%"></div></div>
+        </div>
       </div>
     </div>
 
@@ -512,6 +554,10 @@
   <div id="game-closed-overlay"></div>
 
   <div id="ui">Conectando…</div>
+  <div id="cruise-indicator">
+    <i class="ui-icon" style="--ix:3; --iy:4;"></i>
+    <span id="cruise-indicator-label">Piloto crucero activado</span>
+  </div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

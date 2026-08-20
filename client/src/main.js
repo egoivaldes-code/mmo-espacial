@@ -18,7 +18,7 @@ import {
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.5.11";
+const GAME_VERSION = "v0.5.12";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -381,6 +381,12 @@ const ICONS = {
   cargo: [0, 1], target: [1, 1], mine: [2, 1], weapon: [3, 1],
   ship: [0, 2], station: [1, 2], gate: [2, 2], asteroid: [3, 2],
   container: [0, 3], ruin: [1, 3], lockPending: [2, 3], lockDone: [3, 3],
+  // Añadidos en v0.5.12 — mismo estilo (línea fina blanca, generado a
+  // partir de un prompt de referencia igualado al resto del set, ver
+  // 15.5.1 del diseño). La hoja crece de 4×4 a 4×6; quedan 3 huecos
+  // libres (fila 6, columnas 1-3) para futuros iconos.
+  shield: [0, 4], hull: [1, 4], capacitor: [2, 4], cruise: [3, 4],
+  autoTargetBack: [0, 5],
 };
 
 // El mismo atlas visto como lista lineal (0..15), que es como lo indexa
@@ -486,6 +492,8 @@ const langOptionsEl = document.getElementById("lang-options");
 const closeGameBtn = document.getElementById("close-game-btn");
 const gameClosedOverlay = document.getElementById("game-closed-overlay");
 const autotargetBackCheck = document.getElementById("autotarget-back-check");
+const cruiseIndicatorEl = document.getElementById("cruise-indicator");
+const cruiseIndicatorLabel = document.getElementById("cruise-indicator-label");
 const autotargetBackLabel = document.getElementById("autotarget-back-label");
 
 // --- Fijar automáticamente a quien me ataque -------------------------------
@@ -912,6 +920,7 @@ function applyStaticTranslations() {
   optionsLangLabelEl.textContent = t("menu.language");
   autotargetBackLabel.textContent = t("menu.autoTargetBack");
   closeGameBtn.textContent = t("menu.closeGame");
+  cruiseIndicatorLabel.textContent = t("hud.cruising");
   renderLangOptions();
 }
 
@@ -1464,6 +1473,8 @@ class ChunkScene extends Phaser.Scene {
     updateCombatHud();
     this.localEntry = null;
     this.localPlayerState = null;
+    cruiseIndicatorEl.style.display = "none";
+    this.lastCruiseIndicatorShown = false;
   }
 
   // Debe cubrir, en tiempo real transcurrido, la ventana de
@@ -1595,6 +1606,19 @@ class ChunkScene extends Phaser.Scene {
     this.updateOffscreenMarkers();
     this.updateStarfieldScale();
     this.updateOwnShipIndicator();
+    this.updateCruiseIndicator();
+  }
+
+  // Único reflejo visual de player.cruising (8.4.10.3) — sin esto,
+  // activar el piloto crucero no se notaba en ningún sitio salvo por
+  // tacto (la nave seguía moviéndose sola sin más). Compara con el
+  // último estado mostrado para no escribir en el DOM 60 veces por
+  // segundo cuando no ha cambiado nada.
+  updateCruiseIndicator() {
+    const cruising = !!this.localPlayerState?.cruising;
+    if (cruising === this.lastCruiseIndicatorShown) return;
+    this.lastCruiseIndicatorShown = cruising;
+    cruiseIndicatorEl.style.display = cruising ? "flex" : "none";
   }
 
   // Coloca el emisor de la estela detrás de la nave (en el sentido

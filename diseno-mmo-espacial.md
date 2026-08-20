@@ -2741,11 +2741,30 @@ redundante con lo ya integrado.
 ninguna regla CSS propia (solo el campo de email la tenía) — se veía
 con el fondo blanco por defecto del navegador. Corregido.
 
-**Pendiente**: encargar (vía IA de imagen, ver inventario de prompts
-compartido con Nemesis) los iconos de combate que el pack no trae:
-escudo, estructura, capacitor, carga, warp, fijado de objetivo — para
-sustituir el sistema de iconos actual (`ui/icons.png`) por unos que
-encajen visualmente con este pack.
+**Iconos de combate — resuelto en v0.5.12.** Nemesis generó los 5
+iconos del inventario de prompts (escudo, casco/estructura, capacitor,
+piloto crucero, auto-fijado) con un generador de imagen, todos juntos
+en una sola entrega. Procesado igual que las torretas en su momento:
+detección automática de las 5 regiones (componentes conexos con
+dilatación, para separar iconos con trazos que no se tocan entre sí —
+p. ej. las líneas de movimiento sueltas del icono de crucero), paso de
+blanco-sobre-negro a blanco con transparencia real, y reescalado al
+mismo margen/proporción que los 16 iconos ya existentes (medido de un
+icono real del set con NumPy, no a ojo). Encajan perfecto con el estilo
+ya existente — línea fina blanca, mismo grosor, mismo margen.
+
+La hoja `ui/icons.png` crece de 4×4 a 4×6 (quedan 3 huecos libres). El
+CSS de `.ui-icon` (`mask-size`/`mask-position`, ver 15.3) dependía del
+tamaño exacto de la rejilla — actualizado a la vez, documentando en el
+propio CSS qué tres números tocar si la rejilla vuelve a crecer.
+
+**Usados de verdad, no solo añadidos a la hoja**: nuevo indicador
+«Piloto crucero activado» en el HUD (8.4.10.3 no tenía NINGÚN reflejo
+visual hasta ahora, solo se notaba por tacto), e iconos de escudo/
+casco/capacitor junto a sus barras de combate — propias y del objetivo
+fijado —, teñidos con el mismo color que cada barra vía `currentColor`.
+El icono de auto-fijado (8.4.10.4) queda en la hoja, reservado para un
+futuro ajuste visual del panel de opciones.
 
 ### 15.6 Pendiente de diseñar
 

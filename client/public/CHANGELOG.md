@@ -14,6 +14,54 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.9]
+
+### Corregido — bug de la orientación guardada (auditoría completa del proyecto)
+- Se guardaba `player.facing`, un campo que se ponía una única vez al
+  cargar la partida (desde el valor guardado la vez anterior) y nunca se
+  volvía a tocar durante el vuelo — la orientación real se actualiza en
+  `player.rotation`, cada tick. Resultado: cada personaje reaparecía
+  mirando hacia donde miraba dos sesiones atrás, nunca hacia donde se
+  dejó realmente. No afectaba a posición, HP, escudo ni carga (esos sí
+  se guardaban bien).
+- Corregido guardando `player.rotation` directamente; se elimina el
+  campo `facing` muerto.
+
+### Mejorado — rendimiento de búsquedas de cliente (auditoría)
+- Cuatro puntos del servidor (auto-fijar de vuelta, devolver el golpe de
+  un NPC, avisar de muerte, avisar de reaparición) buscaban el `Client`
+  de un jugador recorriendo la lista completa de conectados
+  (`this.clients.find(...)`) — barato con pocos jugadores, pero un
+  recorrido lineal que crece con cada persona conectada.
+- Sustituido por un `Map` sessionId → Client mantenido en `onJoin`/
+  `onLeave` (incluida la ventana de reconexión: durante ese margen el
+  Map no encuentra al cliente, igual que antes tampoco lo encontraba
+  `this.clients.find`). Búsqueda ahora O(1) en vez de O(jugadores
+  conectados).
+- Sin cambios de comportamiento — mismo resultado, menos trabajo por
+  búsqueda.
+
+### Añadido — estrellas de fondo a tamaño constante
+- Las 900 estrellas vivían en el mundo, así que su tamaño en pantalla
+  cambiaba con el zoom — casi invisibles con zoom out extremo, manchas
+  grandes con zoom in. Ahora contrarrestan el zoom (mismo truco que los
+  marcadores de referencia): su tamaño en pantalla es siempre el mismo,
+  se muevan o no con el paralaje de la cámara.
+
+### Añadido — triángulo de referencia para la propia nave
+- Con zoom muy alejado el sprite de tu propia nave también se vuelve
+  ilegible, igual que le pasaba a las demás naves. Ahora, pasado el 50%
+  del recorrido de zoom (en escala logarítmica — el zoom se siente
+  multiplicativo, no lineal), el sprite se sustituye por un triángulo
+  blanco fijo en el centro exacto de la pantalla, apuntando hacia el
+  rumbo real. Por debajo del 50% (más cerca) desaparece y vuelve a verse
+  el sprite normal.
+
+### Cambiado — el botón de opciones se muda a la esquina
+- Antes vivía junto a los botones de combate, abajo a la derecha. Ahora
+  está en la esquina superior derecha, con el número de versión
+  reubicado justo debajo para que no se solapen.
+
 ## [v0.5.8]
 
 ### Corregido — crash del servidor entero al destruir tu propio objetivo

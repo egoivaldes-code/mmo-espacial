@@ -330,6 +330,14 @@ class ChunkRoom extends Room {
     this.lastAction = new Map();
     this.actionScanAccum = 0;
 
+    // sessionId -> Client. Auditoría de rendimiento: antes de esto, buscar
+    // el Client de un sessionId concreto (al fijar objetivo, al matar a
+    // alguien, al devolver un disparo de NPC) era this.clients.find(...) —
+    // un recorrido lineal de TODOS los conectados por cada búsqueda. Con
+    // pocos jugadores es gratis; es de las primeras cosas que se nota con
+    // más gente, y cambiar a un Map no cuesta nada de claridad ni de riesgo.
+    this.clientsBySessionId = new Map();
+
     // Estado de combate por jugador. NO va al estado replicado: energía,
     // objetivos y recargas solo le importan a su dueño (8.4.8). Se manda por
     // mensaje privado y solo cuando cambia algo que se ve.
@@ -423,7 +431,7 @@ class ChunkRoom extends Room {
   intentarAutoTargetBack(sessionId, npcId) {
     const player = this.state.players.get(sessionId);
     if (!player || !player.alive || player.autoTargetBack === false) return;
-    const client = this.clients.find((c) => c.sessionId === sessionId);
+    const client = this.clientsBySessionId.get(sessionId);
     if (!client) return;
     this.startLock(client, player, "npc", npcId);
   }
@@ -725,7 +733,7 @@ class ChunkRoom extends Room {
         const resultado = combat.resolverDisparo(ARMA_MEDIUM_CORTA, tirador, objetivo);
         if (resultado) {
           const efecto = combat.aplicarDano(objetivo, resultado.damage);
-          const client = this.clients.find((c) => c.sessionId === brain.targetSessionId);
+          const client = this.clientsBySessionId.get(brain.targetSessionId);
           if (client) {
             client.send("hit", {
               from: id,
@@ -759,7 +767,7 @@ class ChunkRoom extends Room {
     player.structure = 0;
     player.cruising = false;
 
-    const client = this.clients.find((c) => c.sessionId === sessionId);
+    const client = this.clientsBySessionId.get(sessionId);
     if (client) client.send("destroyed", {});
 
     setTimeout(() => {
@@ -785,7 +793,7 @@ class ChunkRoom extends Room {
       this.npcBrains.forEach((brain) => {
         if (brain.targetSessionId === sessionId) brain.targetSessionId = null;
       });
-      const c2 = this.clients.find((c) => c.sessionId === sessionId);
+      const c2 = this.clientsBySessionId.get(sessionId);
       if (c2) { this.sendCombatState(c2); c2.send("respawned", {}); }
     }, 5000);
   }
@@ -827,6 +835,12 @@ class ChunkRoom extends Room {
   }
 
   onJoin(client, options, auth) {
+    // Se registra siempre, ANTES del return de reconexión de abajo — en
+    // una reconexión real Colyseus vuelve a llamar a onJoin con el mismo
+    // sessionId pero un Client nuevo, así que hay que refrescar la
+    // entrada del Map aunque no se toque nada más del jugador.
+    this.clientsBySessionId.set(client.sessionId, client);
+
     // Si ya hay un Player para este sessionId es una reconexión dentro de
     // la ventana de allowReconnection (ver onLeave) — se conserva posición,
     // carga, HP, etc. Solo se crea uno nuevo si es la primera entrada.
@@ -852,7 +866,6 @@ class ChunkRoom extends Room {
         player.y = character.state.y;
         player.vx = character.state.vx;
         player.vy = character.state.vy;
-        player.facing = character.state.facing;
         player.rotation = character.state.facing;
         player.structure = character.state.hp;
         player.shield = character.state.shield ?? 0;
@@ -901,7 +914,15 @@ class ChunkRoom extends Room {
       y: player.y,
       vx: player.vx || 0,
       vy: player.vy || 0,
-      facing: player.facing || 0,
+      // BUG REAL corregido aquí (auditoría, no detectado hasta ahora):
+      // se guardaba "player.facing", un campo que se ponía UNA vez al
+      // cargar la partida (desde el valor guardado) y nunca se volvía a
+      // tocar — el rumbo real de vuelo se actualiza en player.rotation,
+      // cada tick, no en player.facing. Resultado: la orientación
+      // guardada era siempre la de "al entrar", nunca la de "al salir".
+      // No perdía posición/HP/carga (esos sí se actualizaban bien), solo
+      // la nave aparecía mirando hacia donde miraba dos sesiones atrás.
+      facing: player.rotation || 0,
       hp: player.structure,
       shield: player.shield,
       cargo: player.cargo,
@@ -927,6 +948,14 @@ class ChunkRoom extends Room {
   // segundos para volver. Solo se borra si expira sin que reconecte.
   async onLeave(client, consented) {
     const player = this.state.players.get(client.sessionId);
+
+    // Se borra YA, no al final: mientras el socket está caído (incluso
+    // dentro de la ventana de reconexión) no hay Client válido al que
+    // mandarle nada. Si reconecta de verdad, onJoin() lo vuelve a
+    // registrar — así que esto mantiene exactamente el mismo
+    // comportamiento que antes tenía this.clients.find() (que durante la
+    // ventana de gracia tampoco lo encontraba), solo que en O(1).
+    this.clientsBySessionId.delete(client.sessionId);
 
     // Se olvida la acción contextual cacheada: si vuelve, que se recalcule
     // desde cero (puede haber minado el asteroide otro mientras no estaba).

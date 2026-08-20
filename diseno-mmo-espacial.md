@@ -2382,6 +2382,76 @@ editor de código en el navegador).
   `client/public/CHANGELOG.md`, esta última es la copia que lee el propio
   juego en la pantalla de inicio).
 
+### 14.4 Auditoría completa del proyecto (v0.5.9)
+
+Pasada completa por servidor y cliente en busca de bugs, bucles/costes
+que escalen mal, y huecos de sincronización/rendimiento/latencia. No es
+una lista de TODO — es un registro de lo que se encontró y por qué se
+decidió actuar o no sobre cada cosa, para no tener que redescubrirlo.
+
+**Corregido en esta pasada** (ver CHANGELOG v0.5.9):
+- Bug real: la orientación guardada (`facing`) no reflejaba la real de
+  vuelo (`rotation`) — quedaba congelada en el valor de cuando se cargó
+  la partida.
+- `this.clients.find(...)` (recorrido lineal, O(jugadores conectados))
+  en cuatro puntos calientes → `Map` sessionId→Client, O(1).
+
+**Encontrado, sin tocar todavía — por qué:**
+
+- **Una sola sala global, sin sharding.** `index.js` define un único
+  `"chunk"` sin `maxClients`, y Render corre 1 sola instancia (plan
+  free). Todo el juego —cuantos jugadores existan— corre en un proceso
+  Node, un hilo, un tick de 20Hz. Es la arquitectura correcta para el
+  prototipo (dividir en salas reales necesita descubrimiento de
+  chunks, que todavía no existe — ver 5), pero es el techo real de
+  escalado. No se toca hasta que haga falta de verdad.
+- **Sin área de interés.** Los tres `MapSchema` (jugadores, NPCs,
+  asteroides) se replican enteros a cada cliente conectado sin filtrar
+  por distancia — con `WORLD_SIZE=30.000` disperso, cada cliente
+  descarga estado de gente invisible a kilómetros. Con pocos jugadores
+  es gratis; es el segundo cuello de botella real tras la sala única, y
+  se aborda junto con el sharding (un chunk *es*, de forma natural, un
+  filtro de área de interés — no tiene sentido resolver esto antes que
+  eso).
+- **IA de NPCs es O(NPCs × jugadores)**, 4 veces/segundo — cada NPC
+  recorre a todos los jugadores buscando el más cercano
+  (`updateNpcs()`). Ya señalado en el propio código como conocido.
+  Necesita rejilla espacial cuando haya "decenas de NPCs" de verdad, no
+  antes.
+- **Minado corre al tick completo (20Hz), no a 4Hz.** `tryMine()`
+  recorre los 120 asteroides en CADA tick del servidor mientras alguien
+  mantiene pulsado minar, no solo en el escaneo de acción contextual de
+  4Hz. Es la ruta más caliente del bucle principal con varios mineros
+  activos a la vez. Pendiente de bajar su frecuencia — no se ha tocado
+  todavía porque toca el mismo bucle que la física y conviene hacerlo
+  con calma, no de pasada.
+- **Sin límite de mensajes por cliente ni `maxClients` en la sala.**
+  Nada impide que un cliente (con bug o malicioso) inunde `input`/
+  `lock`/`cruiseToggle`, ni hay una válvula de seguridad si hay un pico
+  de conexiones. Aceptable mientras el juego no sea público de verdad;
+  hay que resolverlo antes de abrir el acceso más allá de pruebas
+  cerradas.
+- **`setTimeout` de respawn (5s, en `matarJugador`) sin trackear.** Si
+  la sala se cierra antes de que dispare, el callback sigue vivo e
+  intenta tocar `this.state` ya potencialmente destruido. Bajo riesgo
+  real hoy (la sala rara vez se cierra con gente recién muerta), pero
+  es la clase de bug que un día coincide con mala suerte.
+- **Constantes de física duplicadas a mano entre cliente y servidor**
+  (masa, empuje, giro — ver 8.4.6.1). Ya documentado como riesgo: un
+  cambio de balance que se olvide replicar en el otro lado
+  desincroniza la predicción local del cliente frente al servidor
+  (visible como tirones). Candidato a archivo de config compartido el
+  día que haya build step que lo permita compartir entre `server/` y
+  `client/` limpiamente.
+- **Normalización de barras de vida con constantes sueltas en el
+  cliente** (`npc.shield / 380`, `npc.structure / 632`,
+  `CRUISER_SHIELD_MAX = 420`) en vez de leer los valores reales del
+  catálogo (`server/data/shipStats.js` / lo que ya manda el propio
+  jugador). Funcionan hoy por coincidencia numérica, pero se
+  desincronizarán solas en cuanto una clase de nave cambie sin que
+  alguien recuerde tocar estas líneas también. Cosmético (una barra de
+  vida un pelín imprecisa), no urgente.
+
 ---
 
 ## 15. Interfaz
@@ -2548,8 +2618,49 @@ combate. Color: blanco para naves genéricas, naranja (mismo tono que la
 retícula de bloqueo) para objetivos fijados, para que se lean como "lo
 mismo" de un vistazo. Radios pequeños a propósito (4-6px en pantalla) —
 son referencia, no deben competir visualmente con los sprites reales. La
-propia nave del jugador nunca necesita marcador: la cámara la sigue
-siempre, así que nunca está fuera de vista.
+propia nave del jugador nunca puede quedar OFFSCREEN (la cámara la
+sigue siempre), pero sí puede volverse igual de ilegible que las demás
+con zoom extremo — para eso está el triángulo de 15.4.3, un caso
+distinto con remedio distinto.
+
+#### 15.4.3 Triángulo de referencia de la propia nave — implementado (v0.5.9)
+
+La propia nave nunca está fuera de cámara (la sigue siempre), pero su
+sprite se vuelve igual de ilegible que el de cualquier otra con zoom muy
+alejado — un punto no serviría aquí porque no dice hacia dónde se mira,
+que es precisamente el único dato que hace falta de un vistazo cuando ya
+no se distingue el sprite.
+
+- **Umbral**: `OWN_SHIP_INDICATOR_ZOOM_THRESHOLD` = media geométrica de
+  `MIN_ZOOM` y `MAX_ZOOM` — el 50% del recorrido de zoom en escala
+  **logarítmica**, no lineal, porque el zoom se siente multiplicativo
+  (pellizcar duplica o divide, no suma). Por debajo del umbral (más
+  alejado que la mitad) aparece el triángulo; por encima (más cerca)
+  desaparece y se ve el sprite normal. Un único umbral cubre las dos
+  direcciones.
+- **Vive en la capa de HUD**, no en el mundo: su tamaño en pantalla es
+  constante sin tener que contrarrestar el zoom a mano (a diferencia de
+  los marcadores de 15.4.2, que sí viven en el mundo y necesitan
+  `setScale(1/zoom)`).
+- **Anclado al centro exacto de la pantalla**, no a la posición en
+  pantalla de la nave (que puede quedar un pelín descentrada por el
+  suavizado del seguimiento de cámara, `startFollow` con lerp 0,15) — así
+  queda garantizado que esté siempre bien centrado, sin heredar ese
+  suavizado.
+- Gira para reflejar el rumbo real (`facing + 90°`, misma convención que
+  el sprite de la nave, que también parte apuntando hacia arriba).
+
+#### 15.4.4 Estrellas de fondo a tamaño constante — implementado (v0.5.9)
+
+Las estrellas vivían en el mundo (para el paralaje de `scrollFactor`),
+así que su tamaño en pantalla escalaba con el zoom igual que cualquier
+sprite — casi invisibles con `MIN_ZOOM` (0,025), manchas grandes con
+`MAX_ZOOM` (2,5). Son el fondo del universo, no objetos del mundo: su
+tamaño no debería depender de lo cerca o lejos que esté la cámara de la
+acción local. Corregido con el mismo truco que los marcadores de 15.4.2
+(`setScale(1/zoom)`), aplicado a las 900 estrellas cada vez que el zoom
+cambia de verdad (no en cada frame si nadie está haciendo zoom en ese
+instante — barato pero no gratis con 900 objetos).
 
 ### 15.5 Quién decide la acción — el servidor
 

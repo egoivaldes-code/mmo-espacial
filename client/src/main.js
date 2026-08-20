@@ -18,7 +18,7 @@ import {
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.5.8";
+const GAME_VERSION = "v0.5.9";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -162,6 +162,13 @@ function getLocalShipOverride(shipId) {
 const MIN_ZOOM = 0.025; // con WORLD_SIZE=30.000, hace falta esto de bajo para ver el sistema entero
 const MAX_ZOOM = 2.5;
 const DEFAULT_ZOOM = 1;
+
+// 50% del recorrido de zoom en escala logarítmica (media geométrica) —
+// el zoom se siente multiplicativo (pellizcar duplica/divide, no suma),
+// así que "la mitad del recorrido" tiene que calcularse en esa escala,
+// no en la lineal. Por debajo de esto, el triángulo de referencia de la
+// propia nave sustituye a su sprite (ver createOwnShipIndicator).
+const OWN_SHIP_INDICATOR_ZOOM_THRESHOLD = Math.sqrt(MIN_ZOOM * MAX_ZOOM);
 
 // Referencia fuera de pantalla / demasiado lejos para leerse como sprite.
 // Radios en PÍXELES DE PANTALLA (constantes, no se encogen con el zoom —
@@ -1050,6 +1057,7 @@ class ChunkScene extends Phaser.Scene {
 
     this.starfield();
     this.drawWorldBorder();
+    this.createOwnShipIndicator();
     this.setupInput();
     this.setupZoom();
     gameHud.style.display = "block"; // el HUD (versión, engranaje, botones) es HTML normal
@@ -1058,18 +1066,84 @@ class ChunkScene extends Phaser.Scene {
     await this.connectToServer();
   }
 
+  // Triángulo de referencia para la PROPIA nave cuando el zoom está muy
+  // alejado. La cámara siempre sigue a la nave propia, así que nunca está
+  // "fuera de pantalla" — pero su sprite sí se vuelve ilegible con zoom
+  // out extremo, igual que le pasa a las demás naves (ver
+  // updateOffscreenMarkers). Un punto no serviría aquí porque no dice
+  // hacia dónde miras; un triángulo sí, y es lo único que de verdad hace
+  // falta saber de un vistazo cuando estás muy alejado.
+  //
+  // Vive en hudLayer (cámara de HUD, zoom fijo a 1) y no en worldLayer:
+  // así su tamaño en pantalla es SIEMPRE el mismo, sin tener que
+  // contrarrestar el zoom a mano como con las estrellas. Se coloca en el
+  // centro exacto de la pantalla — la cámara seguidora deja la nave ahí
+  // con un pelín de retraso por el suavizado (startFollow con lerp
+  // 0.15), pero el indicador se ancla al centro real, no a la posición
+  // de la nave en pantalla, precisamente para que quede SIEMPRE bien
+  // centrado y no se note ese suavizado.
+  createOwnShipIndicator() {
+    // Apunta "hacia arriba" en reposo (ápice arriba, base abajo) — misma
+    // convención que el sprite de la nave, que también parte apuntando
+    // hacia arriba y se corrige con +90° (ver predictLocalMovement).
+    this.ownShipIndicator = this.add
+      .triangle(this.scale.width / 2, this.scale.height / 2, 0, -10, -7, 8, 7, 8, 0xffffff, 0.95)
+      .setStrokeStyle(1, 0xffffff, 1)
+      .setDepth(85)
+      .setVisible(false);
+    this.hudLayer.add(this.ownShipIndicator);
+  }
+
+  // Umbral en el que el triángulo sustituye al sprite real: la media
+  // geométrica de MIN_ZOOM y MAX_ZOOM, es decir, el 50% del recorrido de
+  // zoom en escala logarítmica (que es como se siente el zoom de
+  // verdad — multiplicativo, no lineal). Por debajo (más alejado que la
+  // mitad del recorrido) aparece; por encima (más cerca que la mitad)
+  // desaparece. Un único umbral basta para las dos direcciones.
+  updateOwnShipIndicator() {
+    if (!this.ownShipIndicator) return;
+    const show = Boolean(this.localEntry) && this.cameras.main.zoom < OWN_SHIP_INDICATOR_ZOOM_THRESHOLD;
+    this.ownShipIndicator.setVisible(show);
+    if (show) this.ownShipIndicator.rotation = this.localEntry.facing + Math.PI / 2;
+  }
+
   starfield() {
     // Rango ajustado a WORLD_SIZE=30.000 y al nuevo MIN_ZOOM=0.025 — el
     // campo de estrellas tiene que cubrir más que el propio mundo
     // jugable para no dejar un vacío negro alrededor al ver el sistema
     // entero con el zoom mínimo.
+    //
+    // Las estrellas viven en worldLayer (para el parallax de
+    // scrollFactor) pero su TAMAÑO en pantalla no debe depender del
+    // zoom — son "el fondo del universo", no objetos del mundo: con
+    // zoom out extremo (0.025) un radio de 1-2px se volvía invisible, y
+    // con zoom in (2.5) se veían como manchas grandes. Se guardan en
+    // this.stars para contrarrestar el zoom cada frame en update()
+    // (mismo truco que los marcadores fuera de pantalla:
+    // setScale(1/zoom) en vez de dejar que el mundo las escale).
+    this.stars = [];
     for (let i = 0; i < 900; i++) {
       const x = Phaser.Math.Between(-22000, 22000);
       const y = Phaser.Math.Between(-22000, 22000);
       const star = this.add.circle(x, y, Phaser.Math.Between(1, 2), 0xffffff, Phaser.Math.FloatBetween(0.3, 0.9));
       star.setScrollFactor(0.6);
       this.worldLayer.add(star);
+      this.stars.push(star);
     }
+    this.lastStarZoom = null;
+  }
+
+  // Contrarresta el zoom de la cámara en las estrellas, para que su
+  // tamaño en pantalla se mantenga constante. Solo se toca cuando el
+  // zoom cambió de verdad desde el último frame — con 900 estrellas no
+  // hace falta reescribir su escala 60 veces por segundo si nadie está
+  // haciendo zoom en ese instante.
+  updateStarfieldScale() {
+    const zoom = this.cameras.main.zoom;
+    if (zoom === this.lastStarZoom) return;
+    this.lastStarZoom = zoom;
+    const inv = 1 / zoom;
+    for (const star of this.stars) star.setScale(inv);
   }
 
   drawWorldBorder() {
@@ -1519,6 +1593,8 @@ class ChunkScene extends Phaser.Scene {
     this.updateActionReticle(delta);
     this.updateTargetReticles();
     this.updateOffscreenMarkers();
+    this.updateStarfieldScale();
+    this.updateOwnShipIndicator();
   }
 
   // Coloca el emisor de la estela detrás de la nave (en el sentido

@@ -1,5 +1,52 @@
 [
   {
+    "version": "v0.5.9",
+    "highlights": [
+      "Corregido un fallo real: la orientación de tu nave a veces no se guardaba bien al salir del juego.",
+      "El servidor responde más rápido con muchos jugadores conectados a la vez.",
+      "Las estrellas de fondo ya no cambian de tamaño al hacer zoom.",
+      "Con la cámara muy alejada, tu propia nave se marca con un triángulo que señala hacia dónde vas.",
+      "El botón de opciones se mudó a la esquina superior derecha."
+    ]
+  },
+  {
+    "version": "v0.5.8",
+    "highlights": [
+      "Corregido un fallo grave: el servidor podía caerse entero (para todos los conectados en ese momento) justo al destruir tu propio objetivo fijado de un disparo."
+    ]
+  },
+  {
+    "version": "v0.5.7",
+    "highlights": [
+      "El crucero ya gira y acelera como un crucero de verdad, no como la lanzadera inicial.",
+      "Movimiento en 360° reales con el joystick: tocar suave solo gira la nave, empujar de verdad la acelera.",
+      "Piloto crucero: deja la nave viajando sola a la velocidad que llevaba, sin tener que mantener el dedo en la pantalla.",
+      "Con la cámara alejada, las naves y los objetivos fijados se marcan con un punto para no perderlos de vista.",
+      "Si un enemigo te ataca, ahora te lo fija automáticamente de vuelta (se puede desactivar en opciones)."
+    ]
+  },
+  {
+    "version": "v0.5.6",
+    "highlights": [
+      "Se retira del catálogo la torreta iónica con el arte defectuoso, y se limpia un halo magenta que quedaba en algunas torretas.",
+      "Nueva familia de torretas: térmica (plasma y láser) — ya están las cuatro familias de daño del juego."
+    ]
+  },
+  {
+    "version": "v0.5.5",
+    "highlights": [
+      "32 torretas reales integradas en la Naveteca: cinéticas, iónicas y radiológicas, listas para usar.",
+      "Ajuste fino de posición por coordenadas, y una recomendación de cuántas torretas lleva cada clase de nave."
+    ]
+  },
+  {
+    "version": "v0.5.4",
+    "highlights": [
+      "Nueva herramienta en la Naveteca para colocar los puntos donde van las torretas de cada nave, con simetría automática.",
+      "Herramienta para marcar el eje de giro de cada torreta."
+    ]
+  },
+  {
     "version": "v0.5.3",
     "highlights": [
       "Arreglado: el botón \"Crear cuenta\" era casi invisible, y la pantalla de inicio de sesión ya no cambia de idioma de golpe delante de ti."

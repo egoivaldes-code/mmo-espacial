@@ -1,5 +1,52 @@
 [
   {
+    "version": "v0.5.9",
+    "highlights": [
+      "Fixed a real bug: your ship's facing direction wasn't always saved correctly when you logged out.",
+      "The server responds faster with lots of players connected at once.",
+      "Background stars no longer change size when you zoom.",
+      "With the camera zoomed way out, your own ship is now marked with a triangle pointing where you're headed.",
+      "The options button moved to the top-right corner."
+    ]
+  },
+  {
+    "version": "v0.5.8",
+    "highlights": [
+      "Fixed a serious bug: the server could crash entirely (for everyone connected at that moment) right when you destroyed your own locked target with a shot."
+    ]
+  },
+  {
+    "version": "v0.5.7",
+    "highlights": [
+      "The cruiser now turns and accelerates like an actual cruiser, not like the starting shuttle.",
+      "Real 360° movement with the joystick: a light touch just turns the ship, a real push accelerates it.",
+      "Cruise pilot: leave the ship traveling on its own at whatever speed it had, without keeping your finger on the screen.",
+      "With the camera zoomed out, ships and locked targets get a marker so you don't lose track of them.",
+      "If an enemy attacks you, it now gets auto-targeted back (can be turned off in options)."
+    ]
+  },
+  {
+    "version": "v0.5.6",
+    "highlights": [
+      "Removed the ionic turret variant with broken art from the catalog, and cleaned up a magenta halo that lingered on some turrets.",
+      "New turret family: thermal (plasma and laser) — all four damage families in the design are now represented."
+    ]
+  },
+  {
+    "version": "v0.5.5",
+    "highlights": [
+      "32 real turrets integrated into the Ship Editor: kinetic, ionic, and radiological, ready to use.",
+      "Fine-tune position by coordinates, plus a recommended turret count per ship class."
+    ]
+  },
+  {
+    "version": "v0.5.4",
+    "highlights": [
+      "New tool in the Ship Editor to place turret hardpoints on each ship, with automatic symmetry.",
+      "Tool to mark each turret's rotation pivot."
+    ]
+  },
+  {
     "version": "v0.5.3",
     "highlights": [
       "Fixed: the \"Create account\" button was nearly invisible, and the sign-in screen no longer flips language right in front of you."

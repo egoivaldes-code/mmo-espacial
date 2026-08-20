@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.2",
+    "highlights": [
+      "New loading screen with real progress — no more staring at a black screen with no feedback while the game boots up or connects.",
+      "If the connection fails, you now get a clear error message with a retry button."
+    ]
+  },
+  {
     "version": "v0.8.1",
     "highlights": [
       "Fixed an important bug: the game would sometimes get stuck on a black screen without ever connecting. Should no longer happen."

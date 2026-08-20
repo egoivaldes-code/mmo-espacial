@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.8.1";
+const GAME_VERSION = "v0.8.2";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -670,6 +670,37 @@ const optionsLangLabelEl = document.getElementById("options-lang-label");
 const langOptionsEl = document.getElementById("lang-options");
 const closeGameBtn = document.getElementById("close-game-btn");
 const gameClosedOverlay = document.getElementById("game-closed-overlay");
+
+// --- Pantalla de carga (preload de Phaser + conexión) ----------------------
+// Ver CSS en index.html para el motivo: sin esto, un preload lento o una
+// conexión que tarda eran indistinguibles de un juego colgado de verdad
+// (bug real de v0.8.0, diseño 8.4.16/8.4.17).
+const loadingOverlay = document.getElementById("game-loading-overlay");
+const loadingStatusEl = document.getElementById("loading-status");
+const loadingBarFillEl = document.getElementById("loading-bar-fill");
+const loadingRetryBtn = document.getElementById("loading-retry-btn");
+loadingRetryBtn.addEventListener("click", () => location.reload());
+
+function showLoadingOverlay(text) {
+  loadingOverlay.classList.remove("error", "connecting");
+  loadingBarFillEl.style.width = "0%";
+  loadingStatusEl.textContent = text;
+  loadingOverlay.style.display = "flex";
+}
+function setLoadingProgress(fraction) {
+  loadingBarFillEl.style.width = `${Math.round(fraction * 100)}%`;
+}
+function setLoadingConnecting(text) {
+  loadingOverlay.classList.add("connecting");
+  loadingStatusEl.textContent = text;
+}
+function setLoadingError(text) {
+  loadingOverlay.classList.add("error");
+  loadingStatusEl.textContent = text;
+}
+function hideLoadingOverlay() {
+  loadingOverlay.style.display = "none";
+}
 const autotargetBackCheck = document.getElementById("autotarget-back-check");
 const cruiseIndicatorEl = document.getElementById("cruise-indicator");
 const cruiseIndicatorLabel = document.getElementById("cruise-indicator-label");
@@ -1170,6 +1201,11 @@ class ChunkScene extends Phaser.Scene {
   }
 
   preload() {
+    // Progreso real del preload (nave, sonidos, catálogo, VFX — todo lo
+    // que se encola en este método) en la pantalla de carga. "progress"
+    // dispara con la fracción 0..1 de bytes/archivos ya resueltos.
+    this.load.on("progress", (fraction) => setLoadingProgress(fraction));
+
     // Textura de la estela de plasma — un disco suave generado a mano,
     // sin necesidad de un asset nuevo de arte. Pequeño a propósito: con
     // el ángulo de emisión ahora fijo (chorro, no nube — ver
@@ -1229,7 +1265,8 @@ class ChunkScene extends Phaser.Scene {
     // bloqueante (antes de poder ver la nave o hablar con el servidor) eran
     // 63 formas nuevas de dejar el juego colgado entero por una sola
     // petición floja en datos móviles — la decoración de fondo no tiene por
-    // qué poder impedir entrar a jugar.
+    // qué poder impedir entrar a jugar (bug real de v0.8.0, ver diseño
+    // 8.4.16/8.4.17).
   }
 
   async create() {
@@ -1278,11 +1315,13 @@ class ChunkScene extends Phaser.Scene {
     gameHud.style.display = "block"; // el HUD (versión, engranaje, botones) es HTML normal
     this.setupVisibilityRetry();
 
+    setLoadingConnecting(t("loading.connecting"));
     await this.connectToServer();
 
     // Decoración de fondo: solo después de estar conectado y jugando (ver
     // loadBackdropsDeferred) — nunca antes, para que no pueda retrasar ni
-    // bloquear la conexión real al servidor.
+    // bloquear la conexión real al servidor (bug real de v0.8.0, ver
+    // diseño 8.4.16/8.4.17).
     this.loadBackdropsDeferred();
   }
 
@@ -1327,20 +1366,6 @@ class ChunkScene extends Phaser.Scene {
     if (show) this.ownShipIndicator.rotation = this.localEntry.facing + Math.PI / 2;
   }
 
-  // Carga diferida de los 63 PNG de decoración (no en preload(), ver el
-  // comentario allí) — se lanza una SEGUNDA pasada del loader ya con el
-  // juego en marcha, y spawnBackdrops() solo se ejecuta cuando esa pasada
-  // termina. Si tarda o incluso si algún archivo falla, el jugador ya
-  // está dentro y jugando; las nebulosas simplemente aparecen un poco
-  // tarde (o no aparecen, en el peor caso) en vez de bloquear nada.
-  loadBackdropsDeferred() {
-    for (const file of BACKDROP_FILES) {
-      this.load.image(`backdrop-${file}`, `${import.meta.env.BASE_URL}backdrops/${file}`);
-    }
-    this.load.once("complete", () => this.spawnBackdrops());
-    this.load.start();
-  }
-
   // Nebulosas/galaxias de fondo, dispersas por todo el mundo con posición,
   // rotación y escala aleatorias — MISMA secuencia en todos los clientes
   // (mulberry32 con semilla fija, ver BACKDROP_SEED), así que el universo
@@ -1356,19 +1381,7 @@ class ChunkScene extends Phaser.Scene {
   // las naves), y NO se contrarresta el zoom (a diferencia de las
   // estrellas-punto): son manchas de área real, tiene que dar la sensación
   // de que están ahí fuera en el mundo, no pegadas a la pantalla.
-  spawnBackdrops() {
-    // Puramente decorativo: un fallo aquí (textura rara, lo que sea) no
-    // puede tirar nada más — el jugador ya está dentro y jugando cuando
-    // esto se ejecuta (ver loadBackdropsDeferred).
-    try {
-      this.spawnBackdropsUnsafe();
-    } catch (err) {
-      console.error("spawnBackdrops falló, se sigue sin decoración de fondo:", err);
-    }
-  }
-
   spawnBackdropsUnsafe() {
-    const rand = mulberry32(BACKDROP_SEED);
     const half = WORLD_SIZE * 0.9; // un poco más allá del borde jugable, como el starfield
     const HERO_COUNT = 22; // dispersión rala de las grandes
     const MEDIUM_COUNT = 130; // más densas, reutilizando las 56 texturas medianas
@@ -1392,6 +1405,32 @@ class ChunkScene extends Phaser.Scene {
     for (let i = 0; i < MEDIUM_COUNT; i++) {
       const idx = BACKDROP_HERO_COUNT + Math.floor(rand() * (BACKDROP_FILES.length - BACKDROP_HERO_COUNT));
       place(idx, false);
+    }
+  }
+
+  // Carga diferida de los 63 PNG de decoración (NO en preload(), ver el
+  // comentario allí) — se lanza una SEGUNDA pasada del loader ya con el
+  // juego en marcha y ya conectado, y spawnBackdrops() solo se ejecuta
+  // cuando esa pasada termina. Si tarda o incluso si algún archivo falla,
+  // el jugador ya está dentro y jugando; las nebulosas simplemente
+  // aparecen un poco tarde (o no aparecen, en el peor caso) en vez de
+  // bloquear nada (bug real de v0.8.0, ver diseño 8.4.16/8.4.17).
+  loadBackdropsDeferred() {
+    for (const file of BACKDROP_FILES) {
+      this.load.image(`backdrop-${file}`, `${import.meta.env.BASE_URL}backdrops/${file}`);
+    }
+    this.load.once("complete", () => this.spawnBackdrops());
+    this.load.start();
+  }
+
+  spawnBackdrops() {
+    // Puramente decorativo: un fallo aquí (textura rara, lo que sea) no
+    // puede tirar nada más — el jugador ya está dentro y jugando cuando
+    // esto se ejecuta.
+    try {
+      this.spawnBackdropsUnsafe();
+    } catch (err) {
+      console.error("spawnBackdrops falló, se sigue sin decoración de fondo:", err);
     }
   }
 
@@ -1479,6 +1518,12 @@ class ChunkScene extends Phaser.Scene {
       this.room = await joinRoom();
     } catch (err) {
       ui.textContent = t("hud.connectionError", { error: err.message });
+      // Antes este error solo se veía en una línea pequeña arriba a la
+      // izquierda, fácil de no ver — con la pantalla de carga todavía
+      // tapando el juego, se muestra ahí bien visible, con botón de
+      // reintentar (recarga la página; más simple y fiable que intentar
+      // reconstruir el estado a medias desde aquí).
+      setLoadingError(t("loading.error", { error: err.message }));
       return;
     }
 
@@ -1576,6 +1621,13 @@ class ChunkScene extends Phaser.Scene {
         this.localEntry = entry;
         this.localPlayerState = player;
         this.updateStatusText(player);
+        // Esto es lo primero que confirma que ya hay algo de verdad que
+        // ver en pantalla (la propia nave, ya posicionada) — el punto más
+        // fiable para quitar la pantalla de carga, mejor que justo tras
+        // el await de connectToServer (ahí la nave todavía podría no
+        // haberse creado si el primer parche de estado llega un pelín
+        // después de la confirmación de unión a la sala).
+        hideLoadingOverlay();
       }
     });
 
@@ -2693,6 +2745,7 @@ let gameInstance = null;
 
 function launchGame() {
   if (gameInstance) return;
+  showLoadingOverlay(t("loading.assets"));
   gameInstance = new Phaser.Game({
     // Forzado a WebGL en vez de Phaser.AUTO — con AUTO, algunos
     // navegadores/dispositivos caen en el renderer de Canvas2D, que tiene
@@ -2721,9 +2774,9 @@ function launchGame() {
     // necesariamente el propio servidor de juego) deja el loader
     // esperando para siempre — y como preload()/create() son
     // secuenciales, eso bloqueaba TODO lo de después, incluida la
-    // conexión a Colyseus. 15s de margen: de sobra para GitHub Pages en
-    // cualquier red normal, pero ya no cuelga el juego entero por un
-    // archivo que nunca contesta.
+    // conexión a Colyseus (bug real de v0.8.0, ver diseño 8.4.17). 15s de
+    // margen: de sobra para GitHub Pages en cualquier red normal, pero ya
+    // no cuelga el juego entero por un archivo que nunca contesta.
     loader: { timeout: 15000 },
   });
 }

@@ -85,5 +85,11 @@
   "combat": {
     "target": "Target",
     "auto": "Auto"
+  },
+  "loading": {
+    "assets": "Loading assets…",
+    "connecting": "Connecting to server…",
+    "error": "Couldn't connect: {error}",
+    "retry": "Retry"
   }
 }

@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.2",
+    "highlights": [
+      "Nueva pantalla de carga con barra de progreso real — ya no se queda todo en negro sin avisar mientras el juego arranca o conecta.",
+      "Si falla la conexión, ahora se ve claramente el motivo con un botón para reintentar."
+    ]
+  },
+  {
     "version": "v0.8.1",
     "highlights": [
       "Arreglado un bug importante: el juego a veces se quedaba en pantalla negra sin llegar a conectar. Ya no debería pasar."

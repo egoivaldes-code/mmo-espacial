@@ -473,6 +473,49 @@
       font-family: system-ui, sans-serif; font-size: 16px; text-align: center;
       white-space: pre-line;
     }
+
+    /* --- Pantalla de carga: tapa el hueco entre elegir personaje y ver la
+       nave de verdad en pantalla (preload de Phaser + conexión al
+       servidor). Sin esto no había NINGÚN feedback ahí — un preload lento
+       o una conexión que tarda se veían exactamente igual que el juego
+       colgado de verdad (bug real de v0.8.0, ver diseño 8.4.16/8.4.17).
+       z-index por debajo de game-closed-overlay (50) pero por encima del
+       HUD del juego (15) — tiene que tapar el canvas Y el HUD mientras
+       está activa. display:none por defecto: se activa desde JS justo
+       antes de lanzar Phaser (launchGame), igual que el resto de
+       pantallas previas. */
+    #game-loading-overlay {
+      position: fixed; inset: 0; z-index: 40; display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; background: #05050a; color: #cfe8ff;
+      font-family: system-ui, sans-serif; text-align: center; padding: 24px;
+    }
+    #loading-spinner {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 3px solid rgba(102, 204, 255, 0.25); border-top-color: #66ccff;
+      animation: loading-spin 0.9s linear infinite;
+    }
+    @keyframes loading-spin { to { transform: rotate(360deg); } }
+    #loading-status { font-size: clamp(13px, 3.2vw, 16px); min-height: 1.4em; }
+    #loading-bar-track {
+      width: min(240px, 70vw); height: 5px; border-radius: 3px;
+      background: rgba(255,255,255,0.12); overflow: hidden;
+    }
+    #loading-bar-fill {
+      height: 100%; width: 0%; background: #66ccff;
+      transition: width 120ms linear;
+    }
+    /* Se oculta la barra (no el texto) en la fase de conexión — ahí ya no
+       hay un "% de progreso" real que enseñar, solo esperar respuesta del
+       servidor, y una barra parada en 100% confunde más que ayuda. */
+    #game-loading-overlay.connecting #loading-bar-track { display: none; }
+    #loading-retry-btn {
+      display: none; margin-top: 4px; padding: 10px 20px; border-radius: 8px;
+      border: 1px solid rgba(255, 100, 100, 0.5); background: rgba(255, 80, 80, 0.15);
+      color: #ffcccc; font-size: 14px; font-family: inherit;
+    }
+    #game-loading-overlay.error #loading-spinner { display: none; }
+    #game-loading-overlay.error #loading-retry-btn { display: inline-block; }
   </style>
 </head>
 <body>
@@ -620,6 +663,13 @@
   </div>
 
   <div id="game-closed-overlay"></div>
+
+  <div id="game-loading-overlay">
+    <div id="loading-spinner"></div>
+    <div id="loading-status">Cargando…</div>
+    <div id="loading-bar-track"><div id="loading-bar-fill"></div></div>
+    <button id="loading-retry-btn">Reintentar</button>
+  </div>
 
   <div id="ui">Conectando…</div>
   <div id="cruise-indicator">

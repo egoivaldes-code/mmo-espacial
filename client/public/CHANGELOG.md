@@ -14,6 +14,22 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.8.2]
+
+### Añadido — pantalla de carga con progreso real
+- Hasta ahora, entre elegir personaje y ver la propia nave, la pantalla
+  se quedaba negra sin ningún aviso — el preload de Phaser y la conexión
+  al servidor eran indistinguibles de un juego colgado de verdad (la
+  misma confusión que causó el bug de v0.8.0/v0.8.1).
+- Nueva pantalla de carga con progreso REAL (enganchada al evento
+  `progress` del loader de Phaser, no una animación decorativa), fase de
+  "Conectando con el servidor…" separada, y estado de error visible con
+  botón de reintentar si falla la unión a la sala — antes ese error solo
+  se veía en una línea pequeña fácil de pasar por alto.
+- Se oculta en el momento correcto: cuando la propia nave ya tiene
+  posición real confirmada, no en un punto arbitrario antes.
+- Ver diseño 8.4.18 para el detalle completo.
+
 ## [v0.8.1]
 
 ### Arreglado — bug crítico: el juego se quedaba en pantalla negra sin conectar

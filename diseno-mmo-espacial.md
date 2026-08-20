@@ -2401,6 +2401,58 @@ timeout global de este parche ya evita el cuelgue infinito, pero sería
 buen candidato para el mismo tratamiento de carga diferida si el
 catálogo de VFX sigue creciendo.
 
+### 8.4.18 Pantalla de carga (v0.8.2)
+
+Hasta v0.8.1 no había NINGÚN feedback visual entre elegir personaje
+(`selectCharacter()`) y ver la propia nave en pantalla: el `preload()`
+de Phaser (nave, sonidos, catálogo, 75 imágenes de VFX) y luego
+`connectToServer()` corrían sobre un canvas negro liso, indistinguible
+de un juego colgado de verdad — exactamente la confusión del bug de
+v0.8.0 (8.4.16/8.4.17): "cuesta conectar" y "no pasa nada" se veían
+igual estuviera el juego cargando normal o realmente atascado. Motivada
+directamente por esa confusión, se añade una pantalla de carga con
+progreso real.
+
+**Overlay HTML fijo** (`#game-loading-overlay`, `z-index:40` — por
+encima del HUD del juego en 15, por debajo del aviso de "juego cerrado"
+en 50), con tres fases:
+
+1. **Cargando recursos** (`preload()`): barra de progreso enganchada al
+   evento `progress` real del `LoaderPlugin` de Phaser (0..1 de
+   bytes/archivos resueltos), no una animación decorativa — si el
+   preload se atasca de verdad, la barra se para en el punto exacto en
+   vez de seguir "cargando" indefinidamente.
+2. **Conectando** (`connectToServer()`): la barra de progreso se oculta
+   (ya no hay un % real que enseñar, solo esperar respuesta del
+   servidor — una barra parada en 100% confunde más que ayuda) y el
+   texto cambia a "Conectando con el servidor…".
+3. **Error**: si `joinRoom()` falla, el overlay pasa a estado de error
+   con el mensaje real y un botón de reintentar. Antes ese mismo error
+   solo se veía en `#ui`, una línea pequeña arriba a la izquierda, fácil
+   de no ver con el HUD encima — ahora es imposible no verlo. El botón
+   de reintentar simplemente recarga la página (`location.reload()`) en
+   vez de intentar reconstruir el estado a medias desde JS — más simple
+   y más fiable dado el poco tiempo que llevaría automatizar mejor.
+
+**Se oculta cuando hay algo real que ver**, no un punto arbitrario: se
+llama `hideLoadingOverlay()` dentro del `player.onAdd` para `isMe`, justo
+cuando `this.localEntry` queda asignado — la propia nave ya tiene
+posición real y la cámara ya la sigue. Ocultar el overlay justo tras el
+`await connectToServer()` habría sido un punto menos fiable: el primer
+parche de estado con la nave podría llegar un instante después de la
+confirmación de unión a la sala.
+
+**De paso**: como el overlay tapa toda la pantalla mientras el error de
+conexión sigue mostrándose en `#ui` (redundante a propósito, por si
+algún día se quita el overlay y no se quiere perder ese aviso).
+
+**Pendiente:**
+- No cubre la fase de "despertando servidor" (`warmupServer()`, antes de
+  la pantalla de personaje) — esa ya tenía su propio texto de estado
+  independiente; no se tocó.
+- No se validó con Playwright, misma limitación de red del sandbox de
+  las últimas sesiones.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo

@@ -85,5 +85,11 @@
   "combat": {
     "target": "Objetivo",
     "auto": "Auto"
+  },
+  "loading": {
+    "assets": "Cargando recursos…",
+    "connecting": "Conectando con el servidor…",
+    "error": "No se pudo conectar: {error}",
+    "retry": "Reintentar"
   }
 }

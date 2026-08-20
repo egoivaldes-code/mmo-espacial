@@ -1,5 +1,14 @@
 [
   {
+    "version": "v0.7.0",
+    "highlights": [
+      "Los enemigos ya no llevan un tinte naranja fijo — ahora se identifican por un marcador rojo (caja + punto) alrededor, blanco para el resto de naves.",
+      "¡Objetivos múltiples de verdad! Hasta 4 a la vez, cada uno con su propia tarjeta de vida en pantalla. Toca una tarjeta para soltar ese objetivo.",
+      "Arreglado: la casilla de disparo automático ya no desaparece a medio combate — se ve y se puede tocar mientras gestionas varios objetivos.",
+      "Las estelas del motor ahora salen en grupo según el tamaño de tu nave, y el triángulo que marca tu posición en zoom out tarda más en aparecer."
+    ]
+  },
+  {
     "version": "v0.6.0",
     "highlights": [
       "¡Las naves ya explotan de verdad! Explosiones al recibir daño en el casco, más grande cuanto más fuerte el golpe, y una explosión grande al ser destruida.",

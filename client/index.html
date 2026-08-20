@@ -275,16 +275,21 @@
     }
     #login-remember { width: 18px; height: 18px; accent-color: #3399ff; flex-shrink: 0; }
 
-    /* --- Barras de combate: escudo, estructura, energia ------------------
-       Tres barras finas debajo del contador de arriba. Colores distintos
-       para que se distingan sin leer texto: verde escudo, gris estructura,
-       azul energia. Cuando el escudo llega a 0 la barra de estructura pasa
-       a rojo, para que el peligro se note sin tener que mirar el numero. */
-    #combat-bars {
+    /* --- Barras de combate + cuadrícula de objetivos: misma columna -------
+       Antes #combat-bars iba fixed por su cuenta y #target-panel fixed por
+       la suya con un top:10px a ojo — con varios objetivos a la vez hacía
+       falta una posición que creciera con el contenido, así que ahora
+       ambos viven dentro de #combat-hud-left (fixed) y fluyen en columna:
+       las barras arriba, la cuadrícula de objetivos justo debajo, sin
+       número mágico de separación. */
+    #combat-hud-left {
       position: fixed; top: 46px; left: 10px; z-index: 10;
-      display: flex; flex-direction: column; gap: 4px;
-      width: clamp(120px, 34vw, 180px);
+      display: flex; flex-direction: column; gap: 8px;
+      width: clamp(160px, 44vw, 220px);
       pointer-events: none;
+    }
+    #combat-bars {
+      display: flex; flex-direction: column; gap: 4px;
     }
     /* Icono + barra en fila — el icono da contexto sin tener que leer el
        color (útil para quien no distinga bien azul/gris/amarillo). Se
@@ -318,10 +323,10 @@
     }
     #cruise-indicator .ui-icon { width: 16px; height: 16px; flex-shrink: 0; }
 
-    /* --- Boton de disparo y casilla de autodisparo -------------------------
-       Van pegados al boton de accion, en el mismo lado (pulgar derecho).
-       Solo existen con un objetivo FIJADO Y BLOQUEADO (15.4.1): sin eso no
-       hay nada que disparar, asi que no ocupan sitio en pantalla. */
+    /* --- Boton de disparo -------------------------------------------------
+       Va pegado al boton de accion, en el mismo lado (pulgar derecho).
+       Solo existe con un objetivo FIJADO Y BLOQUEADO (15.4.1): sin eso no
+       hay nada que disparar, asi que no ocupa sitio en pantalla. */
     #combat-buttons {
       position: absolute; right: 20px; bottom: 128px; pointer-events: none;
       display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
@@ -338,28 +343,55 @@
     #fire-btn.active { background: rgba(255, 80, 80, 0.55); }
     #fire-btn.no-energy { opacity: 0.4; }
     #fire-btn .ui-icon { width: 44%; height: 44%; }
+
+    /* --- Casilla de autodisparo -----------------------------------------
+       INDEPENDIENTE de #combat-buttons a propósito (antes vivía dentro y
+       se ocultaba entera con display:none en cuanto no había objetivo
+       ACTIVO Y BLOQUEADO — la casilla se volvía intocable entre objetivos,
+       parecía "no funcionar" aunque su estado en el servidor seguía
+       intacto). Ahora se oculta solo cuando no hay NINGÚN objetivo fijado
+       en absoluto (.hidden, controlada por updateCombatHud), así que se
+       puede activar/ver mientras se gestionan varios objetivos y el
+       estado no se pierde nunca al cambiar de uno a otro. */
     #autoshoot-row {
+      position: absolute; right: 20px; bottom: 212px;
       pointer-events: auto; display: flex; align-items: center; gap: 6px;
       background: rgba(10,14,22,0.6); border-radius: 12px; padding: 4px 10px;
       font-family: monospace; font-size: clamp(9px, 2.2vw, 11px); color: #cfe0f0;
     }
+    #autoshoot-row.hidden { display: none; }
     #autoshoot-check { width: 15px; height: 15px; accent-color: #ff5050; }
 
-    /* --- Marcador de objetivo: barra de fijado sobre el HUD, no en el mundo.
-       La reticula girando ya existe en el mundo (Phaser); esta barra es el
-       resumen textual encima, con nombre y las dos capas de vida. */
-    #target-panel {
-      position: fixed; top: 10px; right: 10px; z-index: 10;
-      width: clamp(130px, 38vw, 190px);
-      background: rgba(10,14,22,0.55); border-radius: 8px; padding: 6px 8px;
-      font-family: monospace; color: #dfe8f2; pointer-events: none;
-      display: none;
+    /* --- Cuadrícula de objetivos: hasta 4, en 2 columnas -------------------
+       target 1/2 arriba, 3/4 debajo — se pidió explícitamente ese orden.
+       4 tarjetas fijas en el HTML (nunca más de MAX_TARGETS en el
+       servidor), updateCombatHud solo cambia contenido/visibilidad, no
+       crea ni destruye nodos. Tocar una tarjeta desfija ese objetivo
+       (manda "unlock" — ver main.js). */
+    #target-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
     }
-    #target-panel.visible { display: block; }
-    #target-name { font-size: clamp(10px, 2.6vw, 12px); margin-bottom: 4px; }
-    #target-bars .cbar-track { height: 5px; margin-bottom: 3px; }
-    #target-shield-fill { background: #46c8ff; }
-    #target-structure-fill { background: #9fb0c0; }
+    .target-card {
+      display: none;
+      background: rgba(10,14,22,0.6); border-radius: 8px; padding: 5px 7px;
+      font-family: monospace; color: #dfe8f2; pointer-events: auto;
+      border: 1px solid rgba(255,255,255,0.18);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .target-card.visible { display: block; }
+    .target-card.locking { border-color: rgba(255, 176, 102, 0.7); }
+    .target-card.locked { border-color: rgba(102, 255, 136, 0.55); }
+    /* El objetivo activo es al que apunta el arma AHORA MISMO (uno solo,
+       aunque haya varios fijados) — se marca con un aro rojo por dentro
+       para que no haga falta abrir nada para saber a cuál se está
+       disparando. */
+    .target-card.firing-at { box-shadow: inset 0 0 0 1.5px #ff5050; }
+    .target-card .target-name {
+      font-size: clamp(8px, 2vw, 10px); margin-bottom: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .target-card .cbar-track { height: 4px; margin-bottom: 2px; }
+    .target-card .cbar-icon { width: 9px; height: 9px; }
 
     #action-buttons {
       position: absolute; right: 20px; bottom: 20px; pointer-events: none;
@@ -485,44 +517,80 @@
   <div id="game-hud">
     <div id="version-badge"></div>
     <button id="options-gear-btn" aria-label="Opciones"></button>
-    <div id="combat-bars">
-      <div class="cbar-row">
-        <i class="ui-icon cbar-icon" style="--ix:0; --iy:4; color:#46c8ff;"></i>
-        <div class="cbar-track"><div id="shield-fill" class="cbar-fill" style="width:100%"></div></div>
-      </div>
-      <div class="cbar-row">
-        <i class="ui-icon cbar-icon" style="--ix:1; --iy:4; color:#9fb0c0;"></i>
-        <div class="cbar-track"><div id="structure-fill" class="cbar-fill" style="width:100%"></div></div>
-      </div>
-      <div class="cbar-row">
-        <i class="ui-icon cbar-icon" style="--ix:2; --iy:4; color:#ffcc44;"></i>
-        <div class="cbar-track"><div id="capacitor-fill" class="cbar-fill" style="width:100%"></div></div>
-      </div>
-    </div>
-
-    <div id="target-panel">
-      <div id="target-name"></div>
-      <div id="target-bars">
+    <div id="combat-hud-left">
+      <div id="combat-bars">
         <div class="cbar-row">
           <i class="ui-icon cbar-icon" style="--ix:0; --iy:4; color:#46c8ff;"></i>
-          <div class="cbar-track"><div id="target-shield-fill" class="cbar-fill" style="width:100%"></div></div>
+          <div class="cbar-track"><div id="shield-fill" class="cbar-fill" style="width:100%"></div></div>
         </div>
         <div class="cbar-row">
           <i class="ui-icon cbar-icon" style="--ix:1; --iy:4; color:#9fb0c0;"></i>
-          <div class="cbar-track"><div id="target-structure-fill" class="cbar-fill" style="width:100%"></div></div>
+          <div class="cbar-track"><div id="structure-fill" class="cbar-fill" style="width:100%"></div></div>
+        </div>
+        <div class="cbar-row">
+          <i class="ui-icon cbar-icon" style="--ix:2; --iy:4; color:#ffcc44;"></i>
+          <div class="cbar-track"><div id="capacitor-fill" class="cbar-fill" style="width:100%"></div></div>
+        </div>
+      </div>
+
+      <div id="target-grid">
+        <div class="target-card" id="target-card-0" data-slot="0">
+          <div class="target-name"></div>
+          <div class="cbar-row">
+            <i class="ui-icon cbar-icon" style="--ix:0; --iy:4; color:#46c8ff;"></i>
+            <div class="cbar-track"><div class="target-shield-fill cbar-fill" style="width:100%"></div></div>
+          </div>
+          <div class="cbar-row">
+            <i class="ui-icon cbar-icon" style="--ix:1; --iy:4; color:#9fb0c0;"></i>
+            <div class="cbar-track"><div class="target-structure-fill cbar-fill" style="width:100%"></div></div>
+          </div>
+        </div>
+        <div class="target-card" id="target-card-1" data-slot="1">
+          <div class="target-name"></div>
+          <div class="cbar-row">
+            <i class="ui-icon cbar-icon" style="--ix:0; --iy:4; color:#46c8ff;"></i>
+            <div class="cbar-track"><div class="target-shield-fill cbar-fill" style="width:100%"></div></div>
+          </div>
+          <div class="cbar-row">
+            <i class="ui-icon cbar-icon" style="--ix:1; --iy:4; color:#9fb0c0;"></i>
+            <div class="cbar-track"><div class="target-structure-fill cbar-fill" style="width:100%"></div></div>
+          </div>
+        </div>
+        <div class="target-card" id="target-card-2" data-slot="2">
+          <div class="target-name"></div>
+          <div class="cbar-row">
+            <i class="ui-icon cbar-icon" style="--ix:0; --iy:4; color:#46c8ff;"></i>
+            <div class="cbar-track"><div class="target-shield-fill cbar-fill" style="width:100%"></div></div>
+          </div>
+          <div class="cbar-row">
+            <i class="ui-icon cbar-icon" style="--ix:1; --iy:4; color:#9fb0c0;"></i>
+            <div class="cbar-track"><div class="target-structure-fill cbar-fill" style="width:100%"></div></div>
+          </div>
+        </div>
+        <div class="target-card" id="target-card-3" data-slot="3">
+          <div class="target-name"></div>
+          <div class="cbar-row">
+            <i class="ui-icon cbar-icon" style="--ix:0; --iy:4; color:#46c8ff;"></i>
+            <div class="cbar-track"><div class="target-shield-fill cbar-fill" style="width:100%"></div></div>
+          </div>
+          <div class="cbar-row">
+            <i class="ui-icon cbar-icon" style="--ix:1; --iy:4; color:#9fb0c0;"></i>
+            <div class="cbar-track"><div class="target-structure-fill cbar-fill" style="width:100%"></div></div>
+          </div>
         </div>
       </div>
     </div>
 
     <div id="combat-buttons" class="empty">
-      <label id="autoshoot-row">
-        <input id="autoshoot-check" type="checkbox" />
-        <span id="autoshoot-label">Auto</span>
-      </label>
       <button id="fire-btn">
         <i class="ui-icon" style="--ix:3; --iy:1;"></i>
       </button>
     </div>
+
+    <label id="autoshoot-row" class="hidden">
+      <input id="autoshoot-check" type="checkbox" />
+      <span id="autoshoot-label">Auto</span>
+    </label>
 
     <div id="action-buttons">
       <button id="warp-btn" class="hud-round-btn">

@@ -14,6 +14,40 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.7.0]
+
+### Añadido — HUD de combate rediseñado: contactos, objetivos múltiples, estelas por clase
+- **Marcadores de contacto**: fuera el velo naranja permanente sobre los
+  NPC y los puntos planos blanco/naranja indistinguibles de las
+  estrellas de fondo. Ahora es un punto dentro de una caja de targeting
+  (4 esquinas), roja si es hostil de verdad (NPC), blanca si no.
+- **Bug real corregido**: la retícula de bloqueo sobre el objetivo no
+  compensaba el zoom de cámara — a partir de cierto zoom out se encogía
+  hasta desaparecer ANTES de activarse el marcador de "demasiado lejos",
+  y el objetivo fijado parecía esfumarse. Ahora mantiene tamaño
+  constante en pantalla, igual que los marcadores fuera de vista.
+- **Estelas de motor en batería real por clase de nave**: 1 para
+  shuttle/frigate, 2 para destroyer, 3 para cruiser, 4 para
+  battlecruiser, 2 gruesas y separadas para battleship/carrier/
+  dreadnought. Auto-ajustadas al tamaño real del sprite de cada nave (no
+  una tabla por modelo), en fila horizontal paralela dentro del casco.
+- **Triángulo de referencia propio** (el que sustituye al sprite en zoom
+  out extremo) tarda más en aparecer — antes tapaba la propia nave en
+  acercamientos que todavía se consideraban normales.
+- **Autodisparo, arreglado**: la casilla vivía dentro del contenedor que
+  se oculta entero sin objetivo activo bloqueado, así que se volvía
+  intocable la mayor parte del tiempo aunque su estado nunca se
+  perdiera. Ahora es independiente y solo se oculta sin ningún objetivo
+  fijado en absoluto.
+- **HUD de objetivos múltiples**: el servidor ya soportaba varios
+  objetivos fijados a la vez (subido de 3 a 4); lo que faltaba era
+  verlos — cuadrícula de 2 columnas bajo las barras de estado, tarjeta
+  propia por objetivo con nombre, vida, y borde de color según si se
+  está fijando/bloqueado/con el arma apuntada. Tocar una tarjeta la
+  desfija (antes no había forma de hacerlo desde la UI).
+- Ver diseño 8.4.14 para el detalle completo y lo que queda pendiente
+  (límite de objetivos por clase de casco, sin PvP todavía).
+
 ## [v0.6.0]
 
 ### Añadido — Explosiones y escudo visual en combate (VFX)

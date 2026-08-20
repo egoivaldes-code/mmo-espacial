@@ -128,7 +128,7 @@ const ARMA_MEDIUM_CORTA = {
 
 const LOCK_TIME = 4.0;        // segundos para fijar un objetivo
 const LOCK_RANGE = 2000;      // no se puede fijar más lejos
-const MAX_TARGETS = 3;        // objetivos simultáneos por nave
+const MAX_TARGETS = 4;        // objetivos simultáneos por nave
 
 const CRUISER_SHIELD_REGEN = 5;    // por segundo; la estructura NO se regenera
 // Simulado con este balance (crucero vs crucero, ambos disparando 3s/ciclo):

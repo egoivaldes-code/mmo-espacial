@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.5.12";
+const GAME_VERSION = "v0.7.0";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -164,12 +164,15 @@ const MIN_ZOOM = 0.025; // con WORLD_SIZE=30.000, hace falta esto de bajo para v
 const MAX_ZOOM = 2.5;
 const DEFAULT_ZOOM = 1;
 
-// 50% del recorrido de zoom en escala logarítmica (media geométrica) —
-// el zoom se siente multiplicativo (pellizcar duplica/divide, no suma),
-// así que "la mitad del recorrido" tiene que calcularse en esa escala,
-// no en la lineal. Por debajo de esto, el triángulo de referencia de la
-// propia nave sustituye a su sprite (ver createOwnShipIndicator).
-const OWN_SHIP_INDICATOR_ZOOM_THRESHOLD = Math.sqrt(MIN_ZOOM * MAX_ZOOM);
+// Media geométrica PONDERADA hacia MIN_ZOOM (70/30, no 50/50) en escala
+// logarítmica — el zoom se siente multiplicativo, así que la ponderación
+// también tiene que hacerse en esa escala, no en la lineal. Con 50/50 el
+// triángulo sustituía al sprite real demasiado pronto (a media distancia
+// de zoom) y tapaba la nave en acercamientos moderados; con 70/30 hace
+// falta alejarse bastante más para que aparezca. Por debajo de este
+// umbral, el triángulo de referencia sustituye al sprite (ver
+// createOwnShipIndicator).
+const OWN_SHIP_INDICATOR_ZOOM_THRESHOLD = Math.exp(0.7 * Math.log(MIN_ZOOM) + 0.3 * Math.log(MAX_ZOOM));
 
 // Referencia fuera de pantalla / demasiado lejos para leerse como sprite.
 // Radios en PÍXELES DE PANTALLA (constantes, no se encogen con el zoom —
@@ -179,6 +182,34 @@ const OFFSCREEN_MARKER_MARGIN_PX = 36; // separación del borde real de la vista
 const OFFSCREEN_SHIP_ZOOM_THRESHOLD = 0.15; // por debajo de esto, un sprite ya no se lee
 const OFFSCREEN_DOT_RADIUS_PX = 4;
 const OFFSCREEN_TARGET_RADIUS_PX = 6;
+// Blanco para cualquier nave normal; rojo solo para lo que es hostil de
+// verdad (NPCs — no hay bandera de hostilidad entre jugadores todavía).
+// Mismo criterio en el marcador fuera de pantalla y en la caja de
+// targeting, para que se lean como "lo mismo" (8.4.11 — sin esto, el
+// velo naranja permanente sobre el sprite del NPC era la única pista).
+const MARKER_COLOR_HOSTILE = 0xff5050;
+const MARKER_COLOR_NEUTRAL = 0xe8f0ff;
+
+// --- Estelas de motor: en batería paralela, según clase de nave --------
+// count = nº de estelas, en fila horizontal centrada en la popa.
+// thick = estelas más grandes/lentas para battleship/capital, en vez de
+// simplemente añadir más — a esa escala una fila de 5-6 puntitos finos se
+// pierde, dos chorros gruesos se leen mejor.
+const ENGINE_TRAIL_LAYOUT = {
+  shuttle: { count: 1, thick: false },
+  frigate: { count: 1, thick: false },
+  destroyer: { count: 2, thick: false },
+  cruiser: { count: 3, thick: false },
+  battlecruiser: { count: 4, thick: false },
+  battleship: { count: 2, thick: true },
+  carrier: { count: 2, thick: true },
+  dreadnought: { count: 2, thick: true },
+};
+const ENGINE_TRAIL_DEFAULT_LAYOUT = { count: 1, thick: false };
+// Separación respecto al borde real del sprite (ya recortado de
+// transparencia por trimTransparentPadding) — un margen pequeño para que
+// la estela no nazca pegada al borde.
+const ENGINE_TRAIL_EDGE_MARGIN_PX = 5;
 
 const ui = document.getElementById("ui");
 
@@ -399,16 +430,46 @@ const structureFillEl = document.getElementById("structure-fill");
 const capacitorFillEl = document.getElementById("capacitor-fill");
 const combatButtonsEl = document.getElementById("combat-buttons");
 const fireBtn = document.getElementById("fire-btn");
+const autoshootRowEl = document.getElementById("autoshoot-row");
 const autoshootCheck = document.getElementById("autoshoot-check");
 const autoshootLabel = document.getElementById("autoshoot-label");
-const targetPanelEl = document.getElementById("target-panel");
-const targetNameEl = document.getElementById("target-name");
-const targetShieldFillEl = document.getElementById("target-shield-fill");
-const targetStructureFillEl = document.getElementById("target-structure-fill");
+
+// 4 tarjetas fijas en el HTML (una por hueco de MAX_TARGETS en el
+// servidor) — updateCombatHud solo cambia contenido/visibilidad de estas,
+// nunca crea ni destruye nodos.
+const TARGET_CARD_SLOTS = 4;
+const targetCards = Array.from({ length: TARGET_CARD_SLOTS }, (_, i) => {
+  const root = document.getElementById(`target-card-${i}`);
+  return {
+    root,
+    nameEl: root.querySelector(".target-name"),
+    shieldFillEl: root.querySelector(".target-shield-fill"),
+    structureFillEl: root.querySelector(".target-structure-fill"),
+  };
+});
+targetCards.forEach((card, i) => {
+  // Tocar una tarjeta desfija ESE objetivo. pointerdown (no click) para
+  // que se sienta tan inmediato como el resto de la UI táctil del juego.
+  card.root.addEventListener("pointerdown", () => {
+    const target = combatState?.targets?.[i];
+    if (!target) return;
+    getActiveScene()?.room?.send("unlock", { kind: target.kind, id: target.id });
+  });
+});
 
 // Último estado de combate recibido del servidor. Es la fuente de verdad
 // para dibujar el HUD; el cliente no calcula nada de esto por su cuenta.
 let combatState = null;
+
+// Escudo/estructura estimados de cada objetivo fijado — combatState.targets
+// (servidor) dice QUÉ hay fijado y si está bloqueado, pero no lleva vida;
+// eso se sigue infiriendo del lado del cliente igual que antes (evento
+// "shot" al pegar, npc.onChange para lo que cambia por otras causas), solo
+// que ahora es un Map por objetivo en vez de un único targetInfo — con
+// varios objetivos a la vez cada uno necesita su propia estimación.
+const targetHealthByKey = new Map(); // "npc:id" -> {name, shield, structure}
+const NPC_SHIELD_MAX = 380;
+const NPC_STRUCTURE_MAX = 632;
 
 function setBarWidth(el, ratio) {
   el.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
@@ -417,13 +478,15 @@ function setBarWidth(el, ratio) {
 function updateCombatHud() {
   if (!combatState) {
     combatButtonsEl.classList.add("empty");
-    targetPanelEl.classList.remove("visible");
+    autoshootRowEl.classList.add("hidden");
+    targetCards.forEach((card) => card.root.classList.remove("visible"));
     return;
   }
 
   setBarWidth(capacitorFillEl, combatState.capacitor / combatState.capacitorMax);
 
-  const activo = combatState.targets.find((t) => t.active) || null;
+  const targets = combatState.targets || [];
+  const activo = targets.find((t) => t.active) || null;
   const bloqueado = Boolean(activo?.locked);
 
   // El botón de disparo (15.4.1) solo existe con objetivo fijado Y
@@ -433,24 +496,74 @@ function updateCombatHud() {
     fireBtn.classList.toggle("active", combatState.firing);
     fireBtn.classList.toggle("no-energy", combatState.capacitor < 18);
   }
+
+  // La casilla de autodisparo es una PREFERENCIA, no algo ligado al
+  // objetivo activo — se ve y se puede tocar mientras haya CUALQUIER
+  // objetivo fijado (aunque esté fijándose todavía), no solo cuando el
+  // arma ya tiene a quién disparar. Antes vivía dentro de #combat-buttons
+  // y se ocultaba a la vez que el botón de disparo, lo que la hacía
+  // intocable la mayor parte del tiempo y parecía "no funcionar".
+  autoshootRowEl.classList.toggle("hidden", targets.length === 0);
   autoshootCheck.checked = combatState.autoShoot;
+
+  // Cuadrícula de objetivos: target 1/2 arriba, 3/4 debajo (orden de la
+  // propia lista del servidor, que es el orden en que se fijaron).
+  targetCards.forEach((card, i) => {
+    const target = targets[i];
+    if (!target) {
+      card.root.classList.remove("visible");
+      return;
+    }
+    card.root.classList.add("visible");
+    card.root.classList.toggle("locking", !target.locked);
+    card.root.classList.toggle("locked", target.locked);
+    card.root.classList.toggle("firing-at", target.active && bloqueado);
+
+    const key = `${target.kind}:${target.id}`;
+    let health = targetHealthByKey.get(key);
+    if (!health) {
+      // Llega aquí sin haber pasado por el tap (p. ej. auto-fijado de
+      // vuelta cuando un NPC te ataca primero — startLock en el servidor,
+      // sin intervención del cliente) — se siembra con lo que ya se sepa
+      // del NPC en el estado replicado, en vez de quedarse en 100% fijo
+      // hasta el primer disparo.
+      const npcState = target.kind === "npc" ? getActiveScene()?.room?.state?.npcs?.get(target.id) : null;
+      seedTargetHealth(target.kind, target.id, npcState?.name);
+      health = targetHealthByKey.get(key);
+      if (npcState) {
+        health.shield = npcState.shield / NPC_SHIELD_MAX;
+        health.structure = npcState.structure / NPC_STRUCTURE_MAX;
+      }
+    }
+    card.nameEl.textContent = health.name || t("combat.target");
+    setBarWidth(card.shieldFillEl, health.shield);
+    setBarWidth(card.structureFillEl, health.structure);
+  });
+
+  // Los objetivos que ya no están en la lista (murieron, se desfijaron,
+  // salieron de alcance) no necesitan seguir ocupando memoria.
+  const activeKeys = new Set(targets.map((t) => `${t.kind}:${t.id}`));
+  targetHealthByKey.forEach((_, key) => {
+    if (!activeKeys.has(key)) targetHealthByKey.delete(key);
+  });
 }
 
 // El servidor manda escudo/estructura del objetivo dentro de los mensajes
-// de disparo (shot/hit); este panel se rellena con lo último que se sepa,
-// no con una réplica completa por tick.
-const targetInfo = { kind: null, id: null, name: "", shield: 1, structure: 1 };
+// de disparo (shot/hit); targetHealthByKey se rellena con lo último que
+// se sepa de cada objetivo fijado, no con una réplica completa por tick.
+function seedTargetHealth(kind, id, name) {
+  targetHealthByKey.set(`${kind}:${id}`, { name, shield: 1, structure: 1 });
+}
 
-function refreshTargetPanel() {
-  const activo = combatState?.targets.find((t) => t.active && t.locked);
-  if (!activo) {
-    targetPanelEl.classList.remove("visible");
-    return;
-  }
-  targetPanelEl.classList.add("visible");
-  targetNameEl.textContent = targetInfo.name || t("combat.target");
-  setBarWidth(targetShieldFillEl, targetInfo.shield);
-  setBarWidth(targetStructureFillEl, targetInfo.structure);
+function applyStructureDamageEstimate(kind, id, damage) {
+  const key = `${kind}:${id}`;
+  const health = targetHealthByKey.get(key);
+  if (!health) return;
+  // No se conoce el máximo de vida exacto del objetivo en el cliente, así
+  // que se aproxima por la última barra conocida menos el daño
+  // proporcional. Es una estimación visual, no un dato exacto — el
+  // servidor es quien de verdad decide cuándo muere.
+  health.structure = Math.max(0, health.structure - damage / NPC_STRUCTURE_MAX);
 }
 
 // Máximos de crucero, en espejo con server/rooms/ChunkRoom.js. Solo sirven
@@ -995,13 +1108,22 @@ class ChunkScene extends Phaser.Scene {
     // Textura de la estela de plasma — un disco suave generado a mano,
     // sin necesidad de un asset nuevo de arte. Pequeño a propósito: con
     // el ángulo de emisión ahora fijo (chorro, no nube — ver
-    // updateEngineTrailPosition), varias partículas finas y seguidas se
+    // updateEngineTrailsPosition), varias partículas finas y seguidas se
     // leen como un chorro continuo, no como bolas sueltas.
     const trailGfx = this.make.graphics({ x: 0, y: 0, add: false });
     trailGfx.fillStyle(0xffffff, 1);
     trailGfx.fillCircle(4, 4, 4);
     trailGfx.generateTexture("plasma-particle", 8, 8);
     trailGfx.destroy();
+
+    // Variante gruesa para la estela de battleship/capital (8.x) — mismo
+    // disco, el doble de grande, para que dos chorros lean como motores de
+    // verdad y no como la misma partícula fina repetida.
+    const trailGfxThick = this.make.graphics({ x: 0, y: 0, add: false });
+    trailGfxThick.fillStyle(0xffffff, 1);
+    trailGfxThick.fillCircle(8, 8, 8);
+    trailGfxThick.generateTexture("plasma-particle-thick", 16, 16);
+    trailGfxThick.destroy();
 
     // El mismo atlas de iconos que usa el HUD en HTML, cargado también
     // como hoja de sprites para lo que se dibuja DENTRO del mundo
@@ -1064,6 +1186,10 @@ class ChunkScene extends Phaser.Scene {
     this.uiCamera.ignore(this.worldLayer);
 
     const catalog = this.cache.json.get("shipsCatalog") || [];
+    // shipId -> clase, para la batería de estelas (createEngineTrails) —
+    // genérico por clase real del catálogo, no una tabla propia que haya
+    // que mantener en paralelo cada vez que la Naveteca añade una nave.
+    this.shipClassById = new Map(catalog.map((s) => [s.id, s.class]));
     const baseMeta = catalog.find((s) => s.id === STARTING_SHIP_ID) || null;
     const override = getLocalShipOverride(STARTING_SHIP_ID);
     this.shipMeta = override && baseMeta ? { ...baseMeta, ...override, stats: { ...baseMeta.stats, ...(override.stats || {}) } } : baseMeta;
@@ -1237,32 +1363,19 @@ class ChunkScene extends Phaser.Scene {
       const container = this.add.container(player.x, player.y, [sprite, label]);
       this.worldLayer.add(container);
 
-      // Estela de plasma del motor — solo se activa mientras la nave
-      // acelera (ver updateEngineTrail, llamado desde predictLocalMovement
-      // para la nave propia; las remotas se activan por cambio de posición).
-      const engineTrail = this.add.particles(0, 0, "plasma-particle", {
-        // Sin "follow": la posición se actualiza a mano cada frame
-        // (updateEngineTrailPosition) para poder colocarla detrás de la
-        // nave según su orientación real, no un offset fijo en pantalla.
-        // "angle" y "speed" arrancan con un valor cualquiera — se
-        // sobreescriben nada más crearse la nave, en updateEngineTrailPosition.
-        lifespan: 220,
-        angle: -90,
-        speed: 60,
-        scale: { start: 0.55, end: 0 },
-        alpha: { start: 0.85, end: 0 },
-        tint: 0x66ccff,
-        frequency: 18,
-        emitting: false,
-      });
-      this.worldLayer.add(engineTrail);
+      // Batería de estelas de plasma — nº de chorros y grosor según clase
+      // real de la nave (ver ENGINE_TRAIL_LAYOUT). Solo se activan
+      // mientras la nave acelera (ver updateEngineTrailsPosition, llamado
+      // desde predictLocalMovement para la nave propia; las remotas se
+      // activan por cambio de posición).
+      const engineTrails = this.createEngineTrails(container, `ship-${STARTING_SHIP_ID}`);
 
       const entry = {
         container,
         sprite,
         label,
         isMe,
-        engineTrail,
+        engineTrails,
         buffer: [{ x: player.x, y: player.y, rotation: player.rotation, t: performance.now() }],
         serverX: player.x,
         serverY: player.y,
@@ -1303,7 +1416,7 @@ class ChunkScene extends Phaser.Scene {
       const entry = this.playerEntities.get(sessionId);
       if (entry) {
         entry.container.destroy();
-        entry.engineTrail?.destroy();
+        entry.engineTrails?.forEach(({ emitter }) => emitter.destroy());
       }
       this.playerEntities.delete(sessionId);
       if (sessionId === this.room.sessionId) {
@@ -1315,7 +1428,9 @@ class ChunkScene extends Phaser.Scene {
     this.npcEntities = new Map();
     this.room.state.npcs.onAdd((npc, id) => {
       const sprite = this.add.image(0, 0, `ship-${npc.shipId}`).setScale(0.5);
-      sprite.setTint(0xff8866);
+      // Sin velo de color permanente: la identificación de "es hostil" la
+      // da ahora el marcador (caja roja) en updateOffscreenMarkers/
+      // updateTargetReticles, no un tinte encima de todo el sprite.
       // Tocable para fijar objetivo (ver el manejador de pointerdown más
       // abajo). El radio de toque es generoso a propósito: en un móvil
       // acertar justo sobre el sprite es difícil mientras la nave se mueve.
@@ -1337,10 +1452,15 @@ class ChunkScene extends Phaser.Scene {
         entry.serverX = npc.x;
         entry.serverY = npc.y;
         entry.rotation = npc.rotation;
-        if (targetInfo.kind === "npc" && targetInfo.id === id) {
-          targetInfo.shield = npc.shield / 380;
-          targetInfo.structure = npc.structure / 632;
-          refreshTargetPanel();
+        // Actualiza SU entrada en targetHealthByKey si está fijado (no
+        // hace falta que sea el objetivo activo) — con varios objetivos a
+        // la vez, cualquiera de ellos puede cambiar de vida por causas
+        // ajenas a los propios disparos (otro jugador, regeneración...).
+        const health = targetHealthByKey.get(`npc:${id}`);
+        if (health) {
+          health.shield = npc.shield / NPC_SHIELD_MAX;
+          health.structure = npc.structure / NPC_STRUCTURE_MAX;
+          updateCombatHud();
         }
       });
     });
@@ -1349,11 +1469,9 @@ class ChunkScene extends Phaser.Scene {
       if (!entry) return;
       entry.container.destroy();
       this.npcEntities.delete(id);
-      if (targetInfo.kind === "npc" && targetInfo.id === id) {
-        targetInfo.kind = null;
-        targetInfo.id = null;
-        refreshTargetPanel();
-      }
+      // No hace falta tocar targetHealthByKey aquí: en cuanto el NPC
+      // muere, el servidor lo quita de combatState.targets y el próximo
+      // updateCombatHud limpia la entrada huérfana por su cuenta.
     });
 
     this.room.state.asteroids.onAdd((asteroid, id) => {
@@ -1387,19 +1505,18 @@ class ChunkScene extends Phaser.Scene {
     this.room.onMessage("combat", (msg) => {
       combatState = msg;
       updateCombatHud();
-      refreshTargetPanel();
     });
 
     // Resultado de CADA disparo propio. Se enseñan los factores por
     // separado para que el jugador entienda por qué el disparo fue flojo
     // y aprenda a colocarse, en vez de ver solo un número (8.4.10).
     this.room.onMessage("shot", (msg) => {
-      if (msg.kind === targetInfo.kind && msg.id === targetInfo.id) {
-        // No se conoce el máximo de vida del objetivo en el cliente, así
-        // que se aproxima por la última barra conocida menos el daño
-        // proporcional. Es una estimación visual, no un dato exacto.
-        targetInfo.structure = Math.max(0, targetInfo.structure - msg.damage / 700);
-        refreshTargetPanel();
+      // shieldDamage/structureDamage ya vienen desglosados del servidor
+      // (ver 8.4.13) — más preciso que estimar con el daño total, y sirve
+      // igual para cualquiera de los objetivos fijados, no solo el activo.
+      if (msg.structureDamage > 0) {
+        applyStructureDamageEstimate(msg.kind, msg.id, msg.structureDamage);
+        updateCombatHud();
       }
       this.showDamageNumber(msg);
 
@@ -1484,7 +1601,7 @@ class ChunkScene extends Phaser.Scene {
   resetEntities() {
     this.playerEntities.forEach((entry) => {
       entry.container.destroy();
-      entry.engineTrail?.destroy();
+      entry.engineTrails?.forEach(({ emitter }) => emitter.destroy());
     });
     this.playerEntities.clear();
     this.asteroidSprites.forEach((circle) => circle.destroy());
@@ -1496,11 +1613,14 @@ class ChunkScene extends Phaser.Scene {
     this.npcEntities?.clear();
     this.targetReticles?.forEach((r) => r.destroy());
     this.targetReticles?.clear();
-    this.offscreenMarkers?.forEach((d) => d.destroy());
+    this.offscreenMarkers?.forEach((marker) => {
+      marker.box?.destroy();
+      marker.dot?.destroy();
+      marker.destroy();
+    });
     this.offscreenMarkers?.clear();
     combatState = null;
-    targetInfo.kind = null;
-    targetInfo.id = null;
+    targetHealthByKey.clear();
     updateCombatHud();
     this.localEntry = null;
     this.localPlayerState = null;
@@ -1652,8 +1772,51 @@ class ChunkScene extends Phaser.Scene {
     cruiseIndicatorEl.style.display = cruising ? "flex" : "none";
   }
 
-  // Coloca el emisor de la estela detrás de la nave (en el sentido
-  // contrario al morro) y lo enciende/apaga según si está acelerando.
+  // Crea la batería de estelas de una nave según su clase real (catálogo
+  // ships.json, resuelto en shipClassById durante create()). count chorros
+  // en fila horizontal PARALELA (todos apuntando hacia atrás, no en
+  // abanico), separados por igual dentro de una franja central del ancho
+  // del casco — no de punta a punta, para no salir de las alas/brazos en
+  // naves muy anchas. La posición y el ángulo reales de cada chorro se
+  // recalculan cada frame en updateEngineTrailsPosition, esto solo crea
+  // los emisores y guarda su offset lateral relativo (fracción de -1..1).
+  createEngineTrails(container, textureKey) {
+    const shipClass = this.shipClassById?.get(textureKey.replace(/^ship-/, ""));
+    const layout = ENGINE_TRAIL_LAYOUT[shipClass] || ENGINE_TRAIL_DEFAULT_LAYOUT;
+    const particleTexture = layout.thick ? "plasma-particle-thick" : "plasma-particle";
+
+    const trails = [];
+    for (let i = 0; i < layout.count; i++) {
+      // -1..1, centrado; con count=1 el único chorro va en el centro (0).
+      const lateralFrac = layout.count === 1 ? 0 : -1 + (2 * i) / (layout.count - 1);
+      const emitter = this.add.particles(0, 0, particleTexture, {
+        // Sin "follow": la posición se actualiza a mano cada frame
+        // (updateEngineTrailsPosition) para poder colocarla detrás de la
+        // nave según su orientación real, no un offset fijo en pantalla.
+        // "angle" y "speed" arrancan con un valor cualquiera — se
+        // sobreescriben nada más crearse la nave.
+        lifespan: layout.thick ? 320 : 220,
+        angle: -90,
+        speed: layout.thick ? 90 : 60,
+        scale: layout.thick ? { start: 0.8, end: 0 } : { start: 0.55, end: 0 },
+        alpha: { start: 0.85, end: 0 },
+        tint: 0x66ccff,
+        frequency: layout.thick ? 14 : 18,
+        emitting: false,
+      });
+      this.worldLayer.add(emitter);
+      trails.push({ emitter, lateralFrac });
+    }
+    return trails;
+  }
+
+  // Coloca CADA emisor de la batería detrás de la nave, en fila horizontal
+  // paralela (todos con el mismo ángulo — el de la cola), separados
+  // lateralmente entre sí. El offset hacia atrás y la separación lateral
+  // salen del tamaño REAL del sprite (displayHeight/displayWidth, ya
+  // recortado de transparencia por trimTransparentPadding), con un margen
+  // fijo para que no nazcan pegadas al borde — así una fragata pequeña y
+  // un acorazado enorme llevan la estela bien puesta sin tabla por nave.
   //
   // sprite.rotation = facing + PI/2 (el arte apunta "arriba" por defecto,
   // así que se compensa con +PI/2 — ver predictLocalMovement /
@@ -1662,30 +1825,38 @@ class ChunkScene extends Phaser.Scene {
   // para apuntar hacia atrás: facing + PI = (sprite.rotation - PI/2) + PI
   // = sprite.rotation + PI/2. Restar PI directamente a sprite.rotation
   // (como estaba antes) deja el offset girado 90° de más — la estela
-  // salía por el lateral de la nave en vez de por la cola.
-  updateEngineTrailPosition(entry, isThrusting, speed = 0) {
-    if (!entry.engineTrail) return;
+  // salía por el lateral de la nave en vez de por la cola. La lateral
+  // (perpendicular) es ese mismo ángulo menos PI/2.
+  updateEngineTrailsPosition(entry, isThrusting, speed = 0) {
+    if (!entry.engineTrails?.length) return;
     const back = entry.sprite.rotation + Math.PI / 2;
-    const offset = 16;
-    entry.engineTrail.setPosition(
-      entry.container.x + Math.cos(back) * offset,
-      entry.container.y + Math.sin(back) * offset
-    );
+    const lateral = back - Math.PI / 2;
 
-    // Chorro estrecho en vez de nube: un ÁNGULO EXACTO (no un rango
-    // {min,max}) actualizado cada frame según hacia dónde apunta la cola.
-    // Phaser tiene un bug conocido (#6688) donde setEmitterAngle con un
-    // rango en tiempo de ejecución da resultados impredecibles — con un
-    // número exacto sí es fiable, y de paso sale un chorro más fino.
-    entry.engineTrail.setEmitterAngle(Phaser.Math.RadToDeg(back));
+    const backOffset = entry.sprite.displayHeight / 2 + ENGINE_TRAIL_EDGE_MARGIN_PX;
+    // Franja del 60% del ancho real del casco — deja las estelas dentro
+    // del cuerpo de la nave en vez de saliendo por las puntas de alas
+    // largas y finas (destroyers, battlecruisers).
+    const halfSpread = (entry.sprite.displayWidth * 0.6) / 2;
 
-    // Alarga el chorro según la velocidad real: más rápido, partículas
-    // más veloces, recorren más distancia en el mismo tiempo de vida.
-    // setSpeed se renombró a setParticleSpeed en Phaser 3.60+.
-    const particleSpeed = Phaser.Math.Clamp(60 + speed * 0.6, 60, 900);
-    entry.engineTrail.setParticleSpeed(particleSpeed);
+    const angleDeg = Phaser.Math.RadToDeg(back);
+    entry.engineTrails.forEach(({ emitter, lateralFrac }) => {
+      const lateralOffset = lateralFrac * halfSpread;
+      emitter.setPosition(
+        entry.container.x + Math.cos(back) * backOffset + Math.cos(lateral) * lateralOffset,
+        entry.container.y + Math.sin(back) * backOffset + Math.sin(lateral) * lateralOffset
+      );
 
-    entry.engineTrail.emitting = isThrusting;
+      // Chorro estrecho en vez de nube: un ÁNGULO EXACTO (no un rango
+      // {min,max}) actualizado cada frame según hacia dónde apunta la
+      // cola. Phaser tiene un bug conocido (#6688) donde setEmitterAngle
+      // con un rango en tiempo de ejecución da resultados impredecibles —
+      // con un número exacto sí es fiable, y de paso sale un chorro más
+      // fino. Todos los chorros de la batería comparten el mismo ángulo
+      // (paralelos, no en abanico).
+      emitter.setEmitterAngle(angleDeg);
+      emitter.setParticleSpeed(Phaser.Math.Clamp(60 + speed * 0.6, 60, 900));
+      emitter.emitting = isThrusting;
+    });
   }
 
   updateEngineSound(isThrusting) {
@@ -1734,7 +1905,7 @@ class ChunkScene extends Phaser.Scene {
       );
       this.localEntry.sprite.rotation = this.localEntry.facing + Math.PI / 2;
       this.updateEngineSound(true);
-      this.updateEngineTrailPosition(this.localEntry, true, warpSpeed);
+      this.updateEngineTrailsPosition(this.localEntry, true, warpSpeed);
 
       // Reconciliación por si el servidor decide algo distinto (topó
       // con el borde, por ejemplo) — umbral más generoso que en vuelo
@@ -1817,7 +1988,7 @@ class ChunkScene extends Phaser.Scene {
     // En crucero: vx/vy se dejan tal cual están (sin fricción, sin
     // empuje) — la nave sigue viajando sola, igual que en el servidor.
 
-    this.updateEngineTrailPosition(this.localEntry, isThrusting, Math.hypot(this.localEntry.vx, this.localEntry.vy));
+    this.updateEngineTrailsPosition(this.localEntry, isThrusting, Math.hypot(this.localEntry.vx, this.localEntry.vy));
 
     const half = WORLD_SIZE / 2;
     this.localEntry.container.x = Phaser.Math.Clamp(
@@ -1908,9 +2079,17 @@ class ChunkScene extends Phaser.Scene {
   // para que el jugador vea de un vistazo a qué tiene marcado sin abrir
   // ningún panel. Se reutilizan sprites en vez de crear/destruir cada
   // frame — ver el comentario de showActionReticle sobre el mismo motivo.
+  //
+  // setScale(1/zoom): la retícula vive en el mundo (para seguir al
+  // objetivo sin recalcular nada), pero su TAMAÑO en pantalla tiene que
+  // ser constante — si no, con zoom out se encoge igual que el resto del
+  // mundo hasta desaparecer, que era justo el hueco entre "se lee bien" y
+  // "ya hay marcador fuera de pantalla" donde el objetivo fijado parecía
+  // esfumarse (mismo truco que los marcadores de updateOffscreenMarkers).
   updateTargetReticles() {
     if (!this.targetReticles) this.targetReticles = new Map();
     const activos = new Set();
+    const invZoom = 1 / this.cameras.main.zoom;
 
     (combatState?.targets || []).forEach((target) => {
       const key = `${target.kind}:${target.id}`;
@@ -1925,6 +2104,7 @@ class ChunkScene extends Phaser.Scene {
       if (!ret) {
         ret = this.add.image(0, 0, "ui-icons", target.locked ? ICON_FRAMES.lockDone : ICON_FRAMES.lockPending);
         ret.setDisplaySize(70, 70);
+        ret.baseScale = ret.scaleX; // escala que da los 70px deseados a zoom 1
         this.worldLayer?.add(ret);
         this.targetReticles.set(key, ret);
       }
@@ -1934,6 +2114,7 @@ class ChunkScene extends Phaser.Scene {
       ret.setTint(target.locked ? 0x66ff88 : 0xffb066);
       ret.setFrame(target.locked ? ICON_FRAMES.lockDone : ICON_FRAMES.lockPending);
       ret.setPosition(entidad.x, entidad.y);
+      ret.setScale(ret.baseScale * invZoom);
       ret.rotation += 0.02;
     });
 
@@ -1976,7 +2157,14 @@ class ChunkScene extends Phaser.Scene {
     const lockedKeys = new Set((combatState?.targets || []).map((t) => `${t.kind}:${t.id}`));
     const activeKeys = new Set();
 
-    const consider = (key, worldX, worldY, isTarget) => {
+    // Marcador = punto + caja de targeting (4 esquinas) alrededor. Se
+    // pidió mantener el punto (no sustituirlo), solo meterlo en una caja
+    // que se lea como "esto es un contacto", distinto del fondo de
+    // estrellas. Color: rojo si es hostil de verdad (NPC — no hay bandera
+    // de hostilidad entre jugadores todavía), blanco si no. El tamaño de
+    // caja crece un poco si además está fijado como objetivo, para que un
+    // objetivo se distinga de un contacto cualquiera sin cambiar de color.
+    const consider = (key, worldX, worldY, isTarget, isHostile) => {
       const offscreen = worldX < minX || worldX > maxX || worldY < minY || worldY > maxY;
       // A los objetivos fijados no les hace falta estar lejos de zoom
       // para ganarse el marcador — solo estar fuera de la vista (o,
@@ -1984,36 +2172,72 @@ class ChunkScene extends Phaser.Scene {
       if (!offscreen && !zoomTooSmall) return;
 
       activeKeys.add(key);
-      let dot = this.offscreenMarkers.get(key);
-      if (!dot) {
-        dot = this.add.circle(0, 0, 1, 0xffffff, 0.95).setDepth(80);
-        this.worldLayer?.add(dot);
-        this.offscreenMarkers.set(key, dot);
+      let marker = this.offscreenMarkers.get(key);
+      if (!marker) {
+        const dot = this.add.circle(0, 0, 1, 0xffffff, 0.95);
+        const box = this.add.graphics();
+        marker = this.add.container(0, 0, [box, dot]).setDepth(80);
+        marker.box = box;
+        marker.dot = dot;
+        this.worldLayer?.add(marker);
+        this.offscreenMarkers.set(key, marker);
       }
       const clampedX = Phaser.Math.Clamp(worldX, minX, maxX);
       const clampedY = Phaser.Math.Clamp(worldY, minY, maxY);
-      dot.setPosition(clampedX, clampedY);
-      dot.setScale(invZoom); // tamaño constante en pantalla, no se encoge con el zoom
-      dot.setRadius(isTarget ? OFFSCREEN_TARGET_RADIUS_PX : OFFSCREEN_DOT_RADIUS_PX);
-      // Naranja para objetivos fijados (mismo tono que la retícula de
-      // bloqueo, para que se lean como "lo mismo"); blanco para el resto.
-      dot.setFillStyle(isTarget ? 0xffb066 : 0xffffff, 0.95);
+      marker.setPosition(clampedX, clampedY);
+      marker.setScale(invZoom); // tamaño constante en pantalla, no se encoge con el zoom
+
+      const color = isHostile ? MARKER_COLOR_HOSTILE : MARKER_COLOR_NEUTRAL;
+      const dotRadius = isTarget ? OFFSCREEN_TARGET_RADIUS_PX : OFFSCREEN_DOT_RADIUS_PX;
+      const boxHalf = dotRadius + (isTarget ? 7 : 4);
+      // Redibujar el graphics es barato (un puñado de trazos, no cientos)
+      // pero solo hace falta si algo cambió — evita rehacer el mismo
+      // dibujo 60 veces por segundo para marcadores quietos.
+      if (marker.lastColor !== color || marker.lastBoxHalf !== boxHalf) {
+        marker.lastColor = color;
+        marker.lastBoxHalf = boxHalf;
+        const cornerLen = boxHalf * 0.65;
+        box.clear();
+        box.lineStyle(1.5, color, 0.95);
+        // Cuatro esquinas sueltas (no un cuadrado completo): se lee como
+        // "caja de targeting" sin tapar tanto el punto de dentro. Cada
+        // esquina es una "L" que apunta hacia el centro del marcador.
+        [
+          [-boxHalf, -boxHalf],
+          [boxHalf, -boxHalf],
+          [-boxHalf, boxHalf],
+          [boxHalf, boxHalf],
+        ].forEach(([cx, cy]) => {
+          const towardCenterX = cx > 0 ? -cornerLen : cornerLen;
+          const towardCenterY = cy > 0 ? -cornerLen : cornerLen;
+          box.beginPath();
+          box.moveTo(cx, cy);
+          box.lineTo(cx + towardCenterX, cy);
+          box.moveTo(cx, cy);
+          box.lineTo(cx, cy + towardCenterY);
+          box.strokePath();
+        });
+      }
+      dot.setRadius(dotRadius);
+      dot.setFillStyle(color, 0.95);
     };
 
     this.npcEntities?.forEach((entry, id) => {
       const key = `npc:${id}`;
-      consider(key, entry.container.x, entry.container.y, lockedKeys.has(key));
+      consider(key, entry.container.x, entry.container.y, lockedKeys.has(key), true);
     });
 
     this.playerEntities?.forEach((entry, sessionId) => {
       if (entry.isMe) return; // la propia cámara la sigue — nunca está fuera de vista
       const key = `player:${sessionId}`;
-      consider(key, entry.container.x, entry.container.y, lockedKeys.has(key));
+      consider(key, entry.container.x, entry.container.y, lockedKeys.has(key), false);
     });
 
-    this.offscreenMarkers.forEach((dot, key) => {
+    this.offscreenMarkers.forEach((marker, key) => {
       if (!activeKeys.has(key)) {
-        dot.destroy();
+        marker.box?.destroy();
+        marker.dot?.destroy();
+        marker.destroy();
         this.offscreenMarkers.delete(key);
       }
     });
@@ -2057,7 +2281,7 @@ class ChunkScene extends Phaser.Scene {
       // darle largo acorde a la velocidad real.
       const movedDist = Phaser.Math.Distance.Between(older.x, older.y, newer.x, newer.y);
       const estimatedSpeed = movedDist / (span / 1000);
-      this.updateEngineTrailPosition(entry, movedDist > 2, estimatedSpeed);
+      this.updateEngineTrailsPosition(entry, movedDist > 2, estimatedSpeed);
     });
   }
 
@@ -2175,11 +2399,7 @@ class ChunkScene extends Phaser.Scene {
         this.room?.send("lock", blanco.combatTarget);
         if (blanco.combatTarget.kind === "npc") {
           const npcState = this.room?.state.npcs.get(blanco.combatTarget.id);
-          targetInfo.kind = "npc";
-          targetInfo.id = blanco.combatTarget.id;
-          targetInfo.name = npcState?.name || t("combat.target");
-          targetInfo.shield = 1;
-          targetInfo.structure = 1;
+          seedTargetHealth("npc", blanco.combatTarget.id, npcState?.name || t("combat.target"));
         }
         return;
       }

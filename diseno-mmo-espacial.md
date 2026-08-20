@@ -2028,8 +2028,12 @@ producción reales tras un reporte de caída.
   de otro jugador, para que pueda volver y tomar el mando — estando
   conectado, esa es la respuesta natural, y es mucho más simple que
   cualquier mecánica de protección automática.
-- **Límite de objetivos simultáneos y tiempo de bloqueo** por casco: es lo
-  que convierte la gestión de objetivos en decisión real y no en pulsar.
+- **Límite de objetivos simultáneos por casco, según clase.** El fijado
+  múltiple en sí ya existe y se ve entero en el HUD desde v0.7.0 (8.4.14)
+  — lo que falta es que el tope (`MAX_TARGETS`, hoy 4 fijo para
+  cualquier nave) varíe por clase de casco, que es lo que convertiría la
+  gestión de objetivos en una decisión real ligada a qué pilotas y no en
+  un número igual para todos.
 - Fórmulas concretas de tracking, firma, resistencias base y penalización
   por apilamiento.
 - Ranuras por casco y coste energético de cada módulo.
@@ -2154,6 +2158,106 @@ por todos los disparos de la sesión.
   HTTP/2 y cacheado no debería notarse, pero si el catálogo de efectos
   crece (torreta impactando, minería, etc.) merece la pena empaquetar en
   un atlas antes de que sea un problema real de carga inicial.
+
+### 8.4.14 HUD de combate y contactos — v0.7.0
+
+Pase completo sobre cómo se leen los contactos y objetivos en pantalla,
+a partir de feedback jugando en móvil real (capturas con la cuadrícula
+de rejilla en zoom out, ver conversación de la sesión).
+
+**Marcadores de contacto rediseñados.** Antes: un punto blanco (o
+naranja si era objetivo fijado) indistinguible del fondo de estrellas, y
+un tinte naranja permanente sobre TODO el sprite de cualquier NPC (el
+"velo"). Ahora:
+- El velo naranja desaparece — el sprite del NPC se ve con sus colores
+  reales, sin tinte.
+- El punto se mantiene (se pidió explícitamente no quitarlo) pero se
+  envuelve en una caja de targeting — 4 esquinas sueltas tipo retícula,
+  no un cuadrado completo, para no tapar el punto de dentro.
+- Color por hostilidad real, no por estado de fijado: rojo si es un NPC
+  (hostil de verdad — no hay bandera de hostilidad entre jugadores
+  todavía), blanco para cualquier otra nave. La caja crece un poco si
+  además está fijado, sin cambiar de color.
+- La retícula de bloqueo en el mundo (el anillo giratorio sobre el
+  objetivo) llevaba un bug real: no compensaba el zoom de cámara, así
+  que a partir de cierto nivel de zoom out se encogía hasta ser
+  invisible ANTES de que el objetivo entrara en el rango de "demasiado
+  lejos, márcalo con un punto fijo" — un hueco donde el objetivo fijado
+  parecía esfumarse. Corregido con el mismo truco que ya usaban los
+  marcadores fuera de pantalla (escala inversa al zoom, tamaño constante
+  en pantalla).
+
+**Estelas de motor en batería por clase.** Antes: una sola estela, con
+un offset fijo de 16px sin relación con el tamaño real del sprite.
+Ahora, según la clase real del casco (tabla `ENGINE_TRAIL_LAYOUT` en
+`effects.js`... corrección, en `main.js`):
+
+| Clase | Estelas | Estilo |
+|---|---|---|
+| Shuttle / Frigate | 1 | fina |
+| Destroyer | 2 | fina |
+| Cruiser | 3 | fina |
+| Battlecruiser | 4 | fina |
+| Battleship / Carrier / Dreadnought | 2 | gruesa, separada |
+
+Todas paralelas (mismo ángulo, no en abanico), en fila horizontal
+centrada en la popa, dentro del 60% del ancho real del casco (no de
+punta a punta — evita salirse por alas largas y finas). El offset hacia
+atrás sale de `sprite.displayHeight/2` + un margen fijo de 5px, así que
+una fragata pequeña y un acorazado enorme llevan la estela bien puesta
+sin tabla de tamaños por nave — genérico por clase del catálogo real
+(`ships.json`), igual que la heurística de forma de escudo de 8.4.13.
+
+**Triángulo de referencia propio, más tardío.** El umbral de zoom al que
+el triángulo sustituye al sprite real (8.4.10.1.1 lo introdujo) usaba la
+media geométrica exacta entre `MIN_ZOOM` y `MAX_ZOOM` (50/50 en escala
+logarítmica) — sustituía al sprite demasiado pronto y tapaba la propia
+nave en acercamientos que todavía se consideraban "normales". Ahora la
+ponderación es 70/30 hacia `MIN_ZOOM`, así que hace falta alejarse
+bastante más para que aparezca.
+
+**Autodisparo, arreglado de verdad.** La casilla vivía DENTRO de
+`#combat-buttons`, que se oculta entera (`display:none`) en cuanto no
+hay un objetivo activo Y bloqueado — así que la casilla se volvía
+intocable la mayor parte del tiempo (entre objetivos, mientras se fija
+uno nuevo...), lo que se leía como "no funciona" aunque su estado en el
+servidor (`combatState.autoShoot`) nunca se perdía. Ahora es un elemento
+independiente que solo se oculta cuando no hay NINGÚN objetivo fijado en
+absoluto — se puede ver y tocar mientras se gestionan varios objetivos,
+y como el estado siempre fue del servidor (no del checkbox), activarlo
+una vez ya no "se resetea" con cada cambio de objetivo.
+
+**HUD de objetivos múltiples — el sistema de fijado ya existía.** El
+servidor YA tenía multi-target real desde antes de este parche
+(`combatState.targets[]`, hasta `MAX_TARGETS` fijados a la vez con
+progreso de bloqueo individual — ver `startLock`/`sendCombatState` en
+`ChunkRoom.js`); lo único de un solo objetivo era el HUD del cliente
+(`targetInfo` singular, sobrescrito por el último toque). v0.7.0:
+- `MAX_TARGETS` sube de 3 a 4.
+- El HUD pasa a una cuadrícula de 2 columnas bajo las barras de
+  escudo/estructura/energía (mismo contenedor en columna, sin offset a
+  ojo): objetivos 1-2 arriba, 3-4 debajo, en el orden en que se fijaron.
+- Cada tarjeta tiene su propio nombre + barras de escudo/estructura,
+  borde naranja mientras se fija y verde una vez bloqueada, y un aro
+  rojo por dentro si es la que tiene el arma apuntada ahora mismo
+  (`activeTarget` en el servidor — sigue habiendo un arma, un disparo a
+  la vez, aunque haya varios objetivos fijados).
+- Tocar una tarjeta manda `unlock` para ESE objetivo — antes no había
+  ninguna forma de soltar un objetivo fijado desde la UI.
+- Vida por objetivo: `shot` ahora manda `shieldDamage`/`structureDamage`
+  desglosados (8.4.13), así que la estimación de vida de cada tarjeta es
+  más precisa que la aproximación anterior por daño total. Si un
+  objetivo se fija por auto-fijado de vuelta (8.4.10.4, sin pasar por el
+  toque del jugador), su tarjeta se siembra con lo que ya se sepa del
+  NPC por estado replicado en vez de arrancar en 100% a ciegas.
+
+**Pendiente:**
+- Límite de objetivos por clase de casco, no plano (ver 8.4.11).
+- Sin PvP: solo los NPC son tocables/fijables — el `kind:"player"` que
+  ya acepta `startLock` en el servidor no tiene forma de activarse desde
+  el cliente todavía.
+- No se validó con Playwright por la misma limitación de red del
+  sandbox que 8.4.13.
 
 ### 8.5 Bootstrap del jugador nuevo
 

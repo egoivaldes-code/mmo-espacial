@@ -1,5 +1,14 @@
 [
   {
+    "version": "v0.7.0",
+    "highlights": [
+      "Enemies no longer carry a permanent orange tint — they're now marked with a red box+dot indicator, white for other ships.",
+      "Real multi-target locking! Up to 4 at once, each with its own on-screen health card. Tap a card to drop that target.",
+      "Fixed: the auto-fire checkbox no longer disappears mid-fight — it stays visible and usable while juggling multiple targets.",
+      "Engine trails now fire in a group sized to your ship class, and the marker that replaces your ship at extreme zoom-out takes longer to kick in."
+    ]
+  },
+  {
     "version": "v0.6.0",
     "highlights": [
       "Ships actually explode now! Hull hits trigger explosions sized to the blow, up to a big one when your ship is destroyed.",

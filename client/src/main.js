@@ -15,6 +15,7 @@ import {
   deleteCharacter as deleteCharacterRemote,
   MIN_PASSWORD,
 } from "./cuenta.js";
+import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestroyed, playShieldHit } from "./effects.js";
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
@@ -1032,6 +1033,9 @@ class ChunkScene extends Phaser.Scene {
     // Sprite del NPC enemigo. Sin sonido: no hay una nave propia que
     // escuchar, así que no se carga el audio del Bastion.
     this.load.image(`ship-${NPC_SHIP_ID}`, `${base}sprites/${NPC_SHIP_ID}.png`);
+
+    // Explosiones y chispazos de escudo (VFX de combate) — ver effects.js.
+    preloadEffects(this);
   }
 
   async create() {
@@ -1049,6 +1053,10 @@ class ChunkScene extends Phaser.Scene {
     this.worldLayer = this.add.layer();
     this.hudLayer = this.add.layer();
     this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height);
+
+    // Animaciones de explosión/escudo — una sola vez, reutilizadas por
+    // todos los disparos de toda la sesión (ver effects.js).
+    buildEffectAnimations(this);
     this.uiCamera.setScroll(0, 0);
     this.uiCamera.setZoom(1);
     this.uiCamera.setBackgroundColor("rgba(0,0,0,0)");
@@ -1394,6 +1402,19 @@ class ChunkScene extends Phaser.Scene {
         refreshTargetPanel();
       }
       this.showDamageNumber(msg);
+
+      // VFX en el objetivo: chispazo de escudo si absorbió algo, explosión
+      // de casco si llegó a estructura. Un golpe puede hacer las dos cosas
+      // a la vez (escudo justo agotándose a mitad del golpe).
+      const entry = this.resolveEntity(msg.kind, msg.id);
+      if (entry) {
+        if (msg.shieldDamage > 0) playShieldHit(this, entry.container, entry.sprite);
+        if (msg.destroyed) {
+          playShipDestroyed(this, entry.container.x, entry.container.y);
+        } else if (msg.structureDamage > 0) {
+          playStructureHit(this, entry.container.x, entry.container.y, msg.structureDamage);
+        }
+      }
     });
 
     // Golpe recibido de un NPC. Actualiza las barras propias sin esperar al
@@ -1402,9 +1423,19 @@ class ChunkScene extends Phaser.Scene {
       // shieldFillEl y structureFillEl se refrescan solos vía onChange del
       // estado del jugador (más abajo), esto solo dispara el parpadeo rojo.
       this.flashDamage();
+
+      if (this.localEntry) {
+        if (msg.shieldDamage > 0) playShieldHit(this, this.localEntry.container, this.localEntry.sprite);
+        if (msg.structureDamage > 0) {
+          playStructureHit(this, this.localEntry.container.x, this.localEntry.container.y, msg.structureDamage);
+        }
+      }
     });
 
     this.room.onMessage("destroyed", () => {
+      if (this.localEntry) {
+        playShipDestroyed(this, this.localEntry.container.x, this.localEntry.container.y);
+      }
       combatState = null;
       updateCombatHud();
     });
@@ -1819,17 +1850,20 @@ class ChunkScene extends Phaser.Scene {
   // conocida es indistinguible y mucho más barato de mantener.
   // Número de daño flotante sobre el objetivo. Puramente cosmético — el
   // servidor ya aplicó el daño real, esto es feedback visual del disparo.
+  // container+sprite de un objetivo por kind/id, o null si ya no existe
+  // (destruido/desconectado justo antes de que llegara este mensaje — el
+  // orden entre el mensaje de combate y el patch de estado de Colyseus no
+  // está garantizado). Usado tanto para el número de daño como para los VFX.
+  resolveEntity(kind, id) {
+    const entry = kind === "npc" ? this.npcEntities?.get(id) : this.playerEntities?.get(id);
+    return entry ?? null;
+  }
+
   showDamageNumber(msg) {
-    let x, y;
-    if (msg.kind === "npc") {
-      const c = this.npcEntities?.get(msg.id)?.container;
-      if (!c) return;
-      x = c.x; y = c.y;
-    } else {
-      const c = this.playerEntities?.get(msg.id)?.container;
-      if (!c) return;
-      x = c.x; y = c.y;
-    }
+    const entry = this.resolveEntity(msg.kind, msg.id);
+    if (!entry) return;
+    const x = entry.container.x;
+    const y = entry.container.y;
     const texto = this.add
       .text(x, y - 30, `-${msg.damage}`, {
         fontSize: "16px",

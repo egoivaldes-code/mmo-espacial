@@ -1,0 +1,135 @@
+{
+  "explosions": {
+    "pequena": {
+      "frame_count": 13,
+      "files": [
+        "explosions/pequena/explosion_pequena_01.png",
+        "explosions/pequena/explosion_pequena_02.png",
+        "explosions/pequena/explosion_pequena_03.png",
+        "explosions/pequena/explosion_pequena_04.png",
+        "explosions/pequena/explosion_pequena_05.png",
+        "explosions/pequena/explosion_pequena_06.png",
+        "explosions/pequena/explosion_pequena_07.png",
+        "explosions/pequena/explosion_pequena_08.png",
+        "explosions/pequena/explosion_pequena_09.png",
+        "explosions/pequena/explosion_pequena_10.png",
+        "explosions/pequena/explosion_pequena_11.png",
+        "explosions/pequena/explosion_pequena_12.png",
+        "explosions/pequena/explosion_pequena_13.png"
+      ]
+    },
+    "mediana": {
+      "frame_count": 10,
+      "files": [
+        "explosions/mediana/explosion_mediana_01.png",
+        "explosions/mediana/explosion_mediana_02.png",
+        "explosions/mediana/explosion_mediana_03.png",
+        "explosions/mediana/explosion_mediana_04.png",
+        "explosions/mediana/explosion_mediana_05.png",
+        "explosions/mediana/explosion_mediana_06.png",
+        "explosions/mediana/explosion_mediana_07.png",
+        "explosions/mediana/explosion_mediana_08.png",
+        "explosions/mediana/explosion_mediana_09.png",
+        "explosions/mediana/explosion_mediana_10.png"
+      ]
+    },
+    "grande": {
+      "frame_count": 7,
+      "files": [
+        "explosions/grande/explosion_grande_01.png",
+        "explosions/grande/explosion_grande_02.png",
+        "explosions/grande/explosion_grande_03.png",
+        "explosions/grande/explosion_grande_04.png",
+        "explosions/grande/explosion_grande_05.png",
+        "explosions/grande/explosion_grande_06.png",
+        "explosions/grande/explosion_grande_07.png"
+      ]
+    },
+    "critica": {
+      "frame_count": 6,
+      "files": [
+        "explosions/critica/explosion_critica_01.png",
+        "explosions/critica/explosion_critica_02.png",
+        "explosions/critica/explosion_critica_03.png",
+        "explosions/critica/explosion_critica_04.png",
+        "explosions/critica/explosion_critica_05.png",
+        "explosions/critica/explosion_critica_06.png"
+      ]
+    }
+  },
+  "shields": {
+    "circular": {
+      "aparicion": {
+        "frame_count": 7,
+        "files": [
+          "shields/circular/aparicion/escudo_circular_aparicion_01.png",
+          "shields/circular/aparicion/escudo_circular_aparicion_02.png",
+          "shields/circular/aparicion/escudo_circular_aparicion_03.png",
+          "shields/circular/aparicion/escudo_circular_aparicion_04.png",
+          "shields/circular/aparicion/escudo_circular_aparicion_05.png",
+          "shields/circular/aparicion/escudo_circular_aparicion_06.png",
+          "shields/circular/aparicion/escudo_circular_aparicion_07.png"
+        ]
+      },
+      "mantenido": {
+        "frame_count": 7,
+        "files": [
+          "shields/circular/mantenido/escudo_circular_mantenido_01.png",
+          "shields/circular/mantenido/escudo_circular_mantenido_02.png",
+          "shields/circular/mantenido/escudo_circular_mantenido_03.png",
+          "shields/circular/mantenido/escudo_circular_mantenido_04.png",
+          "shields/circular/mantenido/escudo_circular_mantenido_05.png",
+          "shields/circular/mantenido/escudo_circular_mantenido_06.png",
+          "shields/circular/mantenido/escudo_circular_mantenido_07.png"
+        ]
+      },
+      "disipacion": {
+        "frame_count": 7,
+        "files": [
+          "shields/circular/disipacion/escudo_circular_disipacion_01.png",
+          "shields/circular/disipacion/escudo_circular_disipacion_02.png",
+          "shields/circular/disipacion/escudo_circular_disipacion_03.png",
+          "shields/circular/disipacion/escudo_circular_disipacion_04.png",
+          "shields/circular/disipacion/escudo_circular_disipacion_05.png",
+          "shields/circular/disipacion/escudo_circular_disipacion_06.png",
+          "shields/circular/disipacion/escudo_circular_disipacion_07.png"
+        ]
+      }
+    },
+    "ovalado": {
+      "aparicion": {
+        "frame_count": 6,
+        "files": [
+          "shields/ovalado/aparicion/escudo_ovalado_aparicion_01.png",
+          "shields/ovalado/aparicion/escudo_ovalado_aparicion_02.png",
+          "shields/ovalado/aparicion/escudo_ovalado_aparicion_03.png",
+          "shields/ovalado/aparicion/escudo_ovalado_aparicion_04.png",
+          "shields/ovalado/aparicion/escudo_ovalado_aparicion_05.png",
+          "shields/ovalado/aparicion/escudo_ovalado_aparicion_06.png"
+        ]
+      },
+      "mantenido": {
+        "frame_count": 6,
+        "files": [
+          "shields/ovalado/mantenido/escudo_ovalado_mantenido_01.png",
+          "shields/ovalado/mantenido/escudo_ovalado_mantenido_02.png",
+          "shields/ovalado/mantenido/escudo_ovalado_mantenido_03.png",
+          "shields/ovalado/mantenido/escudo_ovalado_mantenido_04.png",
+          "shields/ovalado/mantenido/escudo_ovalado_mantenido_05.png",
+          "shields/ovalado/mantenido/escudo_ovalado_mantenido_06.png"
+        ]
+      },
+      "disipacion": {
+        "frame_count": 6,
+        "files": [
+          "shields/ovalado/disipacion/escudo_ovalado_disipacion_01.png",
+          "shields/ovalado/disipacion/escudo_ovalado_disipacion_02.png",
+          "shields/ovalado/disipacion/escudo_ovalado_disipacion_03.png",
+          "shields/ovalado/disipacion/escudo_ovalado_disipacion_04.png",
+          "shields/ovalado/disipacion/escudo_ovalado_disipacion_05.png",
+          "shields/ovalado/disipacion/escudo_ovalado_disipacion_06.png"
+        ]
+      }
+    }
+  }
+}

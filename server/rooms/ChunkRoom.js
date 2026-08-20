@@ -615,10 +615,18 @@ class ChunkRoom extends Room {
     const targetId = cs.activeTarget.id;
 
     let destruida = false;
+    // aEscudo/aEstructura se guardan en variables de fuera del if/else (y no
+    // solo destruida) porque el cliente necesita el reparto para decidir QUÉ
+    // efecto visual tocar: chispazo de escudo si aEscudo>0, explosión de
+    // casco si aEstructura>0 — un golpe puede repartirse entre los dos.
+    let aEscudo = 0;
+    let aEstructura = 0;
     if (targetKind === "npc") {
       const npc = this.state.npcs.get(targetId);
       const efecto = combat.aplicarDano(npc, resultado.damage);
       destruida = efecto.destruida;
+      aEscudo = efecto.aEscudo;
+      aEstructura = efecto.aEstructura;
       if (destruida) this.destruirNpc(targetId);
       // El NPC devuelve el golpe a quien le pega.
       const brain = this.npcBrains.get(targetId);
@@ -631,6 +639,8 @@ class ChunkRoom extends Room {
       if (otro) {
         const efecto = combat.aplicarDano(otro, resultado.damage);
         destruida = efecto.destruida;
+        aEscudo = efecto.aEscudo;
+        aEstructura = efecto.aEstructura;
         if (destruida) this.matarJugador(targetId);
       }
     }
@@ -642,6 +652,8 @@ class ChunkRoom extends Room {
       kind: targetKind,
       id: targetId,
       damage: Math.round(resultado.damage),
+      shieldDamage: Math.round(aEscudo),
+      structureDamage: Math.round(aEstructura),
       quality: Math.round(resultado.quality * 100),
       angular: Math.round(resultado.angular * 100),
       range: Math.round(resultado.rango * 100),
@@ -807,6 +819,8 @@ class ChunkRoom extends Room {
             client.send("hit", {
               from: id,
               damage: Math.round(resultado.damage),
+              shieldDamage: Math.round(efecto.aEscudo),
+              structureDamage: Math.round(efecto.aEstructura),
               shield: Math.round(objetivo.shield),
               structure: Math.round(objetivo.structure),
             });

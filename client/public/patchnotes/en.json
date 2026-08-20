@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.6.0",
+    "highlights": [
+      "Ships actually explode now! Hull hits trigger explosions sized to the blow, up to a big one when your ship is destroyed.",
+      "Shields are now visible: a ring flashes around the ship whenever it absorbs a hit, shaped differently depending on the hull."
+    ]
+  },
+  {
     "version": "v0.5.12",
     "highlights": [
       "5 new HUD icons: shield, hull, energy, and cruise pilot next to their matching bars.",

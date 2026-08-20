@@ -2074,6 +2074,87 @@ herramienta ya fusionado). **Pendiente:** el código de cliente/servidor
 que lea estos archivos para dibujar y girar las torretas en combate —
 de momento todo esto es solo la herramienta y el material de autoría.
 
+### 8.4.13 VFX de combate — explosiones y escudo (implementado v0.6.0)
+
+Hasta v0.5.12 el combate era puramente numérico en el cliente: barra de
+vida, número de daño flotante y un parpadeo rojo de pantalla (8.4.10).
+Sin nave, sin escudo visible, sin nada que "explote". v0.6.0 añade la
+primera capa de VFX real, generada a partir de una hoja de referencia
+(arte por IA) procesada igual que el catálogo de torretas de 8.4.12:
+chroma-key sobre magenta + despill de color (no solo transparencia — sin
+despill queda un halo rosado en el borde, visible sobre todo en las
+partículas de humo) para quitar el fondo, y recorte a frames individuales
+por detección de contenido real (no rejilla fija: varios frames no eran
+del mismo ancho que sus vecinos, una rejilla equitativa cortaba naves...
+perdón, explosiones, por la mitad).
+
+**Material**: `client/public/effects/` + manifest `effects.json`.
+- **Explosiones** (daño a estructura), 4 tamaños con distinto nº de
+  frames según lo generado en origen: pequeña (13), mediana (10), grande
+  (7), crítica (6).
+- **Escudo** (daño absorbido por el escudo), 2 formas — circular y
+  ovalada — cada una con 3 fases: aparición, mantenido (en bucle) y
+  disipación.
+
+**Disparo genérico, no por nave concreta.** Igual que 8.4.6 evita reglas
+por `shipId`, el sistema de VFX decide dos cosas en tiempo de ejecución a
+partir del sprite real de la nave, no de una tabla:
+- **Forma del escudo**: si el casco mide aproximadamente igual de ancho
+  que de alto (`min(w,h)/max(w,h) >= 0.8`) usa el anillo circular; si
+  está claramente alargado en un eje, usa el ovalado. Con el catálogo
+  actual (fragata, destructor, crucero, acorazado, portanaves...) casi
+  todo cae en "ovalado" — los cascos de la Naveteca son alargados por
+  diseño — pero una nave nueva no requiere tocar `effects.js`.
+- **Tamaño del anillo**: escalado para que el ancho nativo del escudo
+  case con `displayWidth` real del sprite de esa nave × 1.3, así que un
+  caza y un acorazado llevan el mismo anillo proporcionalmente sin tabla
+  de tamaños por clase.
+- **Tamaño de la explosión**: por el daño APLICADO a estructura en ese
+  golpe concreto (no el daño bruto del disparo), con 4 umbrales sobre el
+  máximo del arma actual (170). Un golpe que solo roza estructura tras
+  vaciar el escudo no debe verse tan grande como uno que la destroza
+  entera.
+
+**Qué dispara qué**, en el cliente (`effects.js`, enganchado desde los
+`onMessage` de `main.js`):
+- `shot` (mensaje al jugador que dispara) → si `shieldDamage>0`,
+  chispazo de escudo sobre el objetivo; si `structureDamage>0`, explosión
+  de casco; si `destroyed`, explosión crítica.
+- `hit` (mensaje al jugador que recibe el golpe de un NPC) → mismo
+  reparto, sobre la nave propia.
+- `destroyed` (mensaje al jugador que muere) → explosión crítica sobre
+  la nave propia antes de reaparecer.
+
+Esto obligó a un cambio de servidor: `aplicarDano()` (8.4.3) ya devolvía
+el reparto escudo/estructura internamente, pero los mensajes `shot`/`hit`
+solo mandaban el daño total. Ahora ambos llevan también `shieldDamage` y
+`structureDamage` — el cliente decide el efecto visual con esos dos
+números, sin inferir nada a partir de la vida restante.
+
+**Rendimiento**: cada explosión/chispazo es un `Sprite` de Phaser que se
+autodestruye al completar la animación (`animationcomplete` → `destroy()`),
+nunca se acumulan. Las texturas se cargan una vez en `preload()` (75
+imágenes sueltas, mismo patrón que las torretas de 8.4.12 — sin atlas
+todavía) y las animaciones se registran una vez en `create()`, reutilizadas
+por todos los disparos de la sesión.
+
+**Pendiente:**
+- El escudo de PvP no tiene aviso (`hit`) al jugador que recibe el
+  disparo de OTRO jugador, solo de NPC — hueco preexistente en el
+  servidor, no algo que introduzca este parche.
+- No se validó end-to-end con Playwright (8.x, práctica habitual del
+  proyecto): el sandbox de esta sesión no tenía salida de red hacia los
+  paquetes del sistema que necesita el navegador headless. Se validó en
+  su lugar con `vite build` limpio, comprobación de que las 75 imágenes
+  referenciadas en `effects.js` responden `image/png` real (no el
+  fallback de index.html de Vite) bajo el `BASE_URL` del proyecto, y
+  revisión visual de cada frame recortado. Pendiente una pasada con
+  Playwright cuando el entorno lo permita.
+- Sin atlas de texturas: 75 archivos sueltos son 75 peticiones HTTP. Con
+  HTTP/2 y cacheado no debería notarse, pero si el catálogo de efectos
+  crece (torreta impactando, minería, etc.) merece la pena empaquetar en
+  un atlas antes de que sea un problema real de carga inicial.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo

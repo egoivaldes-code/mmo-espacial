@@ -14,6 +14,28 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.6.0]
+
+### Añadido — Explosiones y escudo visual en combate (VFX)
+- El combate deja de ser solo barras y un número flotante: ahora las
+  naves explotan de verdad (por tamaño según el daño a estructura, hasta
+  una explosión grande al morir) y el escudo se ve chispear cuando
+  absorbe un golpe, con un anillo circular u ovalado según la silueta
+  real de cada casco — sin tabla por nave, se calcula del sprite.
+- Material generado a partir de una hoja de referencia (arte IA) con el
+  mismo pipeline que las torretas de v0.5.6: chroma-key + despill de
+  color (no solo transparencia, para evitar el halo magenta en los
+  bordes) y recorte a 75 frames individuales por detección de contenido
+  real, no por rejilla fija — varios frames de la hoja original no medían
+  lo mismo que sus vecinos y una rejilla equitativa los cortaba por la
+  mitad.
+- Servidor: `shot` y `hit` ahora llevan `shieldDamage`/`structureDamage`
+  desglosados (antes solo el total) — es lo que usa el cliente para
+  decidir qué efecto tocar, sin inferir nada de la vida restante.
+- Ver diseño 8.4.13 para el detalle de umbrales, heurística de forma de
+  escudo y lo que queda pendiente (validación con Playwright, aviso de
+  escudo en PvP).
+
 ## [v0.5.12]
 
 ### Añadido — 5 iconos nuevos de HUD, generados por IA a partir del inventario de prompts

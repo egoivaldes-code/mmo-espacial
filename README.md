@@ -1,82 +1,68 @@
-# v0.5.9 + fix de patch notes — auditoría, físicas reales, y el historial que se veía en el juego estaba congelado en v0.5.3
+# v0.6.0 — Explosiones y escudo visual en combate
 
-## v0.5.9 — auditoría completa del proyecto
-- **Bug real corregido**: la orientación de la nave (`facing`) se guardaba
-  mal — se guardaba un campo que solo se ponía una vez al cargar la
-  partida y nunca se volvía a tocar, así que cada personaje reaparecía
-  mirando hacia donde miraba dos sesiones atrás, no hacia donde se dejó
-  de verdad.
-- **Rendimiento**: cuatro búsquedas de cliente que recorrían la lista
-  completa de conectados (`this.clients.find(...)`) pasan a un `Map`
-  sessionId → Client, O(1) en vez de O(jugadores conectados).
-- **Estrellas de fondo** ya no cambian de tamaño en pantalla al hacer
-  zoom (antes casi desaparecían con zoom out extremo).
-- **Triángulo de referencia** para la propia nave: con la cámara muy
-  alejada (más del 50% del recorrido de zoom, en escala logarítmica) el
-  sprite se sustituye por un triángulo fijo en el centro de la pantalla
-  que señala el rumbo real.
-- El **botón de opciones** se muda de junto a los botones de combate a
-  la esquina superior derecha.
-- Documentado en `diseno-mmo-espacial.md` (14.4) todo lo que la
-  auditoría encontró y **no** se tocó todavía (sala única sin sharding,
-  sin área de interés, IA de NPCs O(NPCs×jugadores), minado a 20Hz,
-  sin límite de mensajes/conexiones) — con el motivo de por qué se
-  pospuso cada cosa, para no tener que redescubrirlo.
+El combate deja de ser solo barras de vida y un número flotante: ahora
+tiene VFX real.
 
-## v0.5.8 — hotfix de un crash real en producción
-Encontrado revisando logs de Render tras un aviso de caída con jugadores
-dentro: al destruir tu propio (y único) objetivo fijado de un disparo, el
-código seguía leyendo `cs.activeTarget.kind/.id` después de que
-`destruirNpc()` ya se lo hubiera puesto a `null` — tumbaba el proceso
-Node.js **entero**, no solo ese disparo. Corregido capturando el
-objetivo en variables locales antes de la llamada que puede vaciarlo.
+## Qué cambia
+- **Explosiones** al recibir daño en el casco (estructura), en 4 tamaños
+  según lo fuerte del golpe (pequeña/mediana/grande/crítica), más una
+  explosión grande al ser destruida.
+- **Escudo visible**: un anillo brilla alrededor de la nave cada vez que
+  absorbe un impacto (aparición → mantenido breve → disipación), con
+  forma **circular u ovalada** según la silueta real del casco de esa
+  nave — no hay tabla por nave, se calcula del sprite en tiempo de
+  ejecución, así que una clase de nave nueva no requiere tocar el código
+  de efectos.
+- El tamaño del anillo también se ajusta al tamaño real de cada casco
+  (no es un anillo fijo que se ve enorme en un caza y pequeño en un
+  acorazado).
 
-## v0.5.7 — físicas reales por clase, joystick 360°, piloto crucero, auto-fijado
-- El crucero giraba y aceleraba con las constantes pensadas para la
-  lanzadera inicial. Corregido con un catálogo de físicas por clase
-  basado en masa real (`server/data/shipStats.js`) — empuje/par fijos
-  por clase, giro y aceleración salen de dividir eso entre la masa de
-  cada nave.
-- Movimiento en 360° reales (antes cuantizado a 8 direcciones): el
-  joystick manda ángulo + magnitud, no 4 booleans. Tocar suave solo
-  pivota; empujar de verdad acelera, de forma progresiva.
-- **Piloto crucero**: gesto de tocar-arrastrar-soltar-y-volver-a-tocar-
-  sin-arrastrar deja la nave viajando sola a la última velocidad/rumbo.
-- Marcadores de referencia (punto de tamaño fijo en pantalla) para naves
-  y objetivos fijados fuera de vista o demasiado lejos de zoom para
-  leerse.
-- **Auto-fijado de quien te ataca**: si un NPC te elige como objetivo, te
-  lo fija automáticamente de vuelta. Activado por defecto, desactivable
-  en opciones.
+## Material y pipeline
+75 frames sueltos (36 de explosión + 39 de escudo) recortados de una
+hoja de referencia con arte generado por IA, con el mismo proceso que el
+catálogo de torretas de v0.5.6: chroma-key sobre magenta + **despill de
+color** (no solo transparencia — sin esto queda un halo rosado visible
+en los bordes, sobre todo en el humo) y recorte por **detección de
+contenido real**, no por rejilla fija — la hoja original no tenía todos
+los frames del mismo ancho, y una rejilla equitativa los cortaba por la
+mitad.
 
-## Fix de patch notes (sin número de versión propio)
-El historial que lee el propio juego en la pantalla de inicio
-(`client/public/patchnotes/es.json` / `en.json`) es un archivo **distinto**
-de `CHANGELOG.md` — y se había quedado congelado en v0.5.3 desde entonces:
-nunca se tocó en los parches de v0.5.4 a v0.5.9. Puestas al día las 6
-entradas que faltaban, en ambos idiomas, en tono para jugador (no
-técnico).
+## Servidor
+Los mensajes `shot` (le pego a algo) y `hit` (me pegan) ahora llevan
+`shieldDamage` y `structureDamage` desglosados, no solo el daño total.
+`aplicarDano()` (8.4.3) ya calculaba ese reparto internamente; solo
+faltaba mandarlo. El cliente lo usa para decidir qué efecto tocar sin
+tener que inferir nada de la vida restante.
+
+## Pendiente (ver diseño 8.4.13)
+- No se validó end-to-end con Playwright — el sandbox de esta sesión no
+  tenía salida de red para instalar el navegador headless. Se validó con
+  `vite build` limpio y comprobando que las 75 imágenes responden como
+  PNG real bajo el `BASE_URL` del proyecto (no el fallback de Vite).
+- El escudo no avisa (`hit`) al jugador golpeado por OTRO jugador en
+  PvP, solo por NPC — hueco preexistente del servidor, no de este parche.
+- Sin atlas de texturas todavía: 75 peticiones HTTP sueltas. No es
+  problema ahora, pero si el catálogo de VFX crece merece la pena
+  empaquetarlo.
 
 ---
 
-Detalle técnico completo de cada versión en `CHANGELOG.md` (raíz y
-`client/public/CHANGELOG.md`) y en `diseno-mmo-espacial.md`.
+Detalle técnico completo en `CHANGELOG.md` (raíz y
+`client/public/CHANGELOG.md`) y en `diseno-mmo-espacial.md` (sección
+8.4.13).
 
 ## Archivos de este parche
-- `server/rooms/ChunkRoom.js` — físicas por clase, joystick 360°,
-  piloto crucero, auto-fijado, fix del crash, fix de `facing`, Map de
-  clientes.
-- `server/data/shipStats.js` — catálogo de físicas por clase (nuevo).
-- `server/schema/Player.js` — campo `cruising` replicado.
-- `client/src/main.js` — todo lo anterior reflejado en cliente
-  (predicción local sincronizada), estrellas a tamaño constante,
-  triángulo de referencia propio.
-- `client/index.html` — checkbox de auto-fijado, botón de opciones
-  reubicado.
-- `client/public/i18n/es.json` / `en.json` — traducciones nuevas.
+- `client/public/effects/` — 75 PNG (explosiones + escudo) +
+  `effects.json` (manifest, nuevo).
+- `client/src/effects.js` — carga, animaciones Phaser y disparo de
+  efectos, genérico por forma/tamaño real de cada nave (nuevo).
+- `client/src/main.js` — enganche de `effects.js` en `preload`/`create`
+  y en los `onMessage` de `shot`/`hit`/`destroyed`; nuevo helper
+  `resolveEntity()` (reutilizado también por `showDamageNumber`).
+- `server/rooms/ChunkRoom.js` — `shot`/`hit` llevan ahora
+  `shieldDamage`/`structureDamage`.
 - `client/public/patchnotes/es.json` / `en.json` — historial del juego
-  puesto al día hasta v0.5.9.
+  puesto al día hasta v0.6.0.
 - `CHANGELOG.md` / `client/public/CHANGELOG.md` — historial técnico
   completo.
-- `diseno-mmo-espacial.md` — secciones 8.4.6.1, 8.4.10.3-.5, 14.4,
-  15.4.2-.4 actualizadas/añadidas.
+- `diseno-mmo-espacial.md` — sección 8.4.13 añadida.

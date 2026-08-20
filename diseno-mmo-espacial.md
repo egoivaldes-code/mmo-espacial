@@ -2382,29 +2382,45 @@ editor de código en el navegador).
   `client/public/CHANGELOG.md`, esta última es la copia que lee el propio
   juego en la pantalla de inicio).
 
-### 14.4 Auditoría completa del proyecto (v0.5.9)
+### 14.4 Auditoría completa del proyecto (v0.5.9 → v0.5.10)
 
 Pasada completa por servidor y cliente en busca de bugs, bucles/costes
 que escalen mal, y huecos de sincronización/rendimiento/latencia. No es
 una lista de TODO — es un registro de lo que se encontró y por qué se
 decidió actuar o no sobre cada cosa, para no tener que redescubrirlo.
 
-**Corregido en esta pasada** (ver CHANGELOG v0.5.9):
+**Corregido en v0.5.9** (ver CHANGELOG):
 - Bug real: la orientación guardada (`facing`) no reflejaba la real de
   vuelo (`rotation`) — quedaba congelada en el valor de cuando se cargó
   la partida.
 - `this.clients.find(...)` (recorrido lineal, O(jugadores conectados))
   en cuatro puntos calientes → `Map` sessionId→Client, O(1).
 
+**Corregido en v0.5.10** (ver CHANGELOG):
+- **Minado a 4Hz, no a 20Hz.** `tryMine()` se llamaba en cada tick del
+  servidor mientras alguien mantenía pulsado minar. `MINING_RATE_BASE`
+  sube ×5 (de 5 a 25) para que el ritmo de extracción por segundo sea
+  idéntico — solo cambia la frecuencia de la comprobación.
+- **`setTimeout` de respawn ya no queda huérfano.** Se trackea en
+  `pendingRespawnTimeouts` y `onDispose()` los cancela todos al cerrar
+  la sala.
+- **Válvulas de seguridad**: `maxClients = 80` en la sala, y límite de
+  40 mensajes/segundo por cliente (por encima se descarta en silencio,
+  sin desconectar por un pico de red normal). Ninguna de las dos
+  resuelve el problema de fondo de abajo — son un tope para que una
+  anomalía no tumbe la partida mientras tanto.
+
 **Encontrado, sin tocar todavía — por qué:**
 
 - **Una sola sala global, sin sharding.** `index.js` define un único
-  `"chunk"` sin `maxClients`, y Render corre 1 sola instancia (plan
-  free). Todo el juego —cuantos jugadores existan— corre en un proceso
-  Node, un hilo, un tick de 20Hz. Es la arquitectura correcta para el
-  prototipo (dividir en salas reales necesita descubrimiento de
-  chunks, que todavía no existe — ver 5), pero es el techo real de
-  escalado. No se toca hasta que haga falta de verdad.
+  `"chunk"`, y Render corre 1 sola instancia (plan free). Todo el
+  juego —cuantos jugadores existan— corre en un proceso Node, un hilo,
+  un tick de 20Hz. Es la arquitectura correcta para el prototipo
+  (dividir en salas reales necesita descubrimiento de chunks, que
+  todavía no existe — ver 5), pero es el techo real de escalado. No se
+  toca hasta que haga falta de verdad. `maxClients=80` (arriba) es un
+  parche de emergencia, no una solución — a partir de ahí la sala
+  simplemente rechaza gente nueva, no reparte la carga.
 - **Sin área de interés.** Los tres `MapSchema` (jugadores, NPCs,
   asteroides) se replican enteros a cada cliente conectado sin filtrar
   por distancia — con `WORLD_SIZE=30.000` disperso, cada cliente
@@ -2418,24 +2434,6 @@ decidió actuar o no sobre cada cosa, para no tener que redescubrirlo.
   (`updateNpcs()`). Ya señalado en el propio código como conocido.
   Necesita rejilla espacial cuando haya "decenas de NPCs" de verdad, no
   antes.
-- **Minado corre al tick completo (20Hz), no a 4Hz.** `tryMine()`
-  recorre los 120 asteroides en CADA tick del servidor mientras alguien
-  mantiene pulsado minar, no solo en el escaneo de acción contextual de
-  4Hz. Es la ruta más caliente del bucle principal con varios mineros
-  activos a la vez. Pendiente de bajar su frecuencia — no se ha tocado
-  todavía porque toca el mismo bucle que la física y conviene hacerlo
-  con calma, no de pasada.
-- **Sin límite de mensajes por cliente ni `maxClients` en la sala.**
-  Nada impide que un cliente (con bug o malicioso) inunde `input`/
-  `lock`/`cruiseToggle`, ni hay una válvula de seguridad si hay un pico
-  de conexiones. Aceptable mientras el juego no sea público de verdad;
-  hay que resolverlo antes de abrir el acceso más allá de pruebas
-  cerradas.
-- **`setTimeout` de respawn (5s, en `matarJugador`) sin trackear.** Si
-  la sala se cierra antes de que dispare, el callback sigue vivo e
-  intenta tocar `this.state` ya potencialmente destruido. Bajo riesgo
-  real hoy (la sala rara vez se cierra con gente recién muerta), pero
-  es la clase de bug que un día coincide con mala suerte.
 - **Constantes de física duplicadas a mano entre cliente y servidor**
   (masa, empuje, giro — ver 8.4.6.1). Ya documentado como riesgo: un
   cambio de balance que se olvide replicar en el otro lado

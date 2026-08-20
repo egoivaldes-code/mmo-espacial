@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.5.10",
+    "highlights": [
+      "Server performance improvements following the audit: mining and other internal processes use less CPU with many players at once.",
+      "More robustness against traffic spikes or connection surges — no visible in-game changes."
+    ]
+  },
+  {
     "version": "v0.5.9",
     "highlights": [
       "Fixed a real bug: your ship's facing direction wasn't always saved correctly when you logged out.",

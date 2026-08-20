@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.5.10",
+    "highlights": [
+      "Mejoras de rendimiento del servidor siguiendo la auditoría: el minado y otros procesos internos gastan menos CPU con muchos jugadores a la vez.",
+      "Más robustez frente a picos de tráfico o conexiones — sin cambios visibles en el juego."
+    ]
+  },
+  {
     "version": "v0.5.9",
     "highlights": [
       "Corregido un fallo real: la orientación de tu nave a veces no se guardaba bien al salir del juego.",

@@ -10,9 +10,29 @@ const { getShipStats } = require("../data/shipStats");
 // Ajustes simples del prototipo. Nada de esto es definitivo, es fase 0.
 const WORLD_SIZE = 30000; // el "chunk" es grande en espacio, poco denso — tamaño de diseño (5.5)
 const MINING_RANGE = 80;
-const MINING_RATE_BASE = 5; // recurso por tick con multiplicador ×1 (ver 8.2.1)
 const TICK_RATE = 20; // Hz
 const RECONNECT_GRACE_S = 90; // ventana para volver tras un corte de socket
+
+// Válvulas de seguridad (auditoría, ver comentario en onCreate). Ninguna
+// de las dos resuelve el problema de fondo (sala única sin sharding,
+// 14.4) — son un tope para que una anomalía no tumbe la partida mientras
+// tanto, no una solución de escalado real.
+const MAX_CLIENTS = 80;
+const MESSAGE_RATE_LIMIT = 40; // mensajes/segundo por cliente — 2x el input legítimo (20/s)
+
+// Minado (auditoría v0.5.9→v0.5.10): antes se llamaba a tryMine() en
+// CADA tick de simulación (20Hz) mientras alguien mantenía pulsado
+// minar — recorriendo todos los asteroides 20 veces por segundo por
+// cada minero activo. Es la ruta más caliente del bucle principal con
+// varios mineros a la vez, y nadie nota una diferencia de 200ms en que
+// suba el número de la bodega. Igual que ya se hacía con el escaneo de
+// acción contextual (ACTION_SCAN_HZ), el minado real ahora se resuelve
+// a 4Hz — MINING_RATE_BASE sube ×5 (de 5 a 25) para que el ritmo de
+// extracción POR SEGUNDO sea exactamente el mismo que antes; lo único
+// que cambia es la frecuencia de la comprobación, no cuánto se extrae.
+const MINING_SCAN_HZ = 4;
+const MINING_SCAN_INTERVAL = 1000 / MINING_SCAN_HZ;
+const MINING_RATE_BASE = 25; // recurso por escaneo (4Hz) con multiplicador ×1 (ver 8.2.1)
 
 // Física de vuelo — modelo tipo Asteroids/Newtoniano, no "velocidad
 // instantánea en la dirección del input". El input marca hacia dónde
@@ -190,6 +210,34 @@ class ChunkRoom extends Room {
     this.setState(new ChunkState());
     this.setPatchRate(1000 / TICK_RATE);
 
+    // Válvula de seguridad (auditoría v0.5.9→v0.5.10) — sin esto, nada
+    // impedía que un pico de conexiones o un cliente con bug/malicioso
+    // se llevaran por delante el único proceso que simula TODO el
+    // juego (14.4: sala única, sin sharding todavía). No resuelve el
+    // problema de fondo — eso necesita chunks de verdad — pero evita
+    // que una situación anómala tumbe la partida para todo el mundo
+    // mientras tanto. Techo generoso a propósito: no debería notarlo
+    // nadie jugando de forma normal.
+    this.maxClients = MAX_CLIENTS;
+
+    // Límite de mensajes por cliente y segundo. El input legítimo manda
+    // ~20/s (cada 50ms, ver client/src/main.js) — el resto de mensajes
+    // (lock, fireToggle, ping...) son puntuales. Por encima de
+    // MESSAGE_RATE_LIMIT se descarta el mensaje (no se procesa, no se
+    // avisa) en vez de desconectar a nadie: un pico de jitter de red no
+    // debería poder echar a un jugador legítimo, pero sí hay que
+    // acotar cuánto trabajo puede forzar un cliente que manda mensajes
+    // sin parar. Se envuelve onMessage UNA vez aquí, así que se aplica
+    // a todos los handlers de abajo sin tener que tocarlos uno a uno.
+    this.messageRateBuckets = new Map(); // sessionId -> { windowStart, count }
+    const originalOnMessage = this.onMessage.bind(this);
+    this.onMessage = (type, handler) => {
+      originalOnMessage(type, (client, payload) => {
+        if (!this.checkMessageRateLimit(client)) return;
+        handler(client, payload);
+      });
+    };
+
     // Input del cliente: { angle, magnitude, mining }. `angle` en radianes
     // (o null si no se toca el mando) y `magnitude` 0..1 (cuánto se ha
     // desplazado el joystick, o 1 fijo para teclado). Nunca nos fiamos de
@@ -329,6 +377,7 @@ class ChunkRoom extends Room {
     // sessionId -> última acción notificada, para no reenviar lo mismo.
     this.lastAction = new Map();
     this.actionScanAccum = 0;
+    this.miningScanAccum = 0;
 
     // sessionId -> Client. Auditoría de rendimiento: antes de esto, buscar
     // el Client de un sessionId concreto (al fijar objetivo, al matar a
@@ -337,6 +386,13 @@ class ChunkRoom extends Room {
     // pocos jugadores es gratis; es de las primeras cosas que se nota con
     // más gente, y cambiar a un Map no cuesta nada de claridad ni de riesgo.
     this.clientsBySessionId = new Map();
+
+    // setTimeout handles del respawn tras morir (matarJugador). Auditoría:
+    // antes eran setTimeout sueltos sin rastro — si la sala se cerraba
+    // (onDispose) antes de que dispararan, el callback seguía vivo e
+    // intentaba tocar this.state ya potencialmente destruido. Se guardan
+    // aquí para poder cancelarlos todos de golpe al cerrar la sala.
+    this.pendingRespawnTimeouts = new Set();
 
     // Estado de combate por jugador. NO va al estado replicado: energía,
     // objetivos y recargas solo le importan a su dueño (8.4.8). Se manda por
@@ -434,6 +490,19 @@ class ChunkRoom extends Room {
     const client = this.clientsBySessionId.get(sessionId);
     if (!client) return;
     this.startLock(client, player, "npc", npcId);
+  }
+
+  // Ventana fija de 1s por sessionId (ver MESSAGE_RATE_LIMIT arriba).
+  // true = se procesa el mensaje, false = se descarta en silencio.
+  checkMessageRateLimit(client) {
+    const now = Date.now();
+    let bucket = this.messageRateBuckets.get(client.sessionId);
+    if (!bucket || now - bucket.windowStart >= 1000) {
+      bucket = { windowStart: now, count: 0 };
+      this.messageRateBuckets.set(client.sessionId, bucket);
+    }
+    bucket.count += 1;
+    return bucket.count <= MESSAGE_RATE_LIMIT;
   }
 
   // Avance del fijado y disparo, por jugador. Se llama desde update().
@@ -770,7 +839,8 @@ class ChunkRoom extends Room {
     const client = this.clientsBySessionId.get(sessionId);
     if (client) client.send("destroyed", {});
 
-    setTimeout(() => {
+    const timeoutHandle = setTimeout(() => {
+      this.pendingRespawnTimeouts.delete(timeoutHandle);
       const p = this.state.players.get(sessionId);
       if (!p) return;
       p.x = (Math.random() - 0.5) * 400;
@@ -796,6 +866,7 @@ class ChunkRoom extends Room {
       const c2 = this.clientsBySessionId.get(sessionId);
       if (c2) { this.sendCombatState(c2); c2.send("respawned", {}); }
     }, 5000);
+    this.pendingRespawnTimeouts.add(timeoutHandle);
   }
 
   spawnAsteroids(count) {
@@ -956,6 +1027,7 @@ class ChunkRoom extends Room {
     // comportamiento que antes tenía this.clients.find() (que durante la
     // ventana de gracia tampoco lo encontraba), solo que en O(1).
     this.clientsBySessionId.delete(client.sessionId);
+    this.messageRateBuckets.delete(client.sessionId);
 
     // Se olvida la acción contextual cacheada: si vuelve, que se recalcule
     // desde cero (puede haber minado el asteroide otro mientras no estaba).
@@ -993,11 +1065,24 @@ class ChunkRoom extends Room {
   // La sala se cierra (último jugador fuera, o reinicio del servidor).
   // Último guardado de todo lo que quede dentro.
   async onDispose() {
+    // Se cancelan ANTES de guardar: si alguno estaba a punto de disparar,
+    // mejor que no toque this.state a medio destruir la sala (auditoría).
+    this.pendingRespawnTimeouts.forEach((handle) => clearTimeout(handle));
+    this.pendingRespawnTimeouts.clear();
     await this.saveAllPlayers();
   }
 
   update(deltaMs) {
     const dt = deltaMs / 1000;
+
+    // Se decide UNA vez por tick, fuera del forEach: todos los mineros
+    // activos en ese instante comparten el mismo "toca o no toca"
+    // (ver MINING_SCAN_HZ arriba) — no tiene sentido llevar un
+    // acumulador por jugador para algo que corre a una cadencia fija
+    // igual para todos.
+    this.miningScanAccum += deltaMs;
+    const shouldMineThisTick = this.miningScanAccum >= MINING_SCAN_INTERVAL;
+    if (shouldMineThisTick) this.miningScanAccum = 0;
 
     this.state.players.forEach((player) => {
       // vx/vy son estado interno de simulación, no van al schema
@@ -1104,7 +1189,7 @@ class ChunkRoom extends Room {
         player.invulnerable = false;
       }
 
-      if (input?.mining && !player.warping) {
+      if (shouldMineThisTick && input?.mining && !player.warping) {
         this.tryMine(player);
       }
     });

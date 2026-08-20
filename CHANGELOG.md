@@ -14,6 +14,32 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.10]
+
+### Mejorado — siguiendo la lista de la auditoría (v0.5.9)
+- **Minado a 4Hz, no a 20Hz.** `tryMine()` se llamaba en CADA tick del
+  servidor mientras alguien mantenía pulsado minar — la ruta más
+  caliente del bucle principal con varios mineros a la vez. Ahora se
+  resuelve a 4Hz, igual que el escaneo de acción contextual.
+  `MINING_RATE_BASE` sube de 5 a 25 para que el ritmo de extracción por
+  segundo sea idéntico al de antes — solo cambia la frecuencia de la
+  comprobación, no el balance. Verificado: 4 llamadas a 4Hz extraen
+  exactamente lo mismo que 20 llamadas a 20Hz.
+- **`setTimeout` del respawn ya no queda huérfano.** El timeout de 5s
+  tras morir se registra ahora en un `Set`, y `onDispose()` los cancela
+  todos si la sala se cierra antes de que disparen — antes, si la sala
+  se cerraba con alguien recién muerto, el callback seguía vivo y podía
+  intentar tocar `this.state` ya destruido.
+- **Válvulas de seguridad nuevas**: `maxClients = 80` en la sala (antes
+  no había ningún techo), y un límite de 40 mensajes/segundo por
+  cliente (el input legítimo manda ~20/s) — por encima se descarta el
+  mensaje en silencio, sin desconectar a nadie por un pico de red
+  normal. Ninguna de las dos resuelve el problema de fondo (sala única
+  sin sharding, ver 14.4 del diseño) — son un tope para que una
+  anomalía no tumbe la partida mientras tanto.
+- Sin cambios visibles para quien juega — todo esto es rendimiento y
+  robustez del servidor.
+
 ## [v0.5.9]
 
 ### Corregido — bug de la orientación guardada (auditoría completa del proyecto)

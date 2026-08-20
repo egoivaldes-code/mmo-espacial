@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.5.11",
+    "highlights": [
+      "Primera pasada de arte real en los menús: fondo de nebulosa, botones con esquinas en ángulo, e icono de engranaje real en el botón de opciones.",
+      "Corregido: el campo de contraseña del login se veía con fondo blanco, sin el tema oscuro del resto de la pantalla."
+    ]
+  },
+  {
     "version": "v0.5.10",
     "highlights": [
       "Mejoras de rendimiento del servidor siguiendo la auditoría: el minado y otros procesos internos gastan menos CPU con muchos jugadores a la vez.",

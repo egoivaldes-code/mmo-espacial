@@ -2697,6 +2697,56 @@ propósito: añade complejidad para resolver un problema que aún no existe,
 y encaja de forma natural con el trabajo de degradación bajo carga (5.4),
 que necesitará esa misma rejilla para construir el área de interés.
 
+### 15.5.1 Pack de UI comprado (Wenrexa "Sci-Fi Minimalism") — v0.5.11
+
+Nemesis compró un pack de assets de UI y pidió auditarlo antes de
+integrarlo. Veredicto: bueno para "cromo" general, incompleto para lo
+que el juego necesita — los iconos venían de un survival de colonia
+(población, medicina, O2, comida), no de un MMO espacial, así que no
+hay ni un icono de escudo, estructura, capacitor, carga o fijado de
+objetivo entre los suyos.
+
+**Integrado** (`client/public/ui-pack/`):
+- `bg-nebula.jpg` — fondo de las pantallas de intro/login/personaje,
+  atenuado con degradado oscuro. Reducido de 1920×1080/134KB a
+  960×540/6,8KB (era desenfocado de fábrica, no pierde nada).
+- `icon-settings.png` — icono de engranaje real, sustituye al emoji ⚙
+  del botón de opciones.
+- `panel-bar.png` — barra metálica decorativa rematando las cajas de
+  login/personaje.
+- **Botones**: la FORMA (esquinas cortadas en ángulo) y el COLOR (cian,
+  ya el mismo que usaba el resto del HUD) se tomaron del pack, pero
+  implementados en CSS puro (`clip-path`, clase `.btn-scifi`), NO como
+  los PNG de botón del pack tal cual. Motivo: esos vienen a un ancho
+  fijo, pensados para un motor con 9-slice de verdad — con texto de
+  longitud distinta según el idioma (i18n), un botón raster estirado a
+  cualquier ancho se ve borroso o deformado. Vectorial resuelve esto sin
+  perder el aspecto del pack.
+
+**Reservado, sin usar todavía**:
+- `hero-card.png` / `hero-card-2.png` — marcos de tarjeta en ángulo,
+  formato retrato. No encajan en la lista de texto plano actual de
+  personajes; el candidato natural es una futura pantalla de selección
+  de nave (13, "todavía fuera del prototipo").
+- `icon-planet.png` / `icon-reticle.png` — sin hueco claro en la UI de
+  hoy; se guardan por si aparece un uso natural (mapa del sistema,
+  acento visual de fijado).
+
+**Descartado**: el resto del pack (los 15 iconos `IconD*`, el logo
+—una cabeza de lobo, sin relación con la identidad del juego—, las
+tarjetas de ejemplo `Main Game(Example)/Btn*`) no encaja o queda
+redundante con lo ya integrado.
+
+**Bug real encontrado de paso**: `#login-password-input` nunca tuvo
+ninguna regla CSS propia (solo el campo de email la tenía) — se veía
+con el fondo blanco por defecto del navegador. Corregido.
+
+**Pendiente**: encargar (vía IA de imagen, ver inventario de prompts
+compartido con Nemesis) los iconos de combate que el pack no trae:
+escudo, estructura, capacitor, carga, warp, fijado de objetivo — para
+sustituir el sistema de iconos actual (`ui/icons.png`) por unos que
+encajen visualmente con este pack.
+
 ### 15.6 Pendiente de diseñar
 
 - Disposición del HUD en horizontal y en pantallas grandes (hoy todo está

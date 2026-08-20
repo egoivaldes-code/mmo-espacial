@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.5.11",
+    "highlights": [
+      "First real art pass on the menus: nebula background, angled-corner buttons, and a real gear icon on the options button.",
+      "Fixed: the login password field showed a plain white background instead of matching the rest of the dark theme."
+    ]
+  },
+  {
     "version": "v0.5.10",
     "highlights": [
       "Server performance improvements following the audit: mining and other internal processes use less CPU with many players at once.",

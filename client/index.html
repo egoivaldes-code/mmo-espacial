@@ -31,8 +31,17 @@
     .overlay-screen {
       position: fixed; inset: 0; z-index: 30;
       display: flex; flex-direction: column;
-      background: #05050a; color: #cfe8ff;
+      color: #cfe8ff;
       font-family: system-ui, sans-serif;
+      /* Fondo del pack Wenrexa (bg-nebula.jpg, ya reducido a 960x540 —
+         es una nebulosa desenfocada de fábrica, no pierde nada al
+         achicarla). Un degradado oscuro por encima lo atenúa para que
+         el texto siga leyéndose igual de bien que sobre negro plano —
+         el fondo aporta ambiente, no debe competir con el contenido. */
+      background:
+        linear-gradient(180deg, rgba(5,6,10,0.88), rgba(5,6,10,0.94)),
+        url("ui-pack/bg-nebula.jpg") center / cover no-repeat;
+      background-color: #05050a; /* mientras carga la imagen */
     }
     #intro-screen { visibility: hidden; }
     /* BUG REAL: login-screen y character-screen heredaban display:flex de
@@ -49,6 +58,37 @@
        alterna display "none"/"flex" en el momento correcto. */
     #login-screen { display: none; }
 
+    /* --- Botones "sci-fi": esquinas cortadas en ángulo + brillo cian,
+       inspirados en el pack de UI Wenrexa. Se usa clip-path (vectorial)
+       en vez de los PNG de botón del pack tal cual: esos vienen a un
+       ancho fijo, y con textos de longitud distinta por idioma (i18n)
+       un botón raster estirado se ve borroso o deformado según el
+       idioma. El color/brillo cian ya es el mismo que usa el resto del
+       HUD (#66ccff — versión, joystick, retículas), así que el pack
+       aporta la FORMA sin desentonar con lo que ya había. */
+    .btn-scifi {
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+      background: linear-gradient(135deg, #16232f, #0c131b);
+      border: 1px solid rgba(102, 204, 255, 0.4);
+      color: #cfe8ff;
+      transition: background 120ms ease, border-color 120ms ease;
+    }
+    .btn-scifi:active {
+      background: linear-gradient(135deg, #1c3040, #101c26);
+      border-color: rgba(102, 204, 255, 0.8);
+    }
+    .btn-scifi.btn-primary {
+      background: linear-gradient(135deg, #1a4a7a, #10253d);
+      border-color: rgba(102, 204, 255, 0.55);
+      color: #ffffff;
+    }
+    .btn-scifi.btn-primary:active {
+      background: linear-gradient(135deg, #1f5686, #163a5c);
+    }
+    .btn-scifi:disabled {
+      background: #141a24; border-color: #263646; color: #5a6b80;
+    }
+
     /* Pantalla 1: patch notes + barra de estado, ANCLADA ARRIBA */
     #intro-top-bar {
       flex-shrink: 0; display: flex; align-items: center; gap: 10px;
@@ -61,11 +101,10 @@
     }
     #intro-continue-btn {
       padding: clamp(8px, 1.8vw, 10px) clamp(14px, 3vw, 18px);
-      font-size: clamp(12px, 2.6vw, 14px); border-radius: 6px; border: none;
-      background: #2a6fb0; color: #ffffff; cursor: pointer; white-space: nowrap;
+      font-size: clamp(12px, 2.6vw, 14px); border: none;
+      cursor: pointer; white-space: nowrap;
       flex-shrink: 0;
     }
-    #intro-continue-btn:active { background: #1f5686; }
 
     #intro-scroll {
       flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -89,6 +128,22 @@
       font-size: clamp(12px, 2.8vw, 14px); line-height: 1.5; color: #c3d6ea; margin: 3px 0;
     }
 
+    /* La barra metálica del pack Wenrexa (panel-bar.png) como remate
+       decorativo encima de la caja — la misma clase .char-box la usan
+       login-screen Y character-screen, así que un solo ::before cubre
+       las dos pantallas. Es solo decoración (no lleva texto ni pointer
+       events), por eso vive en un pseudo-elemento y no complica el HTML. */
+    .char-box {
+      position: relative;
+      padding-top: 14px;
+    }
+    .char-box::before {
+      content: "";
+      position: absolute; top: 0; left: 10%; right: 10%; height: 4px;
+      background: url("ui-pack/panel-bar.png") center / cover no-repeat;
+      opacity: 0.8;
+    }
+
     /* Pantalla 2: selección/creación de personaje */
     #character-screen { align-items: center; justify-content: center; display: none; }
     #character-screen .char-box {
@@ -108,41 +163,23 @@
     .char-item .char-meta { font-size: clamp(10px, 2.2vw, 11px); color: #7d93b0; margin-top: 2px; }
     #char-create-toggle-btn, #char-create-btn {
       padding: clamp(9px, 2.2vw, 10px) 12px; font-size: clamp(13px, 3vw, 14px);
-      border-radius: 6px; border: none; background: #2a6fb0; color: #ffffff; cursor: pointer;
+      border: none; cursor: pointer;
     }
-    #char-create-toggle-btn:active, #char-create-btn:active { background: #1f5686; }
     #login-explain {
       color: #8fa6c4; font-size: clamp(12px, 2.8vw, 14px);
       line-height: 1.5; margin: 0 0 16px;
     }
-    #login-email-input {
+    #login-email-input, #login-password-input {
       width: 100%; box-sizing: border-box; padding: 12px;
       background: #0d131c; border: 1px solid #2a3a52; border-radius: 8px;
       color: #cfe8ff; font-family: monospace; font-size: clamp(13px, 3vw, 15px);
       margin-bottom: 12px;
     }
     #login-signin-btn, #login-signup-btn {
-      width: 100%; padding: 12px; border-radius: 8px;
+      width: 100%; padding: 12px;
       font-family: monospace; font-size: clamp(13px, 3vw, 15px);
       cursor: pointer; margin-bottom: 10px;
     }
-    #login-signin-btn {
-      border: none; background: #1a4a7a; color: #cfe8ff;
-    }
-    #login-signin-btn:active { background: #1f5686; }
-    #login-signin-btn:disabled { background: #22303f; color: #6b7d92; }
-
-    /* El botón "secundario" (Crear cuenta) usa fondo transparente a
-       propósito, para no competir visualmente con el de Entrar — pero
-       NECESITA su propio borde y color de texto explícitos. Sin ellos
-       caía en los valores por defecto del navegador, que sobre el fondo
-       negro de la página son casi invisibles (border gris claro apenas
-       perceptible, texto oscuro sobre fondo oscuro). */
-    #login-signup-btn.secondary-btn {
-      border: 1px solid #3a5578; color: #8fa6c4;
-    }
-    #login-signup-btn.secondary-btn:active { background: rgba(58, 85, 120, 0.25) !important; }
-    #login-signup-btn.secondary-btn:disabled { border-color: #22303f; color: #4a5568; }
     #login-status {
       margin-top: 14px; color: #8fa6c4; font-size: clamp(11px, 2.6vw, 13px);
       line-height: 1.5; min-height: 1.2em;
@@ -191,11 +228,11 @@
     #options-gear-btn {
       position: absolute; top: 10px; right: 10px; pointer-events: auto;
       width: clamp(44px, 10vw, 52px); height: clamp(44px, 10vw, 52px);
-      border-radius: 8px; border: none; background: #141a24; color: #cfe8ff;
-      font-size: clamp(18px, 4.5vw, 22px); cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px; border: 1px solid rgba(102, 204, 255, 0.35);
+      cursor: pointer;
+      background: url("ui-pack/icon-settings.png") center / cover no-repeat, #141a24;
     }
-    #options-gear-btn:active { background: #1c2534; }
+    #options-gear-btn:active { border-color: rgba(102, 204, 255, 0.7); }
     /* --- Iconos de interfaz --------------------------------------------
        Los 16 iconos viven en UNA sola imagen (ui/icons.png, rejilla 4x4).
        Una descarga en vez de dieciséis: en móvil con conexión lenta esa
@@ -232,7 +269,6 @@
       -webkit-tap-highlight-color: transparent;
     }
     #login-remember { width: 18px; height: 18px; accent-color: #3399ff; flex-shrink: 0; }
-    .secondary-btn { background: transparent !important; }
 
     /* --- Barras de combate: escudo, estructura, energia ------------------
        Tres barras finas debajo del contador de arriba. Colores distintos
@@ -384,7 +420,7 @@
   <div id="intro-screen" class="overlay-screen">
     <div id="intro-top-bar">
       <div id="load-status">Comprobando estado del servidor…</div>
-      <button id="intro-continue-btn">Continuar</button>
+      <button id="intro-continue-btn" class="btn-scifi btn-primary">Continuar</button>
     </div>
     <div id="intro-scroll"><div id="intro-scroll-inner"></div></div>
   </div>
@@ -398,8 +434,8 @@
         <input id="login-remember" type="checkbox" checked />
         <span id="login-remember-label">Mantener sesión iniciada</span>
       </label>
-      <button id="login-signin-btn">Entrar</button>
-      <button id="login-signup-btn" class="secondary-btn">Crear cuenta</button>
+      <button id="login-signin-btn" class="btn-scifi btn-primary">Entrar</button>
+      <button id="login-signup-btn" class="btn-scifi">Crear cuenta</button>
       <div id="login-status"></div>
     </div>
   </div>
@@ -410,9 +446,9 @@
       <div id="char-list"></div>
       <div id="char-create">
         <input id="char-name-input" type="text" maxlength="16" placeholder="Nombre del piloto" autocomplete="off" />
-        <button id="char-create-btn">Crear personaje</button>
+        <button id="char-create-btn" class="btn-scifi btn-primary">Crear personaje</button>
       </div>
-      <button id="char-create-toggle-btn">+ Crear nuevo personaje</button>
+      <button id="char-create-toggle-btn" class="btn-scifi">+ Crear nuevo personaje</button>
       <div id="char-limit-msg" style="display:none;">Límite de 5 personajes alcanzado.</div>
       <div id="char-status"></div>
       <button id="char-signout-btn">Cerrar sesión</button>
@@ -421,7 +457,7 @@
 
   <div id="game-hud">
     <div id="version-badge"></div>
-    <button id="options-gear-btn">⚙</button>
+    <button id="options-gear-btn" aria-label="Opciones"></button>
     <div id="combat-bars">
       <div class="cbar-track"><div id="shield-fill" class="cbar-fill" style="width:100%"></div></div>
       <div class="cbar-track"><div id="structure-fill" class="cbar-fill" style="width:100%"></div></div>

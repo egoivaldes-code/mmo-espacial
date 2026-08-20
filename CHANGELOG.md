@@ -14,6 +14,39 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.5.11]
+
+### Añadido — primera pasada de arte real en menús (pack Wenrexa Sci-Fi UI)
+- Integrado un pack de UI comprado por Nemesis (Wenrexa, "Sci-Fi
+  Minimalism"). No todo el pack encajaba — los iconos venían de un
+  survival de colonia (población, O2, comida), no de un MMO espacial —
+  pero el "cromo" general (fondos, botones, marcos, iconos genéricos) sí
+  se integró:
+- **Fondo de nebulosa** en las pantallas de intro/login/personaje,
+  atenuado con un degradado oscuro para no restar legibilidad al texto.
+  Reducido de 134KB a 6,8KB (era un fondo desenfocado, no perdía nada al
+  achicarlo).
+- **Botones con esquinas en ángulo** (`.btn-scifi`): Continuar, Entrar,
+  Crear cuenta, Crear personaje. Implementado con `clip-path` en CSS, NO
+  con los PNG del pack tal cual — esos vienen a un ancho fijo, y con
+  texto de longitud distinta según el idioma (i18n) un botón raster
+  estirado se ve borroso o deformado. El pack aportó la forma y el color
+  (el mismo cian que ya usaba el resto del HUD), no el archivo literal.
+- **Icono de engranaje real** sustituyendo el emoji ⚙ del botón de
+  opciones.
+- **Barra metálica decorativa** rematando las cajas de login y selección
+  de personaje.
+- Quedan reservados sin usar todavía: `hero-card.png`/`hero-card-2.png`
+  (marcos de tarjeta en ángulo — mejor candidato: una futura pantalla de
+  selección de nave, no la lista de texto actual de personajes) e
+  `icon-planet.png`/`icon-reticle.png` (sin hueco claro en la UI de hoy).
+
+### Corregido — el campo de contraseña no tenía estilo propio
+- Encontrado de paso al revisar la pantalla de login: `#login-password-input`
+  nunca tuvo ninguna regla CSS — solo el de email. Se veía con el fondo
+  blanco por defecto del navegador, chocando con el resto del tema
+  oscuro. Corregido aplicándole la misma regla que el campo de email.
+
 ## [v0.5.10]
 
 ### Mejorado — siguiendo la lista de la auditoría (v0.5.9)

@@ -2751,6 +2751,40 @@ proporción exacta puede necesitar un ajuste fino más una vez se vea de
 verdad; el número está aislado en una única constante para poder tocarlo
 sin rebuscar en la lógica.
 
+### 8.4.26 Color de la torreta desentonaba con el casco (v0.8.9)
+
+Feedback jugando tras v0.8.8 (escala ya arreglada): el amarillo saturado
+de `kinetic_autocanon_m` desentonaba con la iluminación mucho más
+neutra/gris del casco — se notaba "pegada encima", no montada.
+
+**Proceso**: en vez de ajustar a ciegas, se generó una composición fiel
+(mismos sprites reales, misma fórmula de posición/escala del código, vía
+Python/PIL) con 4 tratamientos de color distintos lado a lado —
+original, desaturado, gris metal, y tintado hacia el color medio del
+casco — y se enseñó como imagen antes de tocar nada. Se eligió
+"desaturado" (`ImageEnhance.Color` a 0.35 + `Brightness` a 1.05 sobre el
+sprite completo).
+
+**Implementación — variante nueva, no se toca el archivo del catálogo.**
+El PNG "oficial" en `turrets.json` (el que en su día usará una UI de
+fitting para mostrar el arma tal cual es) se queda intacto; se generó
+`kinetic_autocanon_m_ingame.png` como variante SOLO para el montaje
+visible en el casco. Nueva constante `TURRET_INGAME_SPRITE_FILE`, que
+controla qué archivo carga `preload()` para la textura
+`turret-${TURRET_PLACEHOLDER_ID}` — la metadata (tamaño, pivote) se
+sigue leyendo de la entrada real de `turrets.json`, sin duplicar nada,
+ya que el tratamiento de color no cambia las dimensiones del sprite.
+
+**Nota para cuando haya fitting de verdad**: el amarillo no es un
+capricho de arte — es el color de daño CINÉTICO en el esquema de
+colores del combate (8.4.3: cinético=amarillo, térmico=rojo,
+radiológico=verde, iónico=azul). Desaturar el color de UNA torreta
+placeholder ahora no sienta precedente ni rompe nada (solo hay un
+"tipo" en pantalla), pero cuando existan varias torretas de distintas
+familias montadas a la vez, la desaturación tendrá que revisarse para no
+perder esa codificación de color que el propio diseño necesita para
+leerse de un vistazo.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo

@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.8.8";
+const GAME_VERSION = "v0.8.9";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -109,6 +109,14 @@ const BACKDROP_SEED = 0x5eed1e5;
 // combate. Fitting de verdad (elegir qué torreta va en cada slot) y que
 // el daño salga de las torretas fijadas siguen pendientes.
 const TURRET_PLACEHOLDER_ID = "kinetic_autocanon_m";
+// Variante desaturada SOLO para el montaje en nave (8.4.25) — el amarillo
+// muy saturado del sprite "oficial" del catálogo (pensado para verse bien
+// como icono suelto en una futura UI de fitting) chocaba visualmente con
+// la iluminación mucho más neutra/gris del casco una vez montada encima.
+// El archivo del catálogo (turrets.json, Naveteca) NO se toca — sigue
+// mostrando el color real de la torreta; esta variante es puramente
+// cosmética para cuando se ve YA puesta en el casco.
+const TURRET_INGAME_SPRITE_FILE = "kinetic_autocanon_m_ingame.png";
 // Ligeramente por encima de 0 (profundidad por defecto del casco) para
 // que las torretas se pinten ENCIMA del casco, pero muy por debajo de
 // cualquier UI/VFX del mundo (retículas en 80+, explosiones sin depth
@@ -1321,7 +1329,7 @@ class ChunkScene extends Phaser.Scene {
     this.load.json("turretsCatalog", `${import.meta.env.BASE_URL}turrets/turrets.json`);
     this.load.image(
       `turret-${TURRET_PLACEHOLDER_ID}`,
-      `${import.meta.env.BASE_URL}turrets/sprites/${TURRET_PLACEHOLDER_ID}.png`
+      `${import.meta.env.BASE_URL}turrets/sprites/${TURRET_INGAME_SPRITE_FILE}`
     );
 
     const override = getLocalShipOverride(STARTING_SHIP_ID);

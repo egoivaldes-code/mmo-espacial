@@ -1,36 +1,46 @@
-# v0.8.8 — Arregla las torretas gigantes (bug cómico)
+# v0.8.9 — Color de la torreta ajustado al casco
 
-Reportado con captura y bastante humor: cada torreta salía prácticamente
-del tamaño de la nave que la llevaba montada.
+Feedback jugando tras v0.8.8 (escala ya arreglada): el amarillo saturado
+de la torreta placeholder desentonaba con la iluminación mucho más
+neutra/gris del casco — se veía "pegada encima", no montada.
 
-## Causa
-`updateTurretSprites` aplicaba a la torreta la MISMA escala que al
-casco — razonable para la posición del montaje (el hueco en el casco sí
-escala con la nave), pero no para el tamaño del propio dibujo de la
-torreta. `kinetic_autocanon_m` mide 110×176px nativos, casi idéntico al
-sprite de la nave (101×175px) — a la misma escala, salían literalmente
-del mismo tamaño.
+## Proceso
+En vez de ajustar a ciegas, se generó una composición fiel (mismos
+sprites reales, misma fórmula de posición/escala del código) con 4
+tratamientos de color lado a lado — original, desaturado, gris metal, y
+tintado hacia el color medio del casco — y se enseñó como imagen antes
+de tocar nada. Se eligió **desaturado**.
 
-## El fix
-El arte de `turrets.json` está pensado a un tamaño tipo "icono/ficha de
-fitting", no a la escala real relativa al casco donde se monta — hace
-falta encogerlo aparte. Nueva constante `TURRET_RELATIVE_SCALE = 0.15`,
-aplicada SOLO al tamaño del sprite de la torreta, dejando intacto el
-cálculo de posición del montaje. Deja la torreta en ~15% de la altura
-del casco.
+## Implementación
+El PNG oficial del catálogo (`turrets.json`, el que en su día usará una
+UI de fitting para mostrar el arma tal cual es) **no se toca**. Se
+generó una variante nueva, `kinetic_autocanon_m_ingame.png`, usada SOLO
+para el montaje visible en el casco. La metadata (tamaño, pivote) se
+sigue leyendo de la entrada real de `turrets.json` — el tratamiento de
+color no cambia las dimensiones del sprite, así que no hace falta
+duplicar nada más.
 
-**Nota**: es un valor de partida razonado, no medido en pantalla real
-(sin Playwright). Si al verlo sigue quedando grande/pequeña, dímelo y lo
-ajusto — el número vive aislado en una única constante, fácil de tocar.
+## Nota para el futuro (dejada en diseño 8.4.26)
+El amarillo no es un capricho de arte — es el color de daño CINÉTICO en
+el esquema de combate (cinético=amarillo, térmico=rojo,
+radiológico=verde, iónico=azul). Desaturar esta única torreta
+placeholder no rompe nada ahora mismo (solo hay un tipo en pantalla),
+pero cuando existan varias familias de torreta montadas a la vez, la
+desaturación tendrá que revisarse para no perder esa codificación de
+color que el propio diseño necesita para leerse de un vistazo.
+
+## Verificación
+`node --check` + `eslint` (no-undef/block-scoped-var) + `vite build`
+limpio.
 
 ---
 
 Detalle técnico en `CHANGELOG.md` y en `diseno-mmo-espacial.md`
-(sección 8.4.25).
+(sección 8.4.26).
 
 ## Archivos de este parche
-- `client/src/main.js` — `TURRET_RELATIVE_SCALE`, aplicada en
-  `updateTurretSprites`.
-- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.8.
+- `client/public/turrets/sprites/kinetic_autocanon_m_ingame.png` — nuevo.
+- `client/src/main.js` — `TURRET_INGAME_SPRITE_FILE`, usada en `preload()`.
+- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.9.
 - `CHANGELOG.md` / `client/public/CHANGELOG.md` — historial técnico.
-- `diseno-mmo-espacial.md` — sección 8.4.25 añadida.
+- `diseno-mmo-espacial.md` — sección 8.4.26 añadida.

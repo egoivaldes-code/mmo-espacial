@@ -1,5 +1,11 @@
 [
   {
+    "version": "v0.8.9",
+    "highlights": [
+      "Turrets no longer clash in color with the ship's hull — fine-tuned lighting."
+    ]
+  },
+  {
     "version": "v0.8.8",
     "highlights": [
       "Fixed: turrets no longer render at the size of the entire ship — they're now properly proportioned."

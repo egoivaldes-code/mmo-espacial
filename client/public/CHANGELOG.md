@@ -14,6 +14,22 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.8.9]
+
+### Añadido/Arreglado — color de la torreta placeholder ajustado al casco
+- El amarillo saturado de la torreta desentonaba con la iluminación
+  neutra/gris del casco — se veía "pegada encima". Se probaron 4
+  tratamientos (original/desaturado/gris metal/tintado al casco) en una
+  composición fiel antes de tocar código, y se eligió "desaturado".
+- Nueva variante de sprite `kinetic_autocanon_m_ingame.png`, SOLO para
+  el montaje visible en el casco — el PNG oficial del catálogo
+  (`turrets.json`, para cuando exista UI de fitting) no se toca.
+- Nota dejada en diseño (8.4.26) para cuando haya varias familias de
+  torreta a la vez: el amarillo es el color de daño cinético del
+  esquema de combate, no un capricho de arte — la desaturación de una
+  única placeholder no rompe nada hoy pero habrá que revisarla entonces.
+- Verificado con `node --check` + `eslint` + `vite build` limpio.
+
 ## [v0.8.8]
 
 ### Arreglado — torretas del tamaño de la nave entera (bug cómico, con captura)

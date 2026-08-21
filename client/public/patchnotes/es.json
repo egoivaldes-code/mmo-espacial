@@ -1,5 +1,11 @@
 [
   {
+    "version": "v0.8.9",
+    "highlights": [
+      "Las torretas ya no chocan de color con el casco de la nave — ajuste fino de iluminación."
+    ]
+  },
+  {
     "version": "v0.8.8",
     "highlights": [
       "Arreglado: las torretas ya no salen del tamaño de la nave entera — ahora se ven proporcionadas de verdad."

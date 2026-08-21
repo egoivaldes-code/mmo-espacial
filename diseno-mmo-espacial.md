@@ -2599,6 +2599,52 @@ así Phaser los ordena siempre detrás de cualquier cosa con profundidad 0
 (el valor por defecto de naves/estaciones/asteroides), sin depender de
 cuándo se creó cada cosa.
 
+### 8.4.23 Catálogo de slots de torretas (datos, v0.8.6)
+
+Entregado desde la Naveteca (pestañas "Slots de torretas" / "Eje de
+rotación"), aplicado como parche de **datos puro** — cero cambios de
+código en este parche, el juego en vivo no usa nada de esto todavía
+(ver más abajo).
+
+**`client/public/turrets/turrets.json`** — sustituido entero. Mismas 32
+torretas de siempre (ningún id añadido/quitado), 21 con el pivote
+(centro de rotación) recalibrado. Validado antes de aplicar: sin ids
+duplicados, todos los campos requeridos presentes, y los 32 pivotes
+caen dentro del propio tamaño del sprite (un pivote fuera de esos
+límites sería o un dato mal exportado o una torreta que gira desde un
+punto fuera de su propio dibujo).
+
+**`client/public/ships/turret-slots.json`** (nuevo, junto a
+`ships.json` — no existía carpeta fija para esto, sitio sugerido por el
+propio README del parche): para 35 de las 41 naves del catálogo,
+`spriteSize` (tamaño de sprite nativo usado al colocar los slots) + la
+lista de slots (`id`, `x`, `y` en píxeles nativos, `mirrorGroup` para
+slots pensados para existir/moverse en conjunto, `turretId` — casi todos
+`null` de momento, es la asignación por defecto de fábrica, no un
+fitting hecho). Las 6 shuttles se quedan sin entrada — coherente, son
+naves utilitarias sin combate, no una casilla vacía por error.
+
+Validación completa antes de aplicar: cada `spriteSize` declarado
+coincide EXACTO con las dimensiones reales del PNG en disco (si no
+coincidiera, todos los slots de esa nave estarían mal escalados);
+ningún `turretId` asignado apunta a una torreta que no exista en el
+catálogo; ningún id de slot duplicado dentro de la misma nave; ningún
+slot cae fuera del área del sprite; ningún grupo de simetría con un solo
+miembro suelto (todos los `mirrorGroup` tienen 2+ integrantes, como
+corresponde a algo pensado para ir en pareja o más). 194 slots en total
+repartidos por todo el catálogo.
+
+**Importante — esto es preparación, no una función jugable todavía.**
+Ni `turrets.json` ni `turretId` ni `pivot` se leen en ningún sitio de
+`main.js` ni de `ChunkRoom.js` — hoy por hoy el combate sigue siendo un
+único arma fija (`ARMA_MEDIUM_CORTA`, 8.4.x) sin ninguna torreta visible
+sobre el casco. Lo único que consume estos archivos ahora mismo es la
+propia Naveteca (herramienta de edición offline). Construir el sistema
+de verdad (fitting real, render de torretas sobre cada slot con su
+pivote, disparo por torreta en vez de un arma fija por nave) sigue
+pendiente y es un parche propio bastante más grande — este solo deja
+los datos calibrados y listos para cuando se aborde.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo

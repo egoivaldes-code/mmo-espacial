@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.8.5";
+const GAME_VERSION = "v0.8.6";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu

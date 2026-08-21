@@ -1,0 +1,1640 @@
+{
+  "frigate_01": {
+    "spriteSize": {
+      "w": 55,
+      "h": 82
+    },
+    "slots": [
+      {
+        "id": "smsyyd2vipi1qk",
+        "x": 42.75,
+        "y": 33.24,
+        "mirrorGroup": "gmsyyd2viauart",
+        "turretId": null
+      },
+      {
+        "id": "smsyyd2virwwjy",
+        "x": 12.25,
+        "y": 33.24,
+        "mirrorGroup": "gmsyyd2viauart",
+        "turretId": null
+      }
+    ]
+  },
+  "frigate_02": {
+    "spriteSize": {
+      "w": 63,
+      "h": 90
+    },
+    "slots": [
+      {
+        "id": "smsyybvyj42xyg",
+        "x": 13.81,
+        "y": 59.01,
+        "mirrorGroup": "gmsyybvyjy8a3k",
+        "turretId": null
+      },
+      {
+        "id": "smsyybvyjgb01p",
+        "x": 49.19,
+        "y": 59.01,
+        "mirrorGroup": "gmsyybvyjy8a3k",
+        "turretId": null
+      }
+    ]
+  },
+  "frigate_03": {
+    "spriteSize": {
+      "w": 83,
+      "h": 96
+    },
+    "slots": [
+      {
+        "id": "smt2z915werg24",
+        "x": 30.72,
+        "y": 46.05,
+        "mirrorGroup": "gmt2z915w3dqxm",
+        "turretId": null
+      },
+      {
+        "id": "smt2z915w3881n",
+        "x": 52.28,
+        "y": 46.05,
+        "mirrorGroup": "gmt2z915w3dqxm",
+        "turretId": null
+      },
+      {
+        "id": "smt2z9pcd8ngx7",
+        "x": 41.73,
+        "y": 52.11,
+        "mirrorGroup": null,
+        "turretId": null
+      }
+    ]
+  },
+  "frigate_04": {
+    "spriteSize": {
+      "w": 61,
+      "h": 97
+    },
+    "slots": [
+      {
+        "id": "smt2zcupsknl1p",
+        "x": 30.73,
+        "y": 15.9,
+        "mirrorGroup": null,
+        "turretId": null
+      },
+      {
+        "id": "smt2zcvc59kj0z",
+        "x": 30.42,
+        "y": 28.99,
+        "mirrorGroup": null,
+        "turretId": null
+      },
+      {
+        "id": "smt2zcvyl4ekya",
+        "x": 30.5,
+        "y": 41.75,
+        "mirrorGroup": null,
+        "turretId": null
+      }
+    ]
+  },
+  "frigate_06": {
+    "spriteSize": {
+      "w": 83,
+      "h": 108
+    },
+    "slots": [
+      {
+        "id": "smt2zfe77pbmdr",
+        "x": 25.24,
+        "y": 45.09,
+        "mirrorGroup": "gmt2zfe76zkchb",
+        "turretId": null
+      },
+      {
+        "id": "smt2zfe77q2rm7",
+        "x": 57.76,
+        "y": 45.09,
+        "mirrorGroup": "gmt2zfe76zkchb",
+        "turretId": null
+      },
+      {
+        "id": "smt2zfgek9ydqw",
+        "x": 41.53,
+        "y": 32.85,
+        "mirrorGroup": null,
+        "turretId": null
+      }
+    ]
+  },
+  "destroyer_01": {
+    "spriteSize": {
+      "w": 61,
+      "h": 126
+    },
+    "slots": [
+      {
+        "id": "smsyyeqymlt4lj",
+        "x": 43.75,
+        "y": 51.25,
+        "mirrorGroup": "gmsyyeqym0t65n",
+        "turretId": null
+      },
+      {
+        "id": "smsyyeqymw9u07",
+        "x": 17.25,
+        "y": 51.25,
+        "mirrorGroup": "gmsyyeqym0t65n",
+        "turretId": null
+      },
+      {
+        "id": "smsyyesqi8kdi4",
+        "x": 38.31,
+        "y": 94.71,
+        "mirrorGroup": "gmsyyesqitz8pu",
+        "turretId": null
+      },
+      {
+        "id": "smsyyesqisffyi",
+        "x": 22.69,
+        "y": 94.71,
+        "mirrorGroup": "gmsyyesqitz8pu",
+        "turretId": null
+      }
+    ]
+  },
+  "destroyer_02": {
+    "spriteSize": {
+      "w": 86,
+      "h": 129
+    },
+    "slots": [
+      {
+        "id": "smt2zg56h8uuvn",
+        "x": 34.61,
+        "y": 50.23,
+        "mirrorGroup": "gmt2zg56gltyb8",
+        "turretId": null
+      },
+      {
+        "id": "smt2zg56h7n8jl",
+        "x": 51.39,
+        "y": 50.23,
+        "mirrorGroup": "gmt2zg56gltyb8",
+        "turretId": null
+      },
+      {
+        "id": "smt2zg56hovtpe",
+        "x": 34.61,
+        "y": 78.77,
+        "mirrorGroup": "gmt2zg56gltyb8",
+        "turretId": null
+      },
+      {
+        "id": "smt2zg56h5qi9l",
+        "x": 51.39,
+        "y": 78.77,
+        "mirrorGroup": "gmt2zg56gltyb8",
+        "turretId": null
+      }
+    ]
+  },
+  "frigate_05": {
+    "spriteSize": {
+      "w": 76,
+      "h": 92
+    },
+    "slots": [
+      {
+        "id": "smt2zeccghy46g",
+        "x": 26.82,
+        "y": 38.14,
+        "mirrorGroup": "gmt2zeccgmb3r4",
+        "turretId": null
+      },
+      {
+        "id": "smt2zeccg66pav",
+        "x": 49.18,
+        "y": 38.14,
+        "mirrorGroup": "gmt2zeccgmb3r4",
+        "turretId": null
+      },
+      {
+        "id": "smt2zestk7h8to",
+        "x": 38.18,
+        "y": 27.23,
+        "mirrorGroup": null,
+        "turretId": null
+      }
+    ]
+  },
+  "destroyer_03": {
+    "spriteSize": {
+      "w": 81,
+      "h": 131
+    },
+    "slots": [
+      {
+        "id": "smt2zhi7gslr3w",
+        "x": 55.82,
+        "y": 73.64,
+        "mirrorGroup": "gmt2zhi7gh07fo",
+        "turretId": null
+      },
+      {
+        "id": "smt2zhi7gs0ly0",
+        "x": 25.18,
+        "y": 73.64,
+        "mirrorGroup": "gmt2zhi7gh07fo",
+        "turretId": null
+      },
+      {
+        "id": "smt2zhi7glqovl",
+        "x": 55.82,
+        "y": 57.36,
+        "mirrorGroup": "gmt2zhi7gh07fo",
+        "turretId": null
+      },
+      {
+        "id": "smt2zhi7g8kl1d",
+        "x": 25.18,
+        "y": 57.36,
+        "mirrorGroup": "gmt2zhi7gh07fo",
+        "turretId": null
+      }
+    ]
+  },
+  "destroyer_04": {
+    "spriteSize": {
+      "w": 107,
+      "h": 110
+    },
+    "slots": [
+      {
+        "id": "smt2zhwnaik949",
+        "x": 37.81,
+        "y": 48.04,
+        "mirrorGroup": "gmt2zhwna5pugd",
+        "turretId": null
+      },
+      {
+        "id": "smt2zhwna4i39l",
+        "x": 69.19,
+        "y": 48.04,
+        "mirrorGroup": "gmt2zhwna5pugd",
+        "turretId": null
+      },
+      {
+        "id": "smt2ziiaic3ykt",
+        "x": 31.73,
+        "y": 68.15,
+        "mirrorGroup": "gmt2ziiai2fvjh",
+        "turretId": null
+      },
+      {
+        "id": "smt2ziiailvdvm",
+        "x": 75.27,
+        "y": 68.15,
+        "mirrorGroup": "gmt2ziiai2fvjh",
+        "turretId": null
+      }
+    ]
+  },
+  "destroyer_05": {
+    "spriteSize": {
+      "w": 84,
+      "h": 127
+    },
+    "slots": [
+      {
+        "id": "smt2zj6opxigrg",
+        "x": 55.35,
+        "y": 73.58,
+        "mirrorGroup": "gmt2zj6opfm0z9",
+        "turretId": null
+      },
+      {
+        "id": "smt2zj6opi4ei1",
+        "x": 28.65,
+        "y": 73.58,
+        "mirrorGroup": "gmt2zj6opfm0z9",
+        "turretId": null
+      },
+      {
+        "id": "smt2zj6opg85e3",
+        "x": 55.35,
+        "y": 53.42,
+        "mirrorGroup": "gmt2zj6opfm0z9",
+        "turretId": null
+      },
+      {
+        "id": "smt2zj6opw2i67",
+        "x": 28.65,
+        "y": 53.42,
+        "mirrorGroup": "gmt2zj6opfm0z9",
+        "turretId": null
+      }
+    ]
+  },
+  "destroyer_06": {
+    "spriteSize": {
+      "w": 100,
+      "h": 139
+    },
+    "slots": [
+      {
+        "id": "smt2zjq2uj2nhr",
+        "x": 72.89,
+        "y": 50.12,
+        "mirrorGroup": "gmt2zjq2u5asax",
+        "turretId": null
+      },
+      {
+        "id": "smt2zjq2uir10w",
+        "x": 27.11,
+        "y": 50.12,
+        "mirrorGroup": "gmt2zjq2u5asax",
+        "turretId": null
+      },
+      {
+        "id": "smt2zjq2uky7z5",
+        "x": 72.89,
+        "y": 88.88,
+        "mirrorGroup": "gmt2zjq2u5asax",
+        "turretId": null
+      },
+      {
+        "id": "smt2zjq2uun866",
+        "x": 27.11,
+        "y": 88.88,
+        "mirrorGroup": "gmt2zjq2u5asax",
+        "turretId": null
+      }
+    ]
+  },
+  "destroyer_07": {
+    "spriteSize": {
+      "w": 102,
+      "h": 138
+    },
+    "slots": [
+      {
+        "id": "smt2zjwxgal0qs",
+        "x": 64.14,
+        "y": 50.55,
+        "mirrorGroup": "gmt2zjwxg87ze1",
+        "turretId": null
+      },
+      {
+        "id": "smt2zjwxgkwngo",
+        "x": 37.86,
+        "y": 50.55,
+        "mirrorGroup": "gmt2zjwxg87ze1",
+        "turretId": null
+      },
+      {
+        "id": "smt2zjwxghv0tg",
+        "x": 64.14,
+        "y": 87.45,
+        "mirrorGroup": "gmt2zjwxg87ze1",
+        "turretId": null
+      },
+      {
+        "id": "smt2zjwxg5sg1f",
+        "x": 37.86,
+        "y": 87.45,
+        "mirrorGroup": "gmt2zjwxg87ze1",
+        "turretId": null
+      }
+    ]
+  },
+  "destroyer_08": {
+    "spriteSize": {
+      "w": 102,
+      "h": 137
+    },
+    "slots": [
+      {
+        "id": "smt2zk2w1n9iw6",
+        "x": 79.7,
+        "y": 52.33,
+        "mirrorGroup": "gmt2zk2w14p7l1",
+        "turretId": null
+      },
+      {
+        "id": "smt2zk2w1ghg0l",
+        "x": 22.3,
+        "y": 52.33,
+        "mirrorGroup": "gmt2zk2w14p7l1",
+        "turretId": null
+      },
+      {
+        "id": "smt2zk2w12uiq8",
+        "x": 79.7,
+        "y": 84.67,
+        "mirrorGroup": "gmt2zk2w14p7l1",
+        "turretId": null
+      },
+      {
+        "id": "smt2zk2w1tfnbk",
+        "x": 22.3,
+        "y": 84.67,
+        "mirrorGroup": "gmt2zk2w14p7l1",
+        "turretId": null
+      }
+    ]
+  },
+  "destroyer_09": {
+    "spriteSize": {
+      "w": 97,
+      "h": 153
+    },
+    "slots": [
+      {
+        "id": "smt2zk9ffbqb4t",
+        "x": 27.93,
+        "y": 64.28,
+        "mirrorGroup": "gmt2zk9ffi77fw",
+        "turretId": null
+      },
+      {
+        "id": "smt2zk9ffsdftn",
+        "x": 69.07,
+        "y": 64.28,
+        "mirrorGroup": "gmt2zk9ffi77fw",
+        "turretId": null
+      },
+      {
+        "id": "smt2zk9ff1xbww",
+        "x": 27.93,
+        "y": 88.72,
+        "mirrorGroup": "gmt2zk9ffi77fw",
+        "turretId": null
+      },
+      {
+        "id": "smt2zk9ffecjnm",
+        "x": 69.07,
+        "y": 88.72,
+        "mirrorGroup": "gmt2zk9ffi77fw",
+        "turretId": null
+      }
+    ]
+  },
+  "cruiser_01": {
+    "spriteSize": {
+      "w": 101,
+      "h": 175
+    },
+    "slots": [
+      {
+        "id": "smt2zkm539mx6k",
+        "x": 32.02,
+        "y": 50.47,
+        "mirrorGroup": "gmt2zkm53umxth",
+        "turretId": null
+      },
+      {
+        "id": "smt2zkm53ads36",
+        "x": 68.98,
+        "y": 50.47,
+        "mirrorGroup": "gmt2zkm53umxth",
+        "turretId": null
+      },
+      {
+        "id": "smt2zkn0a9bfan",
+        "x": 74.79,
+        "y": 74.63,
+        "mirrorGroup": "gmt2zkn0aqxh4u",
+        "turretId": null
+      },
+      {
+        "id": "smt2zkn0azkib2",
+        "x": 26.21,
+        "y": 74.63,
+        "mirrorGroup": "gmt2zkn0aqxh4u",
+        "turretId": null
+      },
+      {
+        "id": "smt2zmqgm1nmsz",
+        "x": 50.81,
+        "y": 64.22,
+        "mirrorGroup": null,
+        "turretId": null
+      }
+    ]
+  },
+  "cruiser_02": {
+    "spriteSize": {
+      "w": 115,
+      "h": 121
+    },
+    "slots": [
+      {
+        "id": "smt2zkyrdjqg5e",
+        "x": 46.48,
+        "y": 35.55,
+        "mirrorGroup": "gmt2zkyrdrcg1s",
+        "turretId": null
+      },
+      {
+        "id": "smt2zkyrdyoigx",
+        "x": 68.52,
+        "y": 35.55,
+        "mirrorGroup": "gmt2zkyrdrcg1s",
+        "turretId": null
+      },
+      {
+        "id": "smt2zl04wz6vsv",
+        "x": 30.91,
+        "y": 73.18,
+        "mirrorGroup": "gmt2zl04wrvfto",
+        "turretId": null
+      },
+      {
+        "id": "smt2zl04wxyse8",
+        "x": 84.09,
+        "y": 73.18,
+        "mirrorGroup": "gmt2zl04wrvfto",
+        "turretId": null
+      },
+      {
+        "id": "smt2zmwfh3vj0r",
+        "x": 57.75,
+        "y": 59.55,
+        "mirrorGroup": null,
+        "turretId": null
+      }
+    ]
+  },
+  "cruiser_03": {
+    "spriteSize": {
+      "w": 111,
+      "h": 174
+    },
+    "slots": [
+      {
+        "id": "smt2zlgnawsf44",
+        "x": 41.85,
+        "y": 40.1,
+        "mirrorGroup": "gmt2zlgnah215n",
+        "turretId": null
+      },
+      {
+        "id": "smt2zlgnad60s9",
+        "x": 69.15,
+        "y": 40.1,
+        "mirrorGroup": "gmt2zlgnah215n",
+        "turretId": null
+      },
+      {
+        "id": "smt2zlpaq6cifc",
+        "x": 83.73,
+        "y": 68.49,
+        "mirrorGroup": "gmt2zlpaq31tsn",
+        "turretId": null
+      },
+      {
+        "id": "smt2zlpaq2nr55",
+        "x": 27.27,
+        "y": 68.49,
+        "mirrorGroup": "gmt2zlpaq31tsn",
+        "turretId": null
+      },
+      {
+        "id": "smt2zn8lhgt3u8",
+        "x": 55.43,
+        "y": 77.89,
+        "mirrorGroup": null,
+        "turretId": null
+      }
+    ]
+  },
+  "cruiser_04": {
+    "spriteSize": {
+      "w": 100,
+      "h": 184
+    },
+    "slots": [
+      {
+        "id": "smt2zntzfzzlve",
+        "x": 26.98,
+        "y": 73.12,
+        "mirrorGroup": "gmt2zntzfkx05r",
+        "turretId": null
+      },
+      {
+        "id": "smt2zntzf1oogd",
+        "x": 73.02,
+        "y": 73.12,
+        "mirrorGroup": "gmt2zntzfkx05r",
+        "turretId": null
+      },
+      {
+        "id": "smt2zntzfd125r",
+        "x": 26.98,
+        "y": 110.88,
+        "mirrorGroup": "gmt2zntzfkx05r",
+        "turretId": null
+      },
+      {
+        "id": "smt2zntzffg6ya",
+        "x": 73.02,
+        "y": 110.88,
+        "mirrorGroup": "gmt2zntzfkx05r",
+        "turretId": null
+      },
+      {
+        "id": "smt2zo2wq85bir",
+        "x": 50.37,
+        "y": 47.85,
+        "mirrorGroup": null,
+        "turretId": null
+      }
+    ]
+  },
+  "cruiser_05": {
+    "spriteSize": {
+      "w": 113,
+      "h": 164
+    },
+    "slots": [
+      {
+        "id": "smt2zphmvycu1s",
+        "x": 27.42,
+        "y": 95.59,
+        "mirrorGroup": "gmt2zphmv44dj6",
+        "turretId": null
+      },
+      {
+        "id": "smt2zphmvfvzpl",
+        "x": 85.58,
+        "y": 95.59,
+        "mirrorGroup": "gmt2zphmv44dj6",
+        "turretId": null
+      },
+      {
+        "id": "smt2zpwvqfnwip",
+        "x": 35.02,
+        "y": 63.77,
+        "mirrorGroup": "gmt2zpwvqpulc8",
+        "turretId": null
+      },
+      {
+        "id": "smt2zpwvqhqlvb",
+        "x": 77.98,
+        "y": 63.77,
+        "mirrorGroup": "gmt2zpwvqpulc8",
+        "turretId": null
+      },
+      {
+        "id": "smt2zq5t9rceos",
+        "x": 56.2,
+        "y": 59.77,
+        "mirrorGroup": null,
+        "turretId": null
+      }
+    ]
+  },
+  "cruiser_06": {
+    "spriteSize": {
+      "w": 136,
+      "h": 139
+    },
+    "slots": [
+      {
+        "id": "smt2zrdxgw17th",
+        "x": 48.96,
+        "y": 45.53,
+        "mirrorGroup": "gmt2zrdxgkfdtn",
+        "turretId": null
+      },
+      {
+        "id": "smt2zrdxgh88xg",
+        "x": 87.04,
+        "y": 45.53,
+        "mirrorGroup": "gmt2zrdxgkfdtn",
+        "turretId": null
+      },
+      {
+        "id": "smt2zrhk6cujco",
+        "x": 37.2,
+        "y": 83.6,
+        "mirrorGroup": "gmt2zrhk663aeg",
+        "turretId": null
+      },
+      {
+        "id": "smt2zrhk6p5gam",
+        "x": 98.8,
+        "y": 83.6,
+        "mirrorGroup": "gmt2zrhk663aeg",
+        "turretId": null
+      },
+      {
+        "id": "smt2zrpub871bh",
+        "x": 67.57,
+        "y": 66.22,
+        "mirrorGroup": null,
+        "turretId": null
+      }
+    ]
+  },
+  "battlecruiser_01": {
+    "spriteSize": {
+      "w": 109,
+      "h": 212
+    },
+    "slots": [
+      {
+        "id": "smt2zs1bzp1mj6",
+        "x": 41.12,
+        "y": 57.9,
+        "mirrorGroup": "gmt2zs1bzpoari",
+        "turretId": null
+      },
+      {
+        "id": "smt2zs1bzahdnc",
+        "x": 67.88,
+        "y": 57.9,
+        "mirrorGroup": "gmt2zs1bzpoari",
+        "turretId": null
+      },
+      {
+        "id": "smt2zs2umpl8be",
+        "x": 37.85,
+        "y": 85.78,
+        "mirrorGroup": "gmt2zs2um56hxb",
+        "turretId": null
+      },
+      {
+        "id": "smt2zs2umyzglp",
+        "x": 71.15,
+        "y": 85.78,
+        "mirrorGroup": "gmt2zs2um56hxb",
+        "turretId": null
+      },
+      {
+        "id": "smt2zs3qrugw2j",
+        "x": 38.72,
+        "y": 116.27,
+        "mirrorGroup": "gmt2zs3qr6uug1",
+        "turretId": null
+      },
+      {
+        "id": "smt2zs3qrm63st",
+        "x": 70.28,
+        "y": 116.27,
+        "mirrorGroup": "gmt2zs3qr6uug1",
+        "turretId": null
+      }
+    ]
+  },
+  "battlecruiser_02": {
+    "spriteSize": {
+      "w": 91,
+      "h": 284
+    },
+    "slots": [
+      {
+        "id": "smt2zsa6iy3z15",
+        "x": 26.99,
+        "y": 79.7,
+        "mirrorGroup": "gmt2zsa6iho4z7",
+        "turretId": null
+      },
+      {
+        "id": "smt2zsa6ionbfd",
+        "x": 64.01,
+        "y": 79.7,
+        "mirrorGroup": "gmt2zsa6iho4z7",
+        "turretId": null
+      },
+      {
+        "id": "smt2zsfbwx61d7",
+        "x": 25.34,
+        "y": 113.7,
+        "mirrorGroup": "gmt2zsfbwd6jyc",
+        "turretId": null
+      },
+      {
+        "id": "smt2zsfbwhzohp",
+        "x": 65.66,
+        "y": 113.7,
+        "mirrorGroup": "gmt2zsfbwd6jyc",
+        "turretId": null
+      },
+      {
+        "id": "smt2zsj2hoxg71",
+        "x": 75.2,
+        "y": 165,
+        "mirrorGroup": "gmt2zsj2hq5r4c",
+        "turretId": null
+      },
+      {
+        "id": "smt2zsj2huq0jv",
+        "x": 15.8,
+        "y": 165,
+        "mirrorGroup": "gmt2zsj2hq5r4c",
+        "turretId": null
+      }
+    ]
+  },
+  "battlecruiser_03": {
+    "spriteSize": {
+      "w": 144,
+      "h": 227
+    },
+    "slots": [
+      {
+        "id": "smt2zsrn6de03q",
+        "x": 26.97,
+        "y": 76.76,
+        "mirrorGroup": "gmt2zsrn67j16k",
+        "turretId": null
+      },
+      {
+        "id": "smt2zsrn6hdr52",
+        "x": 117.03,
+        "y": 76.76,
+        "mirrorGroup": "gmt2zsrn67j16k",
+        "turretId": null
+      },
+      {
+        "id": "smt2zssa6yalyj",
+        "x": 19.1,
+        "y": 104.32,
+        "mirrorGroup": "gmt2zssa62m7wj",
+        "turretId": null
+      },
+      {
+        "id": "smt2zssa6vidq5",
+        "x": 124.9,
+        "y": 104.32,
+        "mirrorGroup": "gmt2zssa62m7wj",
+        "turretId": null
+      },
+      {
+        "id": "smt2zsxqqznnk5",
+        "x": 123.67,
+        "y": 130.89,
+        "mirrorGroup": "gmt2zsxqqavhjm",
+        "turretId": null
+      },
+      {
+        "id": "smt2zsxqqyhyh5",
+        "x": 20.33,
+        "y": 130.89,
+        "mirrorGroup": "gmt2zsxqqavhjm",
+        "turretId": null
+      }
+    ]
+  },
+  "battlecruiser_04": {
+    "spriteSize": {
+      "w": 141,
+      "h": 237
+    },
+    "slots": [
+      {
+        "id": "smt2ztlklpzirm",
+        "x": 45.8,
+        "y": 74.65,
+        "mirrorGroup": "gmt2ztlkln8gtg",
+        "turretId": null
+      },
+      {
+        "id": "smt2ztlkls81mb",
+        "x": 95.2,
+        "y": 74.65,
+        "mirrorGroup": "gmt2ztlkln8gtg",
+        "turretId": null
+      },
+      {
+        "id": "smt2ztlro0d364",
+        "x": 114.97,
+        "y": 95.68,
+        "mirrorGroup": "gmt2ztlro6x5ee",
+        "turretId": null
+      },
+      {
+        "id": "smt2ztlroqchhg",
+        "x": 26.03,
+        "y": 95.68,
+        "mirrorGroup": "gmt2ztlro6x5ee",
+        "turretId": null
+      },
+      {
+        "id": "smt2ztx6vqthhl",
+        "x": 106.12,
+        "y": 44.64,
+        "mirrorGroup": "gmt2ztx6vxmmnh",
+        "turretId": null
+      },
+      {
+        "id": "smt2ztx6vpxua8",
+        "x": 34.88,
+        "y": 44.64,
+        "mirrorGroup": "gmt2ztx6vxmmnh",
+        "turretId": null
+      }
+    ]
+  },
+  "battlecruiser_05": {
+    "spriteSize": {
+      "w": 189,
+      "h": 215
+    },
+    "slots": [
+      {
+        "id": "smt2zu9xbj5t8v",
+        "x": 35.99,
+        "y": 43.05,
+        "mirrorGroup": "gmt2zu9xbijcv3",
+        "turretId": null
+      },
+      {
+        "id": "smt2zu9xb2tect",
+        "x": 153.01,
+        "y": 43.05,
+        "mirrorGroup": "gmt2zu9xbijcv3",
+        "turretId": null
+      },
+      {
+        "id": "smt2zubqxli49q",
+        "x": 25.65,
+        "y": 65.16,
+        "mirrorGroup": "gmt2zubqxjoccs",
+        "turretId": null
+      },
+      {
+        "id": "smt2zubqxcqfx1",
+        "x": 163.35,
+        "y": 65.16,
+        "mirrorGroup": "gmt2zubqxjoccs",
+        "turretId": null
+      },
+      {
+        "id": "smt2zuffz6vnhv",
+        "x": 24.04,
+        "y": 95.83,
+        "mirrorGroup": "gmt2zuffzxm1b5",
+        "turretId": null
+      },
+      {
+        "id": "smt2zuffzatxem",
+        "x": 164.96,
+        "y": 95.83,
+        "mirrorGroup": "gmt2zuffzxm1b5",
+        "turretId": null
+      }
+    ]
+  },
+  "battleship_01": {
+    "spriteSize": {
+      "w": 171,
+      "h": 483
+    },
+    "slots": [
+      {
+        "id": "smt2zuxpetzq4d",
+        "x": 68.11,
+        "y": 117.73,
+        "mirrorGroup": "gmt2zuxpevdin3",
+        "turretId": null
+      },
+      {
+        "id": "smt2zuxpe2xs4c",
+        "x": 102.89,
+        "y": 117.73,
+        "mirrorGroup": "gmt2zuxpevdin3",
+        "turretId": null
+      },
+      {
+        "id": "smt2zuz878hgum",
+        "x": 62.05,
+        "y": 171.35,
+        "mirrorGroup": "gmt2zuz87yhxm4",
+        "turretId": null
+      },
+      {
+        "id": "smt2zuz87jo14l",
+        "x": 108.95,
+        "y": 171.35,
+        "mirrorGroup": "gmt2zuz87yhxm4",
+        "turretId": null
+      },
+      {
+        "id": "smt2zv15r98qak",
+        "x": 69.84,
+        "y": 229.72,
+        "mirrorGroup": "gmt2zv15rmp1h7",
+        "turretId": null
+      },
+      {
+        "id": "smt2zv15rtdwwn",
+        "x": 101.16,
+        "y": 229.72,
+        "mirrorGroup": "gmt2zv15rmp1h7",
+        "turretId": null
+      },
+      {
+        "id": "smt2zv243j2403",
+        "x": 64.65,
+        "y": 306.26,
+        "mirrorGroup": "gmt2zv243wwok7",
+        "turretId": null
+      },
+      {
+        "id": "smt2zv243c6q6j",
+        "x": 106.35,
+        "y": 306.26,
+        "mirrorGroup": "gmt2zv243wwok7",
+        "turretId": null
+      }
+    ]
+  },
+  "battleship_02": {
+    "spriteSize": {
+      "w": 194,
+      "h": 402
+    },
+    "slots": [
+      {
+        "id": "smt2zv9jlq0rnr",
+        "x": 124.15,
+        "y": 94.96,
+        "mirrorGroup": "gmt2zv9jlrnoom",
+        "turretId": null
+      },
+      {
+        "id": "smt2zv9jld33i4",
+        "x": 69.85,
+        "y": 94.96,
+        "mirrorGroup": "gmt2zv9jlrnoom",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvai6clfiz",
+        "x": 128.04,
+        "y": 152.04,
+        "mirrorGroup": "gmt2zvai6ndxdn",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvai6dwawu",
+        "x": 65.96,
+        "y": 152.04,
+        "mirrorGroup": "gmt2zvai6ndxdn",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvcb0ulk00",
+        "x": 129.33,
+        "y": 197.87,
+        "mirrorGroup": "gmt2zvcb0ipg7u",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvcb04n5at",
+        "x": 64.67,
+        "y": 197.87,
+        "mirrorGroup": "gmt2zvcb0ipg7u",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvd7oklsab",
+        "x": 128.04,
+        "y": 242.41,
+        "mirrorGroup": "gmt2zvd7ok3691",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvd7oi14r5",
+        "x": 65.96,
+        "y": 242.41,
+        "mirrorGroup": "gmt2zvd7ok3691",
+        "turretId": null
+      }
+    ]
+  },
+  "battleship_03": {
+    "spriteSize": {
+      "w": 191,
+      "h": 477
+    },
+    "slots": [
+      {
+        "id": "smt2zvk44zxvso",
+        "x": 69.89,
+        "y": 80.57,
+        "mirrorGroup": "gmt2zvk44o3m2o",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvk446pfvc",
+        "x": 121.11,
+        "y": 80.57,
+        "mirrorGroup": "gmt2zvk44o3m2o",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvl7u2v476",
+        "x": 72.49,
+        "y": 127.27,
+        "mirrorGroup": "gmt2zvl7uiagky",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvl7ujm88i",
+        "x": 118.51,
+        "y": 127.27,
+        "mirrorGroup": "gmt2zvl7uiagky",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvn9vsqml9",
+        "x": 46.11,
+        "y": 167.05,
+        "mirrorGroup": "gmt2zvn9v52ish",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvn9vybgvc",
+        "x": 144.89,
+        "y": 167.05,
+        "mirrorGroup": "gmt2zvn9v52ish",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvq4cfu3uv",
+        "x": 45.68,
+        "y": 206.83,
+        "mirrorGroup": "gmt2zvq4c0449v",
+        "turretId": null
+      },
+      {
+        "id": "smt2zvq4cow2cc",
+        "x": 145.32,
+        "y": 206.83,
+        "mirrorGroup": "gmt2zvq4c0449v",
+        "turretId": null
+      }
+    ]
+  },
+  "battleship_04": {
+    "spriteSize": {
+      "w": 180,
+      "h": 476
+    },
+    "slots": [
+      {
+        "id": "smt2zwq0dlm7cr",
+        "x": 145.81,
+        "y": 65.78,
+        "mirrorGroup": "gmt2zwq0dv4ssw",
+        "turretId": null
+      },
+      {
+        "id": "smt2zwq0drn2bp",
+        "x": 34.19,
+        "y": 65.78,
+        "mirrorGroup": "gmt2zwq0dv4ssw",
+        "turretId": null
+      },
+      {
+        "id": "smt2zwqst0phbu",
+        "x": 145.55,
+        "y": 104.56,
+        "mirrorGroup": "gmt2zwqstsz7no",
+        "turretId": null
+      },
+      {
+        "id": "smt2zwqsuz19nv",
+        "x": 34.45,
+        "y": 104.56,
+        "mirrorGroup": "gmt2zwqstsz7no",
+        "turretId": null
+      },
+      {
+        "id": "smt2zwtdvh3xey",
+        "x": 132.01,
+        "y": 171.95,
+        "mirrorGroup": "gmt2zwtdvdggjo",
+        "turretId": null
+      },
+      {
+        "id": "smt2zwtdviic4j",
+        "x": 47.99,
+        "y": 171.95,
+        "mirrorGroup": "gmt2zwtdvdggjo",
+        "turretId": null
+      },
+      {
+        "id": "smt2zxpyg12e6m",
+        "x": 32.12,
+        "y": 216.97,
+        "mirrorGroup": "gmt2zxpygqrnca",
+        "turretId": null
+      },
+      {
+        "id": "smt2zxpyg9wkie",
+        "x": 147.88,
+        "y": 216.97,
+        "mirrorGroup": "gmt2zxpygqrnca",
+        "turretId": null
+      }
+    ]
+  },
+  "battleship_05": {
+    "spriteSize": {
+      "w": 217,
+      "h": 508
+    },
+    "slots": [
+      {
+        "id": "smt2zyj5hq15jg",
+        "x": 81.02,
+        "y": 239.21,
+        "mirrorGroup": "gmt2zyj5hf6gc4",
+        "turretId": null
+      },
+      {
+        "id": "smt2zyj5h9wopk",
+        "x": 135.98,
+        "y": 239.21,
+        "mirrorGroup": "gmt2zyj5hf6gc4",
+        "turretId": null
+      },
+      {
+        "id": "smt2zyouhpnt50",
+        "x": 86.87,
+        "y": 71.5,
+        "mirrorGroup": "gmt2zyouhnm1f6",
+        "turretId": null
+      },
+      {
+        "id": "smt2zyouh9yc61",
+        "x": 130.13,
+        "y": 71.5,
+        "mirrorGroup": "gmt2zyouhnm1f6",
+        "turretId": null
+      },
+      {
+        "id": "smt2zyy336r9we",
+        "x": 137.79,
+        "y": 124.98,
+        "mirrorGroup": "gmt2zyy33hj6nb",
+        "turretId": null
+      },
+      {
+        "id": "smt2zyy333zv9k",
+        "x": 79.21,
+        "y": 124.98,
+        "mirrorGroup": "gmt2zyy33hj6nb",
+        "turretId": null
+      },
+      {
+        "id": "smt2zz2s1bt96v",
+        "x": 136.43,
+        "y": 175.74,
+        "mirrorGroup": "gmt2zz2s0qswbg",
+        "turretId": null
+      },
+      {
+        "id": "smt2zz2s1q6kyd",
+        "x": 80.57,
+        "y": 175.74,
+        "mirrorGroup": "gmt2zz2s0qswbg",
+        "turretId": null
+      }
+    ]
+  },
+  "carrier_01": {
+    "spriteSize": {
+      "w": 194,
+      "h": 526
+    },
+    "slots": [
+      {
+        "id": "smt3006hbnnfv5",
+        "x": 51.59,
+        "y": 121.75,
+        "mirrorGroup": "gmt3006hb6mhs0",
+        "turretId": null
+      },
+      {
+        "id": "smt3006hb5qprp",
+        "x": 142.41,
+        "y": 121.75,
+        "mirrorGroup": "gmt3006hb6mhs0",
+        "turretId": null
+      },
+      {
+        "id": "smt3007mmswqu6",
+        "x": 32.07,
+        "y": 168.44,
+        "mirrorGroup": "gmt3007mmkyzwv",
+        "turretId": null
+      },
+      {
+        "id": "smt3007mmm8hly",
+        "x": 161.93,
+        "y": 168.44,
+        "mirrorGroup": "gmt3007mmkyzwv",
+        "turretId": null
+      },
+      {
+        "id": "smt306o5natstn",
+        "x": 75.58,
+        "y": 206.64,
+        "mirrorGroup": "gmt306o5neije8",
+        "turretId": null
+      },
+      {
+        "id": "smt306o5n8xj3n",
+        "x": 118.42,
+        "y": 206.64,
+        "mirrorGroup": "gmt306o5neije8",
+        "turretId": null
+      },
+      {
+        "id": "smt306ox7gyxpv",
+        "x": 67.92,
+        "y": 249.12,
+        "mirrorGroup": "gmt306ox729n0b",
+        "turretId": null
+      },
+      {
+        "id": "smt306ox7x79yg",
+        "x": 126.08,
+        "y": 249.12,
+        "mirrorGroup": "gmt306ox729n0b",
+        "turretId": null
+      },
+      {
+        "id": "smt306qud6kxpm",
+        "x": 80.17,
+        "y": 315.71,
+        "mirrorGroup": "gmt306qudnyrs2",
+        "turretId": null
+      },
+      {
+        "id": "smt306qudgdj9j",
+        "x": 113.83,
+        "y": 315.71,
+        "mirrorGroup": "gmt306qudnyrs2",
+        "turretId": null
+      }
+    ]
+  },
+  "carrier_02": {
+    "spriteSize": {
+      "w": 247,
+      "h": 476
+    },
+    "slots": [
+      {
+        "id": "smt306zlcisrx0",
+        "x": 105.82,
+        "y": 76.03,
+        "mirrorGroup": "gmt306zlc7xa3s",
+        "turretId": null
+      },
+      {
+        "id": "smt306zlc3g372",
+        "x": 141.18,
+        "y": 76.03,
+        "mirrorGroup": "gmt306zlc7xa3s",
+        "turretId": null
+      },
+      {
+        "id": "smt30709mtq5bp",
+        "x": 105.44,
+        "y": 103.96,
+        "mirrorGroup": "gmt30709ml87yb",
+        "turretId": null
+      },
+      {
+        "id": "smt30709mn85ow",
+        "x": 141.56,
+        "y": 103.96,
+        "mirrorGroup": "gmt30709ml87yb",
+        "turretId": null
+      },
+      {
+        "id": "smt3070yfd6acl",
+        "x": 102.76,
+        "y": 135.73,
+        "mirrorGroup": "gmt3070yflh0aa",
+        "turretId": null
+      },
+      {
+        "id": "smt3070yfzwgau",
+        "x": 144.24,
+        "y": 135.73,
+        "mirrorGroup": "gmt3070yflh0aa",
+        "turretId": null
+      },
+      {
+        "id": "smt3071psnxtam",
+        "x": 104.67,
+        "y": 177.83,
+        "mirrorGroup": "gmt3071psab0ks",
+        "turretId": null
+      },
+      {
+        "id": "smt3071psmu7d9",
+        "x": 142.33,
+        "y": 177.83,
+        "mirrorGroup": "gmt3071psab0ks",
+        "turretId": null
+      },
+      {
+        "id": "smt3072erw773r",
+        "x": 105.05,
+        "y": 213.42,
+        "mirrorGroup": "gmt3072er6s6gk",
+        "turretId": null
+      },
+      {
+        "id": "smt3072erir4r4",
+        "x": 141.95,
+        "y": 213.42,
+        "mirrorGroup": "gmt3072er6s6gk",
+        "turretId": null
+      }
+    ]
+  },
+  "carrier_03": {
+    "spriteSize": {
+      "w": 240,
+      "h": 509
+    },
+    "slots": [
+      {
+        "id": "smt3079jf8yx1q",
+        "x": 103.66,
+        "y": 74.38,
+        "mirrorGroup": "gmt3079jflv5k7",
+        "turretId": null
+      },
+      {
+        "id": "smt3079jfl9x1z",
+        "x": 136.34,
+        "y": 74.38,
+        "mirrorGroup": "gmt3079jflv5k7",
+        "turretId": null
+      },
+      {
+        "id": "smt307alq4ifd5",
+        "x": 88.74,
+        "y": 106.14,
+        "mirrorGroup": "gmt307alq1hgsp",
+        "turretId": null
+      },
+      {
+        "id": "smt307alqnx5ea",
+        "x": 151.26,
+        "y": 106.14,
+        "mirrorGroup": "gmt307alq1hgsp",
+        "turretId": null
+      },
+      {
+        "id": "smt307bds5shcw",
+        "x": 90.27,
+        "y": 147.1,
+        "mirrorGroup": "gmt307bds2jady",
+        "turretId": null
+      },
+      {
+        "id": "smt307bds0adre",
+        "x": 149.73,
+        "y": 147.1,
+        "mirrorGroup": "gmt307bds2jady",
+        "turretId": null
+      },
+      {
+        "id": "smt307c8jocdp6",
+        "x": 83.38,
+        "y": 184.22,
+        "mirrorGroup": "gmt307c8j4eu94",
+        "turretId": null
+      },
+      {
+        "id": "smt307c8jd6g49",
+        "x": 156.62,
+        "y": 184.22,
+        "mirrorGroup": "gmt307c8j4eu94",
+        "turretId": null
+      },
+      {
+        "id": "smt307czi944sf",
+        "x": 81.85,
+        "y": 217.51,
+        "mirrorGroup": "gmt307czio9jro",
+        "turretId": null
+      },
+      {
+        "id": "smt307czi3zbls",
+        "x": 158.15,
+        "y": 217.51,
+        "mirrorGroup": "gmt307czio9jro",
+        "turretId": null
+      }
+    ]
+  },
+  "dreadnought_01": {
+    "spriteSize": {
+      "w": 288,
+      "h": 572
+    },
+    "slots": [
+      {
+        "id": "smt307mwxs8gfb",
+        "x": 25.92,
+        "y": 89.98,
+        "mirrorGroup": "gmt307mwx6vqjy",
+        "turretId": null
+      },
+      {
+        "id": "smt307mwxo2twx",
+        "x": 262.08,
+        "y": 89.98,
+        "mirrorGroup": "gmt307mwx6vqjy",
+        "turretId": null
+      },
+      {
+        "id": "smt307mxxb55el",
+        "x": 251.36,
+        "y": 65.86,
+        "mirrorGroup": "gmt307mxxoow2v",
+        "turretId": null
+      },
+      {
+        "id": "smt307mxxfi0it",
+        "x": 36.64,
+        "y": 65.86,
+        "mirrorGroup": "gmt307mxxoow2v",
+        "turretId": null
+      },
+      {
+        "id": "smt307w8klp928",
+        "x": 267.82,
+        "y": 127.86,
+        "mirrorGroup": "gmt307w8kqvvau",
+        "turretId": null
+      },
+      {
+        "id": "smt307w8kjwdke",
+        "x": 20.18,
+        "y": 127.86,
+        "mirrorGroup": "gmt307w8kqvvau",
+        "turretId": null
+      },
+      {
+        "id": "smt307xc5ubz39",
+        "x": 254.42,
+        "y": 163.07,
+        "mirrorGroup": "gmt307xc5xkhrh",
+        "turretId": null
+      },
+      {
+        "id": "smt307xc5tokgq",
+        "x": 33.58,
+        "y": 163.07,
+        "mirrorGroup": "gmt307xc5xkhrh",
+        "turretId": null
+      },
+      {
+        "id": "smt3080wf6hoyy",
+        "x": 236.44,
+        "y": 242.68,
+        "mirrorGroup": "gmt3080wf7wnmu",
+        "turretId": null
+      },
+      {
+        "id": "smt3080wfiy2a7",
+        "x": 51.56,
+        "y": 242.68,
+        "mirrorGroup": "gmt3080wf7wnmu",
+        "turretId": null
+      },
+      {
+        "id": "smt3082wzfoq5a",
+        "x": 236.44,
+        "y": 314.63,
+        "mirrorGroup": "gmt3082wz1excp",
+        "turretId": null
+      },
+      {
+        "id": "smt3082wz5a9to",
+        "x": 51.56,
+        "y": 314.63,
+        "mirrorGroup": "gmt3082wz1excp",
+        "turretId": null
+      }
+    ]
+  }
+}

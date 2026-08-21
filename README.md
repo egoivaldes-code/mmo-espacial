@@ -1,44 +1,50 @@
-# v0.8.5 — Estelas juntas + fondos cósmicos mucho más grandes
+# v0.8.6 — Catálogo de slots de torretas (datos)
 
-## Estelas de motor sin separación
-El espaciado lateral entre los chorros de la batería salía de una
-fracción del ancho del casco (`displayWidth * 0.6`), lo que dejaba hueco
-visible entre ellos — 3 llamas independientes en el crucero, no una sola
-ancha. Ahora el espaciado es un valor fijo en píxeles, calibrado al
-tamaño visual real de la partícula (no al tamaño de la nave), así que
-los chorros contiguos quedan pegados sin importar la clase: 3 en
-crucero, 4 en battlecruiser, 2 gruesas en battleship/capital — todos
-igual de juntos entre sí.
+Parche de **datos puro** — cero cambios de código. Entregado desde la
+Naveteca (pestañas "Slots de torretas" / "Eje de rotación").
 
-## Fondos cósmicos, mucho más grandes
-Escala de las nebulosas/galaxias "hero" subida de 0.5-1.1x a 2.5-6x; de
-las "medium" de 0.35-0.9x a 1.1-3x. Son la capa de ambientación de
-verdad — el artefacto visual de fondo, por debajo de todo lo demás — no
-un detalle discreto de esquina.
+## Qué trae
+- **`client/public/turrets/turrets.json`** (sustituido entero): mismas
+  32 torretas de siempre, 21 con el pivote (centro de rotación)
+  recalibrado.
+- **`client/public/ships/turret-slots.json`** (nuevo, junto a
+  `ships.json`): slots de torreta para 35 de las 41 naves del catálogo
+  — posición, grupo de simetría, torreta asignada por defecto. Las 6
+  shuttles se quedan sin entrada a propósito (naves utilitarias, sin
+  combate). 194 slots en total.
+- Sin torretas nuevas esta vez (`turrets/sprites/` venía vacío en el
+  zip), así que no hay PNG que copiar.
 
-## Bug de profundidad encontrado y arreglado de paso
-Desde el fix de carga diferida (v0.8.1), los fondos se crean DESPUÉS de
-que la propia nave (y la de cualquiera ya conectado) exista en el mundo.
-Por orden de inserción a secas, eso los habría pintado ENCIMA de las
-naves — justo lo contrario de "los sprites de naves/estaciones/
-contenedores van encima". Ahora llevan profundidad negativa explícita
-(`setDepth(-100)`), así que Phaser los ordena siempre detrás de
-cualquier cosa con profundidad por defecto (0), sin depender de cuándo
-se creó cada elemento.
+## Validado antes de aplicar
+- Sin ids de torreta duplicados, todos los campos requeridos presentes.
+- Los 32 pivotes caen dentro del propio tamaño de su sprite.
+- Los 35 `spriteSize` declarados coinciden EXACTOS con las dimensiones
+  reales del PNG en disco de cada nave.
+- Ningún `turretId` asignado apunta a una torreta inexistente.
+- Ningún id de slot duplicado dentro de la misma nave.
+- Ningún slot cae fuera del área del sprite.
+- Ningún grupo de simetría (`mirrorGroup`) con un solo miembro suelto.
 
-## Verificación
-`node --check` + `eslint` (reglas `no-undef`/`block-scoped-var`) +
-`vite build` limpio — la disciplina añadida tras el bug real de v0.8.4.
+## Importante: esto es preparación, no una función jugable todavía
+Ni `turrets.json` ni `turretId` ni `pivot` se leen hoy en `main.js` ni
+en `ChunkRoom.js` — el combate en el juego real sigue siendo un único
+arma fija (`ARMA_MEDIUM_CORTA`), sin ninguna torreta visible sobre el
+casco. Lo único que usa estos archivos ahora mismo es la propia
+Naveteca. Construir el sistema de verdad — fitting real, render de
+torretas sobre cada slot con su pivote, disparo por torreta en vez de
+un arma fija por nave — sigue pendiente y sería su propio parche, bastante
+más grande. Este solo deja los datos calibrados y validados, listos
+para cuando se aborde.
 
 ---
 
 Detalle técnico completo en `CHANGELOG.md` y en `diseno-mmo-espacial.md`
-(sección 8.4.22).
+(sección 8.4.23).
 
 ## Archivos de este parche
-- `client/src/main.js` — espaciado fijo de estelas
-  (`ENGINE_TRAIL_SPACING_PX`/`_THICK_PX`), escala mayor de fondos,
-  `setDepth(-100)` en `spawnBackdropsUnsafe()`.
-- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.5.
+- `client/public/turrets/turrets.json` — sustituido.
+- `client/public/ships/turret-slots.json` — nuevo.
+- `client/src/main.js` — solo el número de versión (`GAME_VERSION`).
+- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.6.
 - `CHANGELOG.md` / `client/public/CHANGELOG.md` — historial técnico.
-- `diseno-mmo-espacial.md` — sección 8.4.22 añadida.
+- `diseno-mmo-espacial.md` — sección 8.4.23 añadida.

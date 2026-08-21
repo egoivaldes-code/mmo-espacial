@@ -1,5 +1,11 @@
 [
   {
+    "version": "v0.8.6",
+    "highlights": [
+      "Trabajo de preparación por dentro (catálogo de torretas y sus puntos de anclaje en cada nave) — todavía sin cambios visibles en el juego."
+    ]
+  },
+  {
     "version": "v0.8.5",
     "highlights": [
       "Las estelas del motor del crucero (y del resto de clases) ahora salen juntas, sin huecos entre los chorros.",

@@ -1,5 +1,11 @@
 [
   {
+    "version": "v0.8.6",
+    "highlights": [
+      "Behind-the-scenes prep work (turret catalog and their mount points on each ship) — no visible in-game changes yet."
+    ]
+  },
+  {
     "version": "v0.8.5",
     "highlights": [
       "The cruiser's (and other classes') engine trails now sit together, with no gaps between the jets.",

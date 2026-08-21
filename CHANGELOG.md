@@ -14,6 +14,25 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.8.6]
+
+### Añadido — catálogo de slots de torretas (datos, sin cambios de código)
+- `client/public/turrets/turrets.json`: mismas 32 torretas, 21 con el
+  pivote (centro de rotación) recalibrado desde la Naveteca.
+- `client/public/ships/turret-slots.json` (nuevo): slots de torreta para
+  35 de las 41 naves del catálogo (las 6 shuttles, sin combate, se
+  quedan fuera a propósito), con posición, grupo de simetría y
+  asignación de torreta por defecto. 194 slots en total.
+- Validado antes de aplicar: sin ids duplicados, pivotes dentro del
+  sprite, `spriteSize` declarado igual al PNG real en disco para las 35
+  naves, ningún `turretId` huérfano, ningún grupo de simetría con un
+  solo miembro.
+- **Sin cambios de código todavía**: ni `turrets.json` ni `turretId` ni
+  `pivot` se leen hoy en `main.js` ni en `ChunkRoom.js` — el combate
+  sigue siendo un arma fija sin torretas visibles. Esto es preparación
+  de datos para cuando se construya el sistema de fitting de verdad
+  (parche propio, más grande). Ver diseño 8.4.23.
+
 ## [v0.8.5]
 
 ### Añadido/Arreglado — estelas juntas + fondos cósmicos mucho más grandes

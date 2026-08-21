@@ -14,6 +14,29 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.8.5]
+
+### Añadido/Arreglado — estelas juntas + fondos cósmicos mucho más grandes
+- **Estelas de motor sin separación**: el espaciado lateral salía de una
+  fracción del ancho del casco, dejando hueco visible entre los 3
+  chorros del crucero. Ahora es un valor fijo calibrado al tamaño real
+  de la partícula — los chorros contiguos quedan pegados, formando una
+  sola llama ancha en vez de varias independientes, para cualquier clase
+  de nave (3 en crucero, 4 en battlecruiser, etc.).
+- **Fondos cósmicos mucho más grandes**: escala de las "hero" subida de
+  0.5-1.1x a 2.5-6x; de las "medium" de 0.35-0.9x a 1.1-3x. Son la capa
+  de ambientación de verdad, por debajo de todo lo demás.
+- **Bug de profundidad encontrado y arreglado de paso**: desde el fix de
+  carga diferida (v0.8.1), los fondos se crean después de que la propia
+  nave ya existe — por orden de inserción, se habrían pintado ENCIMA de
+  las naves. Ahora llevan profundidad negativa explícita, siempre detrás
+  de cualquier cosa (naves, estaciones, contenedores) sin depender de
+  cuándo se creó cada elemento.
+- Verificado con `node --check` + `eslint` (no-undef/block-scoped-var) +
+  `vite build` limpio — la disciplina de verificación añadida tras el
+  bug de v0.8.4.
+- Ver diseño 8.4.22 para el detalle completo.
+
 ## [v0.8.4]
 
 ### Arreglado — bug crítico real: pantalla negra confirmada (ReferenceError) + fondos que nunca aparecían

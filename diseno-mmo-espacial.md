@@ -2568,6 +2568,37 @@ más tiempo. Lo que de verdad hacía falta en los dos casos era la
 verificación estática (eslint) que los habría pillado ANTES de
 publicarse, no solo la decisión de crashear o no crashear en caliente.
 
+### 8.4.22 Estelas juntas + fondos mucho más grandes (v0.8.5)
+
+Dos ajustes pedidos directamente jugando:
+
+**Estelas de la batería, sin separación entre sí.** El espaciado lateral
+(8.4.14... corrección, el rediseño de estelas vive en 8.4.14 del HUD de
+combate, sección de estelas) salía de una fracción del ancho del casco
+(`sprite.displayWidth * 0.6`), lo que dejaba hueco visible entre los 3
+chorros del crucero — se leían como 3 llamas independientes, no como una
+sola ancha. Ahora el espaciado es un valor FIJO en píxeles
+(`ENGINE_TRAIL_SPACING_PX`/`_THICK_PX`, ~4px para chorros finos, ~11px
+para los gruesos de battleship/capital) calibrado al tamaño visual real
+de la partícula, así que los chorros contiguos quedan pegados sin
+importar la clase de nave — 3 en el crucero, 4 en el battlecruiser,
+todos igual de juntos entre sí.
+
+**Fondos cósmicos, mucho más grandes.** Escala de las "hero" subida de
+0.5-1.1x a 2.5-6x; de las "medium" de 0.35-0.9x a 1.1-3x. Son la capa de
+fondo de verdad ("ambientación", el artefacto visual que va por debajo
+de TODO — planeta, estación, naves, contenedores encima), no un detalle
+discreto de esquina.
+
+**Bug de profundidad encontrado de paso, y arreglado.** Desde el fix de
+carga diferida (8.4.17/v0.8.1), los fondos se crean DESPUÉS de que la
+propia nave (y la de cualquiera ya conectado) exista en `worldLayer` —
+por orden de inserción a secas, se habrían pintado ENCIMA de las naves,
+justo lo contrario de lo pedido. Ahora llevan `setDepth(-100)` explícito,
+así Phaser los ordena siempre detrás de cualquier cosa con profundidad 0
+(el valor por defecto de naves/estaciones/asteroides), sin depender de
+cuándo se creó cada cosa.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo

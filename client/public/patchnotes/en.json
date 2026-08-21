@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.5",
+    "highlights": [
+      "The cruiser's (and other classes') engine trails now sit together, with no gaps between the jets.",
+      "Background nebulae and galaxies are much bigger now — they actually feel like a backdrop for the universe."
+    ]
+  },
+  {
     "version": "v0.8.4",
     "highlights": [
       "Fixed the bug that left the game completely dead (no joystick, no sound, no movement) whenever enemy ships were nearby.",

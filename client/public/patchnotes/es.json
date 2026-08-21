@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.5",
+    "highlights": [
+      "Las estelas del motor del crucero (y del resto de clases) ahora salen juntas, sin huecos entre los chorros.",
+      "Las nebulosas y galaxias de fondo son mucho más grandes — ahora sí se sienten como telón de fondo del universo."
+    ]
+  },
+  {
     "version": "v0.8.4",
     "highlights": [
       "Arreglado el bug que dejaba el juego completamente muerto (sin joystick, sin sonido, sin movimiento) cuando había naves enemigas cerca.",

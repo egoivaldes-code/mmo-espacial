@@ -1,61 +1,44 @@
-# v0.8.4 — Bug crítico real encontrado y arreglado
+# v0.8.5 — Estelas juntas + fondos cósmicos mucho más grandes
 
-La instrumentación de v0.8.3 funcionó a la primera: llegó una captura
-con el error exacto. Aquí está la causa real, por fin confirmada.
+## Estelas de motor sin separación
+El espaciado lateral entre los chorros de la batería salía de una
+fracción del ancho del casco (`displayWidth * 0.6`), lo que dejaba hueco
+visible entre ellos — 3 llamas independientes en el crucero, no una sola
+ancha. Ahora el espaciado es un valor fijo en píxeles, calibrado al
+tamaño visual real de la partícula (no al tamaño de la nave), así que
+los chorros contiguos quedan pegados sin importar la clase: 3 en
+crucero, 4 en battlecruiser, 2 gruesas en battleship/capital — todos
+igual de juntos entre sí.
 
-## Bug 1: `ReferenceError: box is not defined` (el de la pantalla negra)
-En `updateOffscreenMarkers()` (el rediseño de marcadores de contacto,
-v0.7.0), dos variables (`box`, `dot`) se declaraban con `const` dentro
-de un bloque `if`, pero se usaban después, fuera de ese bloque, en la
-misma función. En JavaScript eso es un `ReferenceError` en tiempo de
-ejecución — sintaxis perfectamente válida, así que `node --check` nunca
-lo iba a detectar.
+## Fondos cósmicos, mucho más grandes
+Escala de las nebulosas/galaxias "hero" subida de 0.5-1.1x a 2.5-6x; de
+las "medium" de 0.35-0.9x a 1.1-3x. Son la capa de ambientación de
+verdad — el artefacto visual de fondo, por debajo de todo lo demás — no
+un detalle discreto de esquina.
 
-Como esa función corre en cada frame desde `update()`, el error cortaba
-en seco todo lo que viene después cada vez que había un NPC o jugador
-cerca necesitando un marcador — que es casi siempre. Joystick, sonido,
-movimiento: todo lo que vive después en el bucle, muerto. El HUD (HTML
-aparte, nada que ver con el bucle de Phaser) seguía funcionando con
-normalidad, incluido el botón de WARP — que fue justo el dato que
-apuntó en la dirección correcta cuando lo describiste.
+## Bug de profundidad encontrado y arreglado de paso
+Desde el fix de carga diferida (v0.8.1), los fondos se crean DESPUÉS de
+que la propia nave (y la de cualquiera ya conectado) exista en el mundo.
+Por orden de inserción a secas, eso los habría pintado ENCIMA de las
+naves — justo lo contrario de "los sprites de naves/estaciones/
+contenedores van encima". Ahora llevan profundidad negativa explícita
+(`setDepth(-100)`), así que Phaser los ordena siempre detrás de
+cualquier cosa con profundidad por defecto (0), sin depender de cuándo
+se creó cada elemento.
 
-**Bug real desde v0.7.0** (el rediseño de marcadores). Llevaba activo
-varias versiones.
-
-## Bug 2: los fondos cósmicos nunca aparecían
-Para buscar más bugs de la misma familia, pasé `eslint` (reglas
-`no-undef` y `block-scoped-var`) sobre todo el código — algo que no
-había hecho hasta ahora, solo verificaba sintaxis. Apareció un segundo
-caso real: en `spawnBackdropsUnsafe()`, la línea que inicializa el
-generador aleatorio determinista se perdió sin querer durante el
-refactor de carga diferida de v0.8.1 (una edición de texto sustituyó esa
-línea junto con la firma de la función).
-
-Con la variable sin definir, la función fallaba en su primer uso real —
-pero como está envuelta a propósito en un try/catch (para que un fallo
-de decoración pura no pueda tirar nada más), el error quedaba atrapado y
-solo visible en la consola. Resultado: **las 63 nebulosas/galaxias de
-fondo llevaban desde v0.8.1 sin aparecer nunca**, en ninguna sesión, sin
-generar ningún reporte porque el juego seguía "funcionando" — solo que
-sin esa parte.
-
-## Lección de proceso
-`node --check` valida sintaxis, no lógica de scope en tiempo de
-ejecución. A partir de ahora, antes de dar por bueno un parche que toque
-`client/src/main.js`, se pasa además:
-```
-eslint -c <config mínima con no-undef + block-scoped-var> main.js
-```
-Esto habría pillado los dos bugs de este parche ANTES de publicarse.
+## Verificación
+`node --check` + `eslint` (reglas `no-undef`/`block-scoped-var`) +
+`vite build` limpio — la disciplina añadida tras el bug real de v0.8.4.
 
 ---
 
 Detalle técnico completo en `CHANGELOG.md` y en `diseno-mmo-espacial.md`
-(secciones 8.4.20 y 8.4.21).
+(sección 8.4.22).
 
 ## Archivos de este parche
-- `client/src/main.js` — los dos fixes (`updateOffscreenMarkers`,
-  `spawnBackdropsUnsafe`).
-- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.4.
+- `client/src/main.js` — espaciado fijo de estelas
+  (`ENGINE_TRAIL_SPACING_PX`/`_THICK_PX`), escala mayor de fondos,
+  `setDepth(-100)` en `spawnBackdropsUnsafe()`.
+- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.5.
 - `CHANGELOG.md` / `client/public/CHANGELOG.md` — historial técnico.
-- `diseno-mmo-espacial.md` — secciones 8.4.20 y 8.4.21 añadidas.
+- `diseno-mmo-espacial.md` — sección 8.4.22 añadida.

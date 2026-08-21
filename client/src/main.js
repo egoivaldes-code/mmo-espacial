@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.8.4";
+const GAME_VERSION = "v0.8.5";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -243,7 +243,10 @@ const MARKER_COLOR_HOSTILE = 0xff5050;
 const MARKER_COLOR_NEUTRAL = 0xe8f0ff;
 
 // --- Estelas de motor: en batería paralela, según clase de nave --------
-// count = nº de estelas, en fila horizontal centrada en la popa.
+// count = nº de estelas, en fila horizontal centrada en la popa, JUNTAS
+// (sin separación entre ellas — ver ENGINE_TRAIL_SPACING_PX/_THICK_PX,
+// no una fracción del ancho del casco: eso las dejaba con hueco entre
+// sí, como chorros independientes en vez de una sola llama ancha).
 // thick = estelas más grandes/lentas para battleship/capital, en vez de
 // simplemente añadir más — a esa escala una fila de 5-6 puntitos finos se
 // pierde, dos chorros gruesos se leen mejor.
@@ -258,6 +261,12 @@ const ENGINE_TRAIL_LAYOUT = {
   dreadnought: { count: 2, thick: true },
 };
 const ENGINE_TRAIL_DEFAULT_LAYOUT = { count: 1, thick: false };
+// Separación centro a centro entre chorros contiguos — pensada para que
+// el borde de un chorro toque el del siguiente (diámetro visual de la
+// partícula: textura 8px * escala inicial 0.55 ≈ 4-5px; 16px*0.8≈13px
+// para las gruesas), no un hueco de verdad entre ellos.
+const ENGINE_TRAIL_SPACING_PX = 4;
+const ENGINE_TRAIL_SPACING_THICK_PX = 11;
 // Separación respecto al borde real del sprite (ya recortado de
 // transparencia por trimTransparentPadding) — un margen pequeño para que
 // la estela no nazca pegada al borde.
@@ -1423,10 +1432,25 @@ class ChunkScene extends Phaser.Scene {
       const y = (rand() * 2 - 1) * half;
       const img = this.add.image(x, y, key);
       img.setRotation(rand() * Math.PI * 2);
-      img.setScale((isHero ? 0.5 : 0.35) + rand() * (isHero ? 0.6 : 0.55));
+      // Grandes de verdad — son la capa de fondo ("ambientación", por
+      // debajo de planeta/estación/naves/contenedores en la conversación
+      // de capas), no un detalle discreto. 2.5-6x para las "hero",
+      // 1.1-3x para las medianas.
+      img.setScale((isHero ? 2.5 : 1.1) + rand() * (isHero ? 3.5 : 1.9));
       img.setAlpha((isHero ? 0.22 : 0.3) + rand() * 0.22);
       img.setScrollFactor(isHero ? 0.35 : 0.55);
       img.setBlendMode(Phaser.BlendModes.ADD);
+      // Profundidad NEGATIVA explícita, no orden de inserción: desde el
+      // fix de carga diferida (8.4.17/v0.8.1), los fondos se crean
+      // DESPUÉS de que la propia nave (y la de cualquiera que ya esté
+      // conectado) exista en worldLayer — por orden de inserción a
+      // secas, se habrían pintado ENCIMA de las naves, justo al revés de
+      // lo pedido ("es la capa del final, los sprites de naves,
+      // estaciones, contenedores etc van encima"). Con depth negativo,
+      // Phaser los ordena siempre detrás de cualquier cosa con depth 0
+      // (el valor por defecto de naves/asteroides/estaciones), sin
+      // importar cuándo se creó cada cosa.
+      img.setDepth(-100);
       this.worldLayer.add(img);
     };
 
@@ -2055,7 +2079,7 @@ class ChunkScene extends Phaser.Scene {
         emitting: false,
       });
       this.worldLayer.add(emitter);
-      trails.push({ emitter, lateralFrac });
+      trails.push({ emitter, lateralFrac, thick: layout.thick });
     }
     return trails;
   }
@@ -2083,13 +2107,17 @@ class ChunkScene extends Phaser.Scene {
     const lateral = back - Math.PI / 2;
 
     const backOffset = entry.sprite.displayHeight / 2 + ENGINE_TRAIL_EDGE_MARGIN_PX;
-    // Franja del 60% del ancho real del casco — deja las estelas dentro
-    // del cuerpo de la nave en vez de saliendo por las puntas de alas
-    // largas y finas (destroyers, battlecruisers).
-    const halfSpread = (entry.sprite.displayWidth * 0.6) / 2;
 
     const angleDeg = Phaser.Math.RadToDeg(back);
-    entry.engineTrails.forEach(({ emitter, lateralFrac }) => {
+    entry.engineTrails.forEach(({ emitter, lateralFrac, thick }) => {
+      // halfSpread = (count-1)/2 * separación-entre-vecinos, así que la
+      // distancia entre dos chorros CONTIGUOS siempre es exactamente
+      // ENGINE_TRAIL_SPACING_PX (o su versión gruesa) sin importar
+      // cuántos haya en la batería — 3 chorros de crucero o 4 de
+      // battlecruiser quedan igual de juntos entre sí.
+      const spacing = thick ? ENGINE_TRAIL_SPACING_THICK_PX : ENGINE_TRAIL_SPACING_PX;
+      const trailCount = entry.engineTrails.length;
+      const halfSpread = ((trailCount - 1) / 2) * spacing;
       const lateralOffset = lateralFrac * halfSpread;
       emitter.setPosition(
         entry.container.x + Math.cos(back) * backOffset + Math.cos(lateral) * lateralOffset,

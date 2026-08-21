@@ -14,6 +14,19 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.8.8]
+
+### Arreglado — torretas del tamaño de la nave entera (bug cómico, con captura)
+- Las torretas se veían tan grandes como la propia nave. Causa: se les
+  aplicaba la misma escala que al casco tanto para la posición del
+  montaje (correcto) como para el tamaño del propio dibujo (no —
+  `kinetic_autocanon_m` mide casi lo mismo en píxeles nativos que el
+  sprite de la nave, así que a igual escala salían del mismo tamaño).
+- Nueva constante `TURRET_RELATIVE_SCALE` (0.15) aplicada solo al
+  tamaño visual de la torreta, dejándola en ~15% de la altura del
+  casco — reconocible sin competir en tamaño con la nave.
+- Ver diseño 8.4.25.
+
 ## [v0.8.7]
 
 ### Añadido — torretas visibles en el casco (sistema, placeholder)

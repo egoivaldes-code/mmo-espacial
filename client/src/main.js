@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.8.7";
+const GAME_VERSION = "v0.8.8";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -118,6 +118,16 @@ const TURRET_DEPTH = 1;
 // radianes/ms más abajo. Instantáneo se veía como un salto, no como una
 // torreta girando de verdad.
 const TURRET_TURN_SPEED_RAD_PER_MS = ((140 * Math.PI) / 180) / 1000;
+// BUG REAL (captura de pantalla — torretas del tamaño de la nave
+// entera): kinetic_autocanon_m mide 110x176px nativos, prácticamente
+// IGUAL que el sprite de la propia nave (101x175px) — a la misma
+// escala que el casco (0.5), la torreta salía tan grande como la nave.
+// El arte de turrets.json está pensado a un tamaño "de icono/ficha de
+// fitting", no a la escala real relativa al casco donde se monta; hace
+// falta encogerla por su cuenta. 0.15 deja la torreta en ~15% de la
+// altura del casco — una protuberancia reconocible sobre el casco, no
+// una estructura que compite en tamaño con la nave.
+const TURRET_RELATIVE_SCALE = 0.15;
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -2252,7 +2262,11 @@ class ChunkScene extends Phaser.Scene {
       const rotatedX = turret.localX * cos - turret.localY * sin;
       const rotatedY = turret.localX * sin + turret.localY * cos;
       turret.sprite.setPosition(entry.container.x + rotatedX * scale, entry.container.y + rotatedY * scale);
-      turret.sprite.setScale(scale);
+      // La POSICIÓN del montaje escala con el casco (arriba, correcto:
+      // es dónde en la nave está el hueco); el TAMAÑO del propio dibujo
+      // de la torreta necesita además TURRET_RELATIVE_SCALE, o sale del
+      // tamaño de la nave entera (ver comentario de la constante).
+      turret.sprite.setScale(scale * TURRET_RELATIVE_SCALE);
 
       const diff = angleDiff(turret.sprite.rotation, desiredRotation);
       const step = Phaser.Math.Clamp(diff, -maxStep, maxStep);

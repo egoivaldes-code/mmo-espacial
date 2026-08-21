@@ -1,5 +1,11 @@
 [
   {
+    "version": "v0.8.8",
+    "highlights": [
+      "Fixed: turrets no longer render at the size of the entire ship — they're now properly proportioned."
+    ]
+  },
+  {
     "version": "v0.8.7",
     "highlights": [
       "Ships now show real turrets mounted on the hull! Still the same one in every slot for now (real fitting comes later), but they turn to track your target.",

@@ -1,5 +1,11 @@
 [
   {
+    "version": "v0.8.8",
+    "highlights": [
+      "Arreglado: las torretas ya no salen del tamaño de la nave entera — ahora se ven proporcionadas de verdad."
+    ]
+  },
+  {
     "version": "v0.8.7",
     "highlights": [
       "¡Las naves ya muestran torretas de verdad sobre el casco! Todavía la misma para todos los huecos (fitting real llegará después), pero ya giran para apuntar a tu objetivo.",

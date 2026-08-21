@@ -2725,6 +2725,32 @@ demo):
   sandbox de sesiones anteriores — el cálculo de offset de recorte y de
   rotación está razonado pero no visto en pantalla.
 
+### 8.4.25 Bug real (cómico): torretas del tamaño de la nave entera (v0.8.8)
+
+Reportado con captura y bastante humor: cada torreta salía prácticamente
+tan grande como la nave que la llevaba montada. Causa: `updateTurretSprites`
+aplicaba a la torreta la MISMA escala que al casco (`entry.sprite.scale`,
+0.5) — razonable para la POSICIÓN del montaje (el hueco en el casco sí
+tiene que escalar con la nave), pero no para el TAMAÑO del propio dibujo
+de la torreta. `kinetic_autocanon_m` mide 110×176px nativos, casi
+IDÉNTICO al sprite de la nave (101×175px) — a la misma escala, salían
+del mismo tamaño literal.
+
+El arte de `turrets.json` está pensado a un tamaño tipo "icono/ficha de
+fitting" (para verse bien en una futura UI de selección), no a la escala
+real relativa al casco donde se monta — hace falta encogerlo aparte.
+Nueva constante `TURRET_RELATIVE_SCALE = 0.15`, aplicada SOLO al tamaño
+del sprite de la torreta (`scale * TURRET_RELATIVE_SCALE`), dejando
+intacto el cálculo de posición (que sigue usando `scale` a secas, sin
+tocar). Deja la torreta en ~15% de la altura del casco — reconocible
+como protuberancia sobre la nave, no una estructura que compite en
+tamaño con ella.
+
+Valor de partida razonado, no medido en pantalla — sin Playwright, la
+proporción exacta puede necesitar un ajuste fino más una vez se vea de
+verdad; el número está aislado en una única constante para poder tocarlo
+sin rebuscar en la lógica.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo

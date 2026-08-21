@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.4",
+    "highlights": [
+      "Arreglado el bug que dejaba el juego completamente muerto (sin joystick, sin sonido, sin movimiento) cuando había naves enemigas cerca.",
+      "Arreglado: las nebulosas y galaxias de fondo llevaban varias versiones sin aparecer nunca — ya se ven."
+    ]
+  },
+  {
     "version": "v0.8.3",
     "highlights": [
       "Si el juego falla al arrancar, ahora se ve el motivo en pantalla en vez de quedarse todo negro sin explicación.",

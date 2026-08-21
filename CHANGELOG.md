@@ -14,6 +14,29 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.8.4]
+
+### Arreglado — bug crítico real: pantalla negra confirmada (ReferenceError) + fondos que nunca aparecían
+- La instrumentación de v0.8.3 funcionó a la primera: el reporte llegó
+  con el error exacto, `ReferenceError: box is not defined`, en
+  `updateOffscreenMarkers()`. Causa: dos variables declaradas con
+  `const` dentro de un bloque `if` pero usadas fuera de él, en la misma
+  función — sintaxis 100% válida, error solo en tiempo de ejecución, por
+  eso `node --check` nunca lo detectó. Como esa función corre en cada
+  frame desde `update()`, el error cortaba TODO lo que viene después
+  cada vez — joystick, sonido, movimiento — mientras el HUD (HTML aparte)
+  seguía funcionando con normalidad. Bug real desde v0.7.0.
+- Al pasar `eslint` (reglas `no-undef`/`block-scoped-var`) sobre todo el
+  código para buscar más casos iguales, apareció un SEGUNDO bug real de
+  la misma familia: en `spawnBackdropsUnsafe()`, la línea que inicializa
+  el generador aleatorio se perdió sin querer durante el refactor de
+  v0.8.1 — las 63 nebulosas/galaxias de fondo llevaban desde entonces
+  sin aparecer NUNCA, en ninguna sesión, fallando en silencio (atrapado
+  por un try/catch a propósito) sin que nadie lo notara.
+- Ver diseño 8.4.20 y 8.4.21 para el detalle completo, incluida la
+  lección de proceso: a partir de ahora se pasa eslint (no solo
+  `node --check`) antes de dar por bueno un parche que toque `main.js`.
+
 ## [v0.8.3]
 
 ### Añadido — errores visibles en pantalla + fallback de renderer

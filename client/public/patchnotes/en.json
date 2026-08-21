@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.4",
+    "highlights": [
+      "Fixed the bug that left the game completely dead (no joystick, no sound, no movement) whenever enemy ships were nearby.",
+      "Fixed: background nebulae and galaxies had been silently failing to appear for several versions — they now show up."
+    ]
+  },
+  {
     "version": "v0.8.3",
     "highlights": [
       "If the game fails to start, you'll now see the actual reason on screen instead of a black screen with no explanation.",

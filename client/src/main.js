@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.8.3";
+const GAME_VERSION = "v0.8.4";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -1406,6 +1406,13 @@ class ChunkScene extends Phaser.Scene {
   // estrellas-punto): son manchas de área real, tiene que dar la sensación
   // de que están ahí fuera en el mundo, no pegadas a la pantalla.
   spawnBackdropsUnsafe() {
+    // BUG REAL (encontrado por eslint tras el susto de "box is not
+    // defined"): esta línea se perdió sin querer al renombrar la función
+    // en el fix de carga diferida (v0.8.1) — "rand" quedaba sin definir
+    // en toda la función. No crasheaba nada (spawnBackdrops() ya la
+    // envuelve en try/catch, ver más abajo) pero significaba que las
+    // nebulosas de fondo NUNCA llegaban a aparecer, en silencio.
+    const rand = mulberry32(BACKDROP_SEED);
     const half = WORLD_SIZE * 0.9; // un poco más allá del borde jugable, como el starfield
     const HERO_COUNT = 22; // dispersión rala de las grandes
     const MEDIUM_COUNT = 130; // más densas, reutilizando las 56 texturas medianas
@@ -2416,14 +2423,32 @@ class ChunkScene extends Phaser.Scene {
 
       activeKeys.add(key);
       let marker = this.offscreenMarkers.get(key);
+      // BUG REAL (v0.7.0 → v0.8.3, encontrado por el error visible en
+      // pantalla de 8.4.19): "box" y "dot" se declaraban con const DENTRO
+      // del bloque `if (!marker)`, con alcance solo ahí — pero se usaban
+      // más abajo, fuera de ese bloque, en la misma función. En JS eso no
+      // es "solo la primera vez"; ES SIEMPRE un ReferenceError, la
+      // primerísima vez que se llama a consider() con cualquier marcador
+      // (nuevo o no). Como esto vive en updateOffscreenMarkers(), llamado
+      // desde update() en cada frame, el error cortaba TODO lo que
+      // update() hace después de este punto para ese frame — de ahí que
+      // el joystick, el sonido y el movimiento parecieran completamente
+      // muertos (viven después en el update) mientras el HUD (HTML aparte,
+      // nada que ver con el bucle de Phaser) seguía funcionando bien.
+      // Arreglo: declarar box/dot en el ámbito de toda la función,
+      // rellenándolos desde el marcador ya existente cuando lo hay.
+      let box, dot;
       if (!marker) {
-        const dot = this.add.circle(0, 0, 1, 0xffffff, 0.95);
-        const box = this.add.graphics();
+        dot = this.add.circle(0, 0, 1, 0xffffff, 0.95);
+        box = this.add.graphics();
         marker = this.add.container(0, 0, [box, dot]).setDepth(80);
         marker.box = box;
         marker.dot = dot;
         this.worldLayer?.add(marker);
         this.offscreenMarkers.set(key, marker);
+      } else {
+        box = marker.box;
+        dot = marker.dot;
       }
       const clampedX = Phaser.Math.Clamp(worldX, minX, maxX);
       const clampedY = Phaser.Math.Clamp(worldY, minY, maxY);

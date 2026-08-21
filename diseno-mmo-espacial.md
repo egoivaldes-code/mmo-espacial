@@ -2495,6 +2495,79 @@ en vez de una descripción del síntoma.
 - No se validó con Playwright, misma limitación de red del sandbox de
   las últimas sesiones.
 
+### 8.4.20 Bug real encontrado y arreglado: "box is not defined" (v0.8.4)
+
+La instrumentación de 8.4.19 funcionó a la primera: el reporte de
+pantalla negra vino con el error exacto —
+`ReferenceError: box is not defined`. Causa: en `updateOffscreenMarkers()`
+(8.4.14, rediseño de marcadores), `box` y `dot` se declaraban con `const`
+**dentro** del bloque `if (!marker) {...}` (solo para el caso de crear un
+marcador nuevo), pero se usaban más abajo, **fuera** de ese bloque, en la
+misma función — `box.clear()`, `dot.setRadius(...)`. En JavaScript el
+scope de un `const`/`let` es el bloque `{}` donde se declara, así que
+eso no era "falla la segunda vez que se actualiza un marcador ya
+existente": era un `ReferenceError` **la primera vez que se llamaba a
+`consider()` con cualquier marcador**, nuevo o no.
+
+Como esta función vive en `updateOffscreenMarkers()`, llamada desde
+`update()` en cada frame, el error cortaba en seco todo lo que `update()`
+hace DESPUÉS de ese punto para ese frame — y como vuelve a lanzar en el
+frame siguiente (mismo bug, mismo NPC), nunca llegaba a ejecutarse nada
+posterior: predicción de movimiento, sonido del motor, lo que sea que
+esté después en el método. De ahí el síntoma exacto reportado: joystick
+muerto, sin sonido, nave sin moverse — mientras el HUD (HTML aparte,
+nada que ver con el bucle de Phaser) seguía funcionando con normalidad,
+incluido el botón de WARP.
+
+**Arreglo**: `box`/`dot` se declaran con `let` al nivel de toda la
+función, rellenándose desde `marker.box`/`marker.dot` cuando el marcador
+ya existía en vez de crearse de nuevo.
+
+**Lección de proceso — `node --check` no basta.** Este bug es sintaxis
+100% válida (un `const` fuera de su bloque de declaración no es un error
+de sintaxis, es un error de EJECUCIÓN) — por eso pasó desapercibido pese
+a verificar sintaxis tras cada cambio en 8.4.14. Se instaló `eslint` con
+las reglas `no-undef` y `block-scoped-var` (config mínima con los
+globals del navegador, sin depender de una config de proyecto) y se pasó
+sobre `main.js`/`effects.js`/`cuenta.js` — encontró un SEGUNDO bug real
+de la misma familia (ver 8.4.21) que llevaba desde v0.8.1 sin que nadie
+lo notara porque no crasheaba nada, solo fallaba en silencio. A partir
+de ahora, `eslint -c <config mínima> --rule no-undef,block-scoped-var`
+debería correr antes de dar por bueno cualquier parche que toque
+`main.js`, no solo `node --check`.
+
+### 8.4.21 Bug real encontrado por eslint: fondos cósmicos nunca aparecían (v0.8.4)
+
+Mismo barrido de eslint de 8.4.20, en `spawnBackdropsUnsafe()` (8.4.16):
+la línea `const rand = mulberry32(BACKDROP_SEED);` se perdió sin querer
+durante el refactor de carga diferida (8.4.17, v0.8.1) — al renombrar la
+función de `spawnBackdrops()` a `spawnBackdropsUnsafe()` con una edición
+de texto, se sustituyó la línea de la firma Y la de `const rand = ...`
+por solo la nueva firma, borrando esta última por accidente.
+
+Con `rand` sin definir en toda la función, `spawnBackdropsUnsafe()`
+lanzaba en su primera línea de uso real — pero como `spawnBackdrops()`
+ya la envuelve en try/catch a propósito (decoración pura, no debe poder
+tirar nada más, ver 8.4.17), el fallo quedaba atrapado y solo
+registrado por `console.error`, invisible del todo para cualquiera sin
+la consola abierta. Resultado: **las 63 nebulosas/galaxias de fondo
+llevaban desde v0.8.1 sin aparecer nunca**, en ninguna sesión, sin que
+lo notara nadie — un fallo silencioso de verdad, el peor tipo, porque ni
+siquiera generaba un reporte de bug (el juego "funcionaba", solo que sin
+una parte entera de lo que debía hacer).
+
+**Arreglo**: se restaura la línea `const rand = mulberry32(BACKDROP_SEED);`
+al principio de `spawnBackdropsUnsafe()`.
+
+**Reflejo de por qué importa el try/catch de 8.4.17 aquí también**: sin
+él, este bug habría sido tan visible como el de 8.4.20 (crash total) —
+con él, quedó invisible durante 3 versiones. Ninguna de las dos cosas es
+"mejor" en abstracto: un crash total se nota y se reporta rápido; un
+fallo silencioso no rompe nada más pero puede pasar desapercibido mucho
+más tiempo. Lo que de verdad hacía falta en los dos casos era la
+verificación estática (eslint) que los habría pillado ANTES de
+publicarse, no solo la decisión de crashear o no crashear en caliente.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo

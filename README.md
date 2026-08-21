@@ -1,47 +1,61 @@
-# v0.8.3 — Errores visibles en pantalla + fallback de renderer
+# v0.8.4 — Bug crítico real encontrado y arreglado
 
-**Honestidad ante todo**: no pude confirmar la causa exacta del reporte
-"todo negro, joystick no responde, sin sonido, pero WARP sí funciona".
-En vez de seguir adivinando a ciegas (van tres rondas seguidas de
-"pantalla negra"), este parche convierte fallos silenciosos en mensajes
-visibles, para que el próximo reporte venga con el error real.
+La instrumentación de v0.8.3 funcionó a la primera: llegó una captura
+con el error exacto. Aquí está la causa real, por fin confirmada.
 
-## El dato clave del reporte
-El botón de WARP y las barras de HP/escudo/energía son HTML normal,
-completamente aparte del canvas de Phaser. Que WARP funcionara (se puso
-en enfriamiento) mientras TODO lo que vive dentro del canvas (nave,
-estrellas, joystick, sonido) estaba muerto apunta a que **el canvas de
-Phaser nunca llegó a arrancar de verdad** — no a un problema de cámara
-ni de conexión al servidor.
+## Bug 1: `ReferenceError: box is not defined` (el de la pantalla negra)
+En `updateOffscreenMarkers()` (el rediseño de marcadores de contacto,
+v0.7.0), dos variables (`box`, `dot`) se declaraban con `const` dentro
+de un bloque `if`, pero se usaban después, fuera de ese bloque, en la
+misma función. En JavaScript eso es un `ReferenceError` en tiempo de
+ejecución — sintaxis perfectamente válida, así que `node --check` nunca
+lo iba a detectar.
 
-## Qué se añade
-1. **Cualquier error de JS se ve en pantalla.** `window.onerror` y
-   `unhandledrejection` fuerzan la pantalla de carga a un estado de
-   error visible con el mensaje real (archivo:línea si lo hay) — antes
-   un fallo así solo dejaba rastro en la consola del navegador,
-   invisible en un móvil normal.
-2. **Fallback a Canvas2D si WebGL falla.** El juego fuerza `Phaser.WEBGL`
-   desde hace versiones (evita un bug de nitidez de Canvas2D en
-   pantallas de alta densidad) — pero si el dispositivo no soporta WebGL
-   de verdad, forzarlo sin más deja el juego completamente roto: pantalla
-   negra, sin input, sin sonido. Exactamente el síntoma reportado.
-   `launchGame()` ahora reintenta con Canvas2D si WebGL falla al crear
-   el contexto — peor nitidez, pero un juego que funciona.
+Como esa función corre en cada frame desde `update()`, el error cortaba
+en seco todo lo que viene después cada vez que había un NPC o jugador
+cerca necesitando un marcador — que es casi siempre. Joystick, sonido,
+movimiento: todo lo que vive después en el bucle, muerto. El HUD (HTML
+aparte, nada que ver con el bucle de Phaser) seguía funcionando con
+normalidad, incluido el botón de WARP — que fue justo el dato que
+apuntó en la dirección correcta cuando lo describiste.
 
-## Si vuelve a pasar
-Con este parche, la pantalla debería decir por qué en vez de quedarse
-negra sin más. Si ves el mensaje de error, mándame una captura — con eso
-sí puedo arreglar la causa real en vez de teorizar.
+**Bug real desde v0.7.0** (el rediseño de marcadores). Llevaba activo
+varias versiones.
+
+## Bug 2: los fondos cósmicos nunca aparecían
+Para buscar más bugs de la misma familia, pasé `eslint` (reglas
+`no-undef` y `block-scoped-var`) sobre todo el código — algo que no
+había hecho hasta ahora, solo verificaba sintaxis. Apareció un segundo
+caso real: en `spawnBackdropsUnsafe()`, la línea que inicializa el
+generador aleatorio determinista se perdió sin querer durante el
+refactor de carga diferida de v0.8.1 (una edición de texto sustituyó esa
+línea junto con la firma de la función).
+
+Con la variable sin definir, la función fallaba en su primer uso real —
+pero como está envuelta a propósito en un try/catch (para que un fallo
+de decoración pura no pueda tirar nada más), el error quedaba atrapado y
+solo visible en la consola. Resultado: **las 63 nebulosas/galaxias de
+fondo llevaban desde v0.8.1 sin aparecer nunca**, en ninguna sesión, sin
+generar ningún reporte porque el juego seguía "funcionando" — solo que
+sin esa parte.
+
+## Lección de proceso
+`node --check` valida sintaxis, no lógica de scope en tiempo de
+ejecución. A partir de ahora, antes de dar por bueno un parche que toque
+`client/src/main.js`, se pasa además:
+```
+eslint -c <config mínima con no-undef + block-scoped-var> main.js
+```
+Esto habría pillado los dos bugs de este parche ANTES de publicarse.
 
 ---
 
 Detalle técnico completo en `CHANGELOG.md` y en `diseno-mmo-espacial.md`
-(sección 8.4.19).
+(secciones 8.4.20 y 8.4.21).
 
 ## Archivos de este parche
-- `client/index.html` — CSS del estado de error (texto largo/monoespaciado).
-- `client/src/main.js` — `showFatalError()`, manejadores globales de
-  error, `buildGameConfig()` + fallback WebGL→Canvas2D en `launchGame()`.
-- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.3.
+- `client/src/main.js` — los dos fixes (`updateOffscreenMarkers`,
+  `spawnBackdropsUnsafe`).
+- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.4.
 - `CHANGELOG.md` / `client/public/CHANGELOG.md` — historial técnico.
-- `diseno-mmo-espacial.md` — sección 8.4.19 añadida.
+- `diseno-mmo-espacial.md` — secciones 8.4.20 y 8.4.21 añadidas.

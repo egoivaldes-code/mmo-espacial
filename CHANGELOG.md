@@ -14,6 +14,24 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.8.3]
+
+### Añadido — errores visibles en pantalla + fallback de renderer
+- Tras el reporte de "todo negro, joystick no responde, sin sonido,
+  pero WARP sí funciona" (v0.8.2): ese último dato apunta a que el
+  canvas de Phaser nunca arrancó de verdad (WARP y las barras de HUD
+  son HTML aparte). No se pudo confirmar la causa exacta sin acceso a
+  la consola real del dispositivo — este parche instrumenta el juego
+  para que la PRÓXIMA vez que pase algo así, se vea el error real en
+  pantalla en vez de solo el síntoma.
+- Cualquier error de JS (`error`, `unhandledrejection`) ahora fuerza la
+  pantalla de carga a un estado de error visible con el mensaje real.
+- Sospecha concreta abordada: el juego fuerza WebGL desde hace
+  versiones (por nitidez) — si el dispositivo no lo soporta de verdad,
+  eso deja el juego completamente roto sin ningún aviso. Ahora se
+  reintenta con Canvas2D si WebGL falla al crear el contexto.
+- Ver diseño 8.4.19 para el detalle completo.
+
 ## [v0.8.2]
 
 ### Añadido — pantalla de carga con progreso real

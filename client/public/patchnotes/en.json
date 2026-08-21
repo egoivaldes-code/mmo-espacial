@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.3",
+    "highlights": [
+      "If the game fails to start, you'll now see the actual reason on screen instead of a black screen with no explanation.",
+      "Defensive fix in case the device doesn't properly support the game's 3D graphics."
+    ]
+  },
+  {
     "version": "v0.8.2",
     "highlights": [
       "New loading screen with real progress — no more staring at a black screen with no feedback while the game boots up or connects.",

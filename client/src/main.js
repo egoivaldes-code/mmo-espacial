@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.8.2";
+const GAME_VERSION = "v0.8.3";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -701,6 +701,30 @@ function setLoadingError(text) {
 function hideLoadingOverlay() {
   loadingOverlay.style.display = "none";
 }
+
+// Cualquier error de JS a partir de aquí se ve en pantalla, no solo en la
+// consola del navegador (invisible en un móvil normal). Motivo: varias
+// rondas seguidas de "se queda todo negro y no pasa nada" sin poder ver la
+// consola real del dispositivo — a partir de ahora, si algo revienta, se
+// lee el error de verdad en pantalla en vez de tener que adivinar a
+// ciegas qué fue. Fuerza la pantalla de carga a un estado de error
+// aunque ya estuviera oculta — un fallo silencioso a medio jugar es
+// exactamente el mismo síntoma ("todo negro, no responde") que un fallo
+// al arrancar, así que se trata igual: visible, con el texto real.
+function showFatalError(message) {
+  loadingOverlay.classList.add("error");
+  loadingOverlay.style.display = "flex";
+  loadingStatusEl.textContent = message;
+}
+window.addEventListener("error", (e) => {
+  showFatalError(`Error: ${e.message}\n(${e.filename?.split("/").pop()}:${e.lineno})`);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const reason = e.reason;
+  const msg = reason?.stack || reason?.message || String(reason);
+  showFatalError(`Error no controlado: ${msg}`);
+});
+
 const autotargetBackCheck = document.getElementById("autotarget-back-check");
 const cruiseIndicatorEl = document.getElementById("cruise-indicator");
 const cruiseIndicatorLabel = document.getElementById("cruise-indicator-label");
@@ -2743,17 +2767,9 @@ class ChunkScene extends Phaser.Scene {
 
 let gameInstance = null;
 
-function launchGame() {
-  if (gameInstance) return;
-  showLoadingOverlay(t("loading.assets"));
-  gameInstance = new Phaser.Game({
-    // Forzado a WebGL en vez de Phaser.AUTO — con AUTO, algunos
-    // navegadores/dispositivos caen en el renderer de Canvas2D, que tiene
-    // un historial largo de bugs justo con esto (resolution/nitidez en
-    // pantallas de alta densidad). WebGL lo soporta de forma fiable desde
-    // Phaser 3.60 en adelante. Prácticamente todo móvil/portátil moderno
-    // soporta WebGL, así que no se pierde compatibilidad real.
-    type: Phaser.WEBGL,
+function buildGameConfig(rendererType) {
+  return {
+    type: rendererType,
     parent: document.body,
     width: window.innerWidth,
     height: window.innerHeight,
@@ -2778,5 +2794,32 @@ function launchGame() {
     // margen: de sobra para GitHub Pages en cualquier red normal, pero ya
     // no cuelga el juego entero por un archivo que nunca contesta.
     loader: { timeout: 15000 },
-  });
+  };
+}
+
+function launchGame() {
+  if (gameInstance) return;
+  showLoadingOverlay(t("loading.assets"));
+  try {
+    // Forzado a WebGL en vez de Phaser.AUTO — con AUTO, algunos
+    // navegadores/dispositivos caen en el renderer de Canvas2D, que tiene
+    // un historial largo de bugs justo con esto (resolution/nitidez en
+    // pantallas de alta densidad). Pero si el dispositivo NO soporta
+    // WebGL de verdad, forzarlo sin más deja el juego completamente roto
+    // — pantalla negra, sin input, sin sonido, indistinguible de
+    // cualquier otro cuelgue (sospecha concreta tras varios reportes
+    // seguidos de "todo negro y no responde nada" sin poder confirmar la
+    // causa exacta). Con try/catch: si WebGL falla al crear el contexto,
+    // se reintenta con Canvas2D — peor nitidez en pantallas de alta
+    // densidad, pero un juego que al menos funciona es mejor que uno
+    // nítido y completamente muerto.
+    gameInstance = new Phaser.Game(buildGameConfig(Phaser.WEBGL));
+  } catch (err) {
+    console.error("WebGL falló al crear el juego, reintentando con Canvas2D:", err);
+    try {
+      gameInstance = new Phaser.Game(buildGameConfig(Phaser.CANVAS));
+    } catch (err2) {
+      showFatalError(`No se pudo iniciar el motor gráfico:\n${err2.message}`);
+    }
+  }
 }

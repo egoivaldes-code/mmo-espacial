@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.3",
+    "highlights": [
+      "Si el juego falla al arrancar, ahora se ve el motivo en pantalla en vez de quedarse todo negro sin explicación.",
+      "Arreglo defensivo por si el dispositivo no soporta bien los gráficos 3D del juego."
+    ]
+  },
+  {
     "version": "v0.8.2",
     "highlights": [
       "Nueva pantalla de carga con barra de progreso real — ya no se queda todo en negro sin avisar mientras el juego arranca o conecta.",

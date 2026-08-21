@@ -496,7 +496,17 @@
       animation: loading-spin 0.9s linear infinite;
     }
     @keyframes loading-spin { to { transform: rotate(360deg); } }
-    #loading-status { font-size: clamp(13px, 3.2vw, 16px); min-height: 1.4em; }
+    #loading-status {
+      font-size: clamp(13px, 3.2vw, 16px); min-height: 1.4em;
+      max-height: 50vh; overflow-y: auto; white-space: pre-wrap;
+      max-width: min(500px, 85vw);
+    }
+    /* Mensajes de error/stack trace: monoespaciado y más pequeño, para que
+       quepa algo útil en pantalla en vez de 3 palabras enormes. */
+    #game-loading-overlay.error #loading-status {
+      font-family: monospace; font-size: clamp(10px, 2.6vw, 12px);
+      text-align: left; color: #ffb0b0;
+    }
     #loading-bar-track {
       width: min(240px, 70vw); height: 5px; border-radius: 3px;
       background: rgba(255,255,255,0.12); overflow: hidden;

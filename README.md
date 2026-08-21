@@ -1,42 +1,47 @@
-# v0.8.2 — Pantalla de carga con progreso real
+# v0.8.3 — Errores visibles en pantalla + fallback de renderer
 
-Motivado directamente por la confusión del bug de v0.8.0/v0.8.1: hasta
-ahora, entre elegir personaje y ver la propia nave, la pantalla se
-quedaba negra sin ningún aviso. Un preload lento y un juego realmente
-colgado se veían exactamente igual.
+**Honestidad ante todo**: no pude confirmar la causa exacta del reporte
+"todo negro, joystick no responde, sin sonido, pero WARP sí funciona".
+En vez de seguir adivinando a ciegas (van tres rondas seguidas de
+"pantalla negra"), este parche convierte fallos silenciosos en mensajes
+visibles, para que el próximo reporte venga con el error real.
 
-## Qué cambia
-- **Pantalla de carga** (`#game-loading-overlay`) con tres fases:
-  1. **Cargando recursos** — barra de progreso enganchada al evento
-     `progress` real del loader de Phaser (no una animación decorativa).
-  2. **Conectando con el servidor** — la barra se oculta (ya no hay un %
-     real que enseñar) y el texto lo deja claro.
-  3. **Error** — si falla la unión a la sala, mensaje real + botón de
-     reintentar, bien visible. Antes ese error solo se veía en una línea
-     pequeña arriba a la izquierda, fácil de no ver.
-- Se oculta en el momento correcto: cuando la propia nave ya tiene
-  posición real confirmada (`this.localEntry` asignado dentro del
-  `player.onAdd`), no justo tras el `await connectToServer()` (menos
-  fiable — el primer parche de estado podría llegar un instante
-  después).
+## El dato clave del reporte
+El botón de WARP y las barras de HP/escudo/energía son HTML normal,
+completamente aparte del canvas de Phaser. Que WARP funcionara (se puso
+en enfriamiento) mientras TODO lo que vive dentro del canvas (nave,
+estrellas, joystick, sonido) estaba muerto apunta a que **el canvas de
+Phaser nunca llegó a arrancar de verdad** — no a un problema de cámara
+ni de conexión al servidor.
 
-## Nota sobre versiones
-Al empezar esta sesión, v0.8.1 (el fix del bug de pantalla negra)
-todavía no estaba subido — se subió a mitad de la sesión. Esta build
-parte ya de v0.8.1 real, así que **no es acumulativa** de nada que no
-esté ya aplicado; solo añade la pantalla de carga.
+## Qué se añade
+1. **Cualquier error de JS se ve en pantalla.** `window.onerror` y
+   `unhandledrejection` fuerzan la pantalla de carga a un estado de
+   error visible con el mensaje real (archivo:línea si lo hay) — antes
+   un fallo así solo dejaba rastro en la consola del navegador,
+   invisible en un móvil normal.
+2. **Fallback a Canvas2D si WebGL falla.** El juego fuerza `Phaser.WEBGL`
+   desde hace versiones (evita un bug de nitidez de Canvas2D en
+   pantallas de alta densidad) — pero si el dispositivo no soporta WebGL
+   de verdad, forzarlo sin más deja el juego completamente roto: pantalla
+   negra, sin input, sin sonido. Exactamente el síntoma reportado.
+   `launchGame()` ahora reintenta con Canvas2D si WebGL falla al crear
+   el contexto — peor nitidez, pero un juego que funciona.
+
+## Si vuelve a pasar
+Con este parche, la pantalla debería decir por qué en vez de quedarse
+negra sin más. Si ves el mensaje de error, mándame una captura — con eso
+sí puedo arreglar la causa real en vez de teorizar.
 
 ---
 
 Detalle técnico completo en `CHANGELOG.md` y en `diseno-mmo-espacial.md`
-(sección 8.4.18).
+(sección 8.4.19).
 
 ## Archivos de este parche
-- `client/index.html` — CSS/HTML del overlay de carga.
-- `client/src/main.js` — lógica del overlay (mostrar/progreso/conectando/
-  error/ocultar), enganchada a `preload()`, `connectToServer()` y la
-  confirmación de la nave propia.
-- `client/public/i18n/es.json` / `en.json` — claves nuevas bajo `loading`.
-- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.2.
+- `client/index.html` — CSS del estado de error (texto largo/monoespaciado).
+- `client/src/main.js` — `showFatalError()`, manejadores globales de
+  error, `buildGameConfig()` + fallback WebGL→Canvas2D en `launchGame()`.
+- `client/public/patchnotes/es.json` / `en.json` — historial hasta v0.8.3.
 - `CHANGELOG.md` / `client/public/CHANGELOG.md` — historial técnico.
-- `diseno-mmo-espacial.md` — sección 8.4.18 añadida.
+- `diseno-mmo-espacial.md` — sección 8.4.19 añadida.

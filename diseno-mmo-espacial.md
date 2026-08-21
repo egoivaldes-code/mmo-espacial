@@ -2453,6 +2453,48 @@ algún día se quita el overlay y no se quiere perder ese aviso).
 - No se validó con Playwright, misma limitación de red del sandbox de
   las últimas sesiones.
 
+### 8.4.19 Errores visibles en pantalla + fallback de renderer (v0.8.3)
+
+Tras v0.8.2, reporte de "el juego carga, pantalla de carga desaparece,
+pero se ve todo negro, el joystick no responde, no hay sonido, el botón
+de WARP sí funciona (se pone en enfriamiento)". Ese último dato es la
+pista clave: el botón de WARP y las barras de HP/escudo/energía son HTML
+normal, completamente aparte del canvas de Phaser — que funcionen
+mientras TODO lo que vive dentro del canvas (nave, estrellas, joystick,
+sonido) esté muerto apunta a que el canvas de Phaser nunca llegó a
+arrancar de verdad, no a un problema de posición de cámara ni de
+conexión.
+
+**No se pudo confirmar la causa exacta** (sin acceso a la consola real
+del dispositivo, tercera vez seguida con síntoma "pantalla negra" sin
+poder reproducirlo) — así que en vez de seguir adivinando a ciegas, este
+parche es sobre todo instrumentación: convertir fallos silenciosos en
+mensajes visibles, para que el próximo reporte venga con el error real
+en vez de una descripción del síntoma.
+
+1. **Cualquier error de JS se ve en pantalla.** `window.addEventListener
+   ("error", ...)` y `("unhandledrejection", ...)` fuerzan la pantalla de
+   carga a estado de error con el mensaje real (y archivo:línea si lo
+   hay), en vez de morir en silencio con solo un rastro en la consola del
+   navegador — invisible en un móvil normal. `showFatalError()` puede
+   saltar en cualquier momento, no solo durante la carga inicial.
+2. **Fallback de Canvas2D si WebGL falla.** El juego fuerza
+   `Phaser.WEBGL` desde v0.5.x (evita un bug de nitidez conocido de
+   Canvas2D en pantallas de alta densidad) — pero si el dispositivo NO
+   soporta WebGL de verdad, forzarlo sin más deja el juego
+   COMPLETAMENTE roto: pantalla negra, sin input, sin sonido, exactamente
+   el síntoma reportado. `launchGame()` ahora intenta WebGL primero y,
+   si `new Phaser.Game(...)` falla, reintenta con `Phaser.CANVAS` —
+   peor nitidez en pantallas de alta densidad, pero un juego que
+   funciona es mejor que uno nítido y completamente muerto. Si también
+   falla eso, se ve el error real en pantalla en vez de nada.
+
+**Pendiente:**
+- Sigue sin confirmarse si esta fue la causa real del reporte concreto —
+  la próxima vez que pase, la pantalla debería decir por qué.
+- No se validó con Playwright, misma limitación de red del sandbox de
+  las últimas sesiones.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo

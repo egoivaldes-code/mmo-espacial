@@ -14,6 +14,34 @@ documento de diseño completo y el roadmap.
 - (Más adelante, cuando el juego tenga forma jugable completa según el
   documento de diseño, se planteará qué significa `v1.0`.)
 
+## [v0.8.7]
+
+### Añadido — torretas visibles en el casco (sistema, placeholder)
+- Primera entrega del sistema de torretas de verdad: cada nave (propia,
+  jugadores remotos, NPCs) muestra ahora un sprite de torreta en cada
+  slot calibrado en la Naveteca (8.4.23), con la torreta placeholder
+  `kinetic_autocanon_m` en todos los slots — sin distinguir tamaño ni
+  clase todavía, tal como se pidió.
+- Cada torreta gira hacia el objetivo con velocidad de giro limitada
+  (140°/s, no un salto instantáneo). La nave propia apunta a su objetivo
+  activo bloqueado (el mismo del HUD de combate); el resto de naves, sin
+  esa información retransmitida por el servidor todavía, se quedan
+  alineadas con el casco.
+- **Bug real encontrado y corregido de paso**: el recorte de
+  transparencia que se aplica al sprite de la nave propia al cargarla
+  desplaza su centro visual respecto a la imagen original que usó la
+  Naveteca para calibrar los slots — sin corregirlo, las torretas
+  habrían aparecido descuadradas sobre el casco. `trimTransparentPadding()`
+  ahora devuelve el rectángulo real recortado en vez de descartarlo.
+- **Puramente visual, cero cambio de combate**: el daño sigue
+  decidiéndose con el arma fija de siempre (`ARMA_MEDIUM_CORTA`) en el
+  servidor, sin mirar hacia dónde apunta el dibujo de la torreta.
+- Verificado con `node --check` + `eslint` (no-undef/block-scoped-var,
+  la disciplina añadida tras el bug de v0.8.4) + `vite build` limpio.
+- Ver diseño 8.4.24 para el detalle completo y todo lo que falta para
+  que esto sea fitting de verdad (elegir torreta por slot, que el daño
+  salga de ahí, persistencia).
+
 ## [v0.8.6]
 
 ### Añadido — catálogo de slots de torretas (datos, sin cambios de código)

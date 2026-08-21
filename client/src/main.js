@@ -19,7 +19,7 @@ import { preloadEffects, buildEffectAnimations, playStructureHit, playShipDestro
 
 // Súbela en cada release — se muestra en pantalla y sirve de referencia
 // rápida para saber si el cliente cargado es el último.
-const GAME_VERSION = "v0.8.6";
+const GAME_VERSION = "v0.8.7";
 
 // En local usa ws://localhost:2567 (ver client/.env.example).
 // En producción, define VITE_SERVER_URL en las variables de entorno de tu
@@ -99,6 +99,26 @@ const BACKDROP_HERO_COUNT = 7; // los 7 primeros de la lista de arriba
 // determinista de una sola función, sin dependencias) generado a partir
 // de esta semilla siempre produce la misma secuencia.
 const BACKDROP_SEED = 0x5eed1e5;
+
+// --- Torretas: sistema visual, sin efecto en el daño todavía --------------
+// Primera entrega (8.4.24): que existan, en su sitio, y giren hacia el
+// objetivo — con una torreta PLACEHOLDER, la misma en todos los slots de
+// todas las naves. El daño real sigue siendo ARMA_MEDIUM_CORTA en el
+// servidor (8.4.2); esto es puramente cosmético todavía, igual que la
+// retícula de bloqueo o los VFX de explosión — no cambia ni un número de
+// combate. Fitting de verdad (elegir qué torreta va en cada slot) y que
+// el daño salga de las torretas fijadas siguen pendientes.
+const TURRET_PLACEHOLDER_ID = "kinetic_autocanon_m";
+// Ligeramente por encima de 0 (profundidad por defecto del casco) para
+// que las torretas se pinten ENCIMA del casco, pero muy por debajo de
+// cualquier UI/VFX del mundo (retículas en 80+, explosiones sin depth
+// explícito pero añadidas después).
+const TURRET_DEPTH = 1;
+// Velocidad de giro al apuntar a un objetivo — grados/seg convertidos a
+// radianes/ms más abajo. Instantáneo se veía como un salto, no como una
+// torreta girando de verdad.
+const TURRET_TURN_SPEED_RAD_PER_MS = ((140 * Math.PI) / 180) / 1000;
+
 function mulberry32(seed) {
   let a = seed >>> 0;
   return function () {
@@ -122,9 +142,18 @@ function mulberry32(seed) {
 // arte (LOD/mipmaps por clase), pendiente aparte. Esto solo asegura que
 // cada sprite individual usa el máximo de resolución disponible en su
 // propio PNG.
+// Devuelve el rectángulo recortado {minX, minY, w, h} en coordenadas de
+// la imagen ORIGINAL (sin recortar) — lo necesita createTurretSprites
+// para poder convertir las coordenadas de turret-slots.json (en píxeles
+// de esa imagen original, la que exporta la Naveteca) al sistema de
+// coordenadas de la textura YA recortada que de verdad se pinta en
+// pantalla. Sin este dato, una torreta calibrada sobre el sprite
+// original quedaría desplazada en cuanto el recorte quita franjas de
+// transparencia distintas por arriba/izquierda que por abajo/derecha
+// (recorte no simétrico → el centro visual se mueve).
 function trimTransparentPadding(scene, key, alphaThreshold = 8) {
   const source = scene.textures.get(key)?.getSourceImage();
-  if (!source || !source.width) return;
+  if (!source || !source.width) return null;
 
   const full = document.createElement("canvas");
   full.width = source.width;
@@ -150,11 +179,11 @@ function trimTransparentPadding(scene, key, alphaThreshold = 8) {
     }
   }
 
-  if (maxX < minX || maxY < minY) return; // sprite completamente vacío, no tocar
+  if (maxX < minX || maxY < minY) return null; // sprite completamente vacío, no tocar
 
   const w = maxX - minX + 1;
   const h = maxY - minY + 1;
-  if (w === full.width && h === full.height) return; // ya estaba ajustado
+  if (w === full.width && h === full.height) return { minX: 0, minY: 0, w, h }; // ya estaba ajustado
 
   const trimmed = document.createElement("canvas");
   trimmed.width = w;
@@ -163,6 +192,7 @@ function trimTransparentPadding(scene, key, alphaThreshold = 8) {
 
   scene.textures.remove(key);
   scene.textures.addCanvas(key, trimmed);
+  return { minX, minY, w, h };
 }
 
 // Diferencia angular más corta entre dos ángulos, en [-PI, PI].
@@ -1271,6 +1301,18 @@ class ChunkScene extends Phaser.Scene {
 
     const base = `${import.meta.env.BASE_URL}ships/`;
     this.load.json("shipsCatalog", `${base}ships.json`);
+    // Slots de torreta por nave (Naveteca, 8.4.23) — junto a ships.json,
+    // no hay carpeta propia todavía.
+    this.load.json("turretSlotsCatalog", `${base}turret-slots.json`);
+    // Catálogo completo de torretas — solo se usa para sacar el tamaño y
+    // el pivote de la ÚNICA torreta placeholder (TURRET_PLACEHOLDER_ID),
+    // no se cargan las 32 imágenes todavía (esto es solo la primera
+    // entrega visual, ver 8.4.24).
+    this.load.json("turretsCatalog", `${import.meta.env.BASE_URL}turrets/turrets.json`);
+    this.load.image(
+      `turret-${TURRET_PLACEHOLDER_ID}`,
+      `${import.meta.env.BASE_URL}turrets/sprites/${TURRET_PLACEHOLDER_ID}.png`
+    );
 
     const override = getLocalShipOverride(STARTING_SHIP_ID);
 
@@ -1336,7 +1378,25 @@ class ChunkScene extends Phaser.Scene {
     const override = getLocalShipOverride(STARTING_SHIP_ID);
     this.shipMeta = override && baseMeta ? { ...baseMeta, ...override, stats: { ...baseMeta.stats, ...(override.stats || {}) } } : baseMeta;
 
-    trimTransparentPadding(this, `ship-${STARTING_SHIP_ID}`);
+    // spriteTrimOffsets: shipId -> {minX, minY, w, h} del recorte real
+    // aplicado a su textura — createTurretSprites lo necesita para
+    // convertir las coordenadas de turret-slots.json (en píxeles de la
+    // imagen ORIGINAL sin recortar) al sistema de la textura que de
+    // verdad se pinta. El NPC (ship-${NPC_SHIP_ID}) nunca se recorta
+    // (ver más abajo), así que no tiene entrada aquí — createTurretSprites
+    // trata "sin entrada" como "imagen completa, sin offset".
+    this.spriteTrimOffsets = new Map();
+    this.spriteTrimOffsets.set(STARTING_SHIP_ID, trimTransparentPadding(this, `ship-${STARTING_SHIP_ID}`));
+
+    this.turretSlotsByShip = this.cache.json.get("turretSlotsCatalog") || {};
+    const turretsCatalog = this.cache.json.get("turretsCatalog") || [];
+    this.turretPlaceholder = turretsCatalog.find((t) => t.id === TURRET_PLACEHOLDER_ID) || null;
+    // mountCache: shipId -> array de {localX, localY} en píxeles nativos
+    // ya centrados (relativos al centro del sprite, antes de aplicar la
+    // escala 0.5 de renderizado) — se calcula una vez por clase de nave,
+    // no por cada instancia (todas las naves de la misma clase comparten
+    // el mismo montaje de torretas).
+    this.turretMountCache = new Map();
 
     this.engineSound = this.sound.add(`ship-${STARTING_SHIP_ID}-hum`, { loop: true, volume: 0.12 });
 
@@ -1625,6 +1685,10 @@ class ChunkScene extends Phaser.Scene {
       // desde predictLocalMovement para la nave propia; las remotas se
       // activan por cambio de posición).
       const engineTrails = this.createEngineTrails(container, `ship-${STARTING_SHIP_ID}`);
+      // Torretas placeholder (8.4.24) — todos los jugadores usan la misma
+      // nave (STARTING_SHIP_ID) hoy, así que el montaje es el mismo para
+      // isMe y para el resto.
+      const turrets = this.createTurretSprites(STARTING_SHIP_ID);
 
       const entry = {
         container,
@@ -1632,6 +1696,7 @@ class ChunkScene extends Phaser.Scene {
         label,
         isMe,
         engineTrails,
+        turrets,
         buffer: [{ x: player.x, y: player.y, rotation: player.rotation, t: performance.now() }],
         serverX: player.x,
         serverY: player.y,
@@ -1691,6 +1756,7 @@ class ChunkScene extends Phaser.Scene {
       if (entry) {
         entry.container.destroy();
         entry.engineTrails?.forEach(({ emitter }) => emitter.destroy());
+        entry.turrets?.forEach(({ sprite }) => sprite.destroy());
       }
       this.playerEntities.delete(sessionId);
       if (sessionId === this.room.sessionId) {
@@ -1718,7 +1784,12 @@ class ChunkScene extends Phaser.Scene {
         .setOrigin(0.5, 0);
       const container = this.add.container(npc.x, npc.y, [sprite, label]);
       this.worldLayer.add(container);
-      this.npcEntities.set(id, { container, sprite, serverX: npc.x, serverY: npc.y, rotation: npc.rotation });
+      // Torretas placeholder (8.4.24) — por clase real del NPC
+      // (npc.shipId), no una nave fija: si algún día hay NPCs de varias
+      // clases, cada una saca su propio montaje de turret-slots.json sin
+      // tocar este código.
+      const turrets = this.createTurretSprites(npc.shipId);
+      this.npcEntities.set(id, { container, sprite, turrets, serverX: npc.x, serverY: npc.y, rotation: npc.rotation });
 
       npc.onChange(() => {
         const entry = this.npcEntities.get(id);
@@ -1742,6 +1813,7 @@ class ChunkScene extends Phaser.Scene {
       const entry = this.npcEntities.get(id);
       if (!entry) return;
       entry.container.destroy();
+      entry.turrets?.forEach(({ sprite }) => sprite.destroy());
       this.npcEntities.delete(id);
       // No hace falta tocar targetHealthByKey aquí: en cuanto el NPC
       // muere, el servidor lo quita de combatState.targets y el próximo
@@ -1876,6 +1948,7 @@ class ChunkScene extends Phaser.Scene {
     this.playerEntities.forEach((entry) => {
       entry.container.destroy();
       entry.engineTrails?.forEach(({ emitter }) => emitter.destroy());
+      entry.turrets?.forEach(({ sprite }) => sprite.destroy());
     });
     this.playerEntities.clear();
     this.asteroidSprites.forEach((circle) => circle.destroy());
@@ -1883,7 +1956,10 @@ class ChunkScene extends Phaser.Scene {
     this.actionReticle?.destroy();
     this.actionReticle = null;
     setContextAction(null);
-    this.npcEntities?.forEach((e) => e.container.destroy());
+    this.npcEntities?.forEach((e) => {
+      e.container.destroy();
+      e.turrets?.forEach(({ sprite }) => sprite.destroy());
+    });
     this.npcEntities?.clear();
     this.targetReticles?.forEach((r) => r.destroy());
     this.targetReticles?.clear();
@@ -2032,6 +2108,37 @@ class ChunkScene extends Phaser.Scene {
     this.updateStarfieldScale();
     this.updateOwnShipIndicator();
     this.updateCruiseIndicator();
+    this.updateAllTurrets(delta);
+  }
+
+  // Torretas (8.4.24): la nave propia apunta a su objetivo activo
+  // bloqueado si tiene uno (el mismo que usa el HUD de combate, 8.4.14);
+  // el resto de naves (jugadores remotos, NPCs) no tienen forma de saber
+  // a quién le está disparando ESE cliente desde aquí sin que el
+  // servidor lo retransmita — de momento sus torretas se quedan
+  // alineadas con el casco (targetWorldX=null en updateTurretSprites).
+  updateAllTurrets(deltaMs) {
+    if (this.localEntry) {
+      const activo = (combatState?.targets || []).find((t) => t.active && t.locked);
+      let tx = null;
+      let ty = null;
+      if (activo) {
+        const targetEntry =
+          activo.kind === "npc" ? this.npcEntities?.get(activo.id) : this.playerEntities?.get(activo.id);
+        if (targetEntry) {
+          tx = targetEntry.container.x;
+          ty = targetEntry.container.y;
+        }
+      }
+      this.updateTurretSprites(this.localEntry, deltaMs, tx, ty);
+    }
+    this.playerEntities?.forEach((entry) => {
+      if (entry.isMe) return; // ya actualizada arriba, con su objetivo real
+      this.updateTurretSprites(entry, deltaMs);
+    });
+    this.npcEntities?.forEach((entry) => {
+      this.updateTurretSprites(entry, deltaMs);
+    });
   }
 
   // Único reflejo visual de player.cruising (8.4.10.3) — sin esto,
@@ -2054,6 +2161,106 @@ class ChunkScene extends Phaser.Scene {
   // naves muy anchas. La posición y el ángulo reales de cada chorro se
   // recalculan cada frame en updateEngineTrailsPosition, esto solo crea
   // los emisores y guarda su offset lateral relativo (fracción de -1..1).
+  // Posiciones de montaje de torretas para una clase de nave, en píxeles
+  // nativos ya CENTRADOS (relativos al centro del sprite tal y como se
+  // renderiza, no a la esquina superior izquierda de la imagen original
+  // de turret-slots.json) — listas para rotar por la orientación real de
+  // la nave y escalar por su sprite.scale en createTurretSprites/
+  // updateTurretSprites. Se calcula una vez por clase (cacheado en
+  // turretMountCache), no por cada instancia — todas las naves de la
+  // misma clase comparten montaje.
+  getTurretMounts(shipId) {
+    if (this.turretMountCache.has(shipId)) return this.turretMountCache.get(shipId);
+
+    const data = this.turretSlotsByShip[shipId];
+    if (!data) {
+      this.turretMountCache.set(shipId, []);
+      return [];
+    }
+
+    // Recorte real aplicado a ESTA textura concreta (solo la nave propia
+    // se recorta hoy, ver spriteTrimOffsets) — sin entrada, se asume
+    // imagen completa sin offset (el caso del NPC).
+    const trim = this.spriteTrimOffsets.get(shipId);
+    const minX = trim?.minX ?? 0;
+    const minY = trim?.minY ?? 0;
+    const trimmedW = trim?.w ?? data.spriteSize.w;
+    const trimmedH = trim?.h ?? data.spriteSize.h;
+
+    const mounts = data.slots.map((slot) => ({
+      localX: slot.x - minX - trimmedW / 2,
+      localY: slot.y - minY - trimmedH / 2,
+    }));
+    this.turretMountCache.set(shipId, mounts);
+    return mounts;
+  }
+
+  // Crea los sprites de torreta (placeholder, misma en todos los slots)
+  // para una nave concreta — independientes del sprite del casco, no
+  // hijos suyos: el casco rota aplicando `sprite.rotation` directamente
+  // (no `container.rotation`, ver comentario de updateEngineTrailsPosition
+  // más abajo), así que las torretas necesitan su posición y rotación
+  // recalculadas a mano cada frame igual que las estelas de motor —
+  // mismo patrón, mismo motivo.
+  createTurretSprites(shipId) {
+    if (!this.turretPlaceholder) return [];
+    const mounts = this.getTurretMounts(shipId);
+    if (!mounts.length) return [];
+
+    const { size, pivot } = this.turretPlaceholder;
+    const textureKey = `turret-${TURRET_PLACEHOLDER_ID}`;
+
+    return mounts.map(({ localX, localY }) => {
+      const sprite = this.add.image(0, 0, textureKey);
+      // Origen en el propio pivote (centro de rotación calibrado en la
+      // Naveteca), no en el centro geométrico del sprite — para que gire
+      // desde donde de verdad se monta en el casco, no desde el medio de
+      // la imagen del cañón.
+      sprite.setOrigin(pivot.x / size.w, pivot.y / size.h);
+      sprite.setDepth(TURRET_DEPTH);
+      this.worldLayer.add(sprite);
+      return { sprite, localX, localY, aimRotation: 0 };
+    });
+  }
+
+  // Recoloca y reorienta cada torreta de una nave, cada frame. La
+  // posición sale de rotar su offset local (calculado sin rotación,
+  // "nave mirando hacia arriba") por la rotación REAL actual del casco —
+  // mismo cálculo que el offset de las estelas de motor, aplicado por
+  // torreta en vez de una sola vez detrás de la nave. La rotación PROPIA
+  // de la torreta persigue el objetivo con un giro limitado
+  // (TURRET_TURN_SPEED_RAD_PER_MS), no un salto instantáneo — sin
+  // objetivo, se queda alineada con el casco (mirando "hacia delante").
+  //
+  // Puramente visual (8.4.24): no afecta a si el disparo acierta ni a
+  // cuánto daño hace, eso lo sigue decidiendo el servidor sin mirar
+  // hacia dónde apunta el dibujo del cañón.
+  updateTurretSprites(entry, deltaMs, targetWorldX = null, targetWorldY = null) {
+    if (!entry.turrets?.length) return;
+    const shipRot = entry.sprite.rotation;
+    const cos = Math.cos(shipRot);
+    const sin = Math.sin(shipRot);
+    const scale = entry.sprite.scale;
+
+    let desiredRotation = shipRot;
+    if (targetWorldX !== null) {
+      desiredRotation = Math.atan2(targetWorldY - entry.container.y, targetWorldX - entry.container.x) + Math.PI / 2;
+    }
+
+    const maxStep = TURRET_TURN_SPEED_RAD_PER_MS * deltaMs;
+    entry.turrets.forEach((turret) => {
+      const rotatedX = turret.localX * cos - turret.localY * sin;
+      const rotatedY = turret.localX * sin + turret.localY * cos;
+      turret.sprite.setPosition(entry.container.x + rotatedX * scale, entry.container.y + rotatedY * scale);
+      turret.sprite.setScale(scale);
+
+      const diff = angleDiff(turret.sprite.rotation, desiredRotation);
+      const step = Phaser.Math.Clamp(diff, -maxStep, maxStep);
+      turret.sprite.rotation += step;
+    });
+  }
+
+
   createEngineTrails(container, textureKey) {
     const shipClass = this.shipClassById?.get(textureKey.replace(/^ship-/, ""));
     const layout = ENGINE_TRAIL_LAYOUT[shipClass] || ENGINE_TRAIL_DEFAULT_LAYOUT;

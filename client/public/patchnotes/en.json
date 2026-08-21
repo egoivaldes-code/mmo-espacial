@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.7",
+    "highlights": [
+      "Ships now show real turrets mounted on the hull! Still the same one in every slot for now (real fitting comes later), but they turn to track your target.",
+      "Damage works the same as before — this is just the visual piece for now."
+    ]
+  },
+  {
     "version": "v0.8.6",
     "highlights": [
       "Behind-the-scenes prep work (turret catalog and their mount points on each ship) — no visible in-game changes yet."

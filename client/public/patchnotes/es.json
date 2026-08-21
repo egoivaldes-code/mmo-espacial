@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.8.7",
+    "highlights": [
+      "¡Las naves ya muestran torretas de verdad sobre el casco! Todavía la misma para todos los huecos (fitting real llegará después), pero ya giran para apuntar a tu objetivo.",
+      "El daño sigue igual que antes — esto es solo la parte visual, de momento."
+    ]
+  },
+  {
     "version": "v0.8.6",
     "highlights": [
       "Trabajo de preparación por dentro (catálogo de torretas y sus puntos de anclaje en cada nave) — todavía sin cambios visibles en el juego."

@@ -2645,6 +2645,86 @@ pivote, disparo por torreta en vez de un arma fija por nave) sigue
 pendiente y es un parche propio bastante más grande — este solo deja
 los datos calibrados y listos para cuando se aborde.
 
+### 8.4.24 Torretas visibles en el casco — sistema, placeholder (v0.8.7)
+
+Primera entrega del sistema de torretas de verdad en el juego (8.4.23
+solo dejó los datos calibrados). Alcance decidido explícitamente:
+**"monta el sistema, que estén, que giren y pon torretas placeholder, la
+misma en todos los slots"** — no fitting todavía, no cambios de daño
+todavía. Con 0 de los 194 slots teniendo `turretId` asignado (8.4.23),
+no había ninguna asignación real de la que partir de todas formas.
+
+**Placeholder**: `kinetic_autocanon_m` (autocañón cinético medium) en
+TODOS los slots de TODAS las naves, sin distinguir tamaño de slot ni
+clase de nave — literal a lo pedido.
+
+**Bug real encontrado y corregido de paso: coordenadas de slot vs.
+recorte de transparencia en caliente.** `trimTransparentPadding()`
+(existe desde antes, recorta el margen transparente del sprite de la
+nave propia al cargarla) desplaza el centro visual del sprite respecto
+a la imagen ORIGINAL sin recortar — la misma que usó la Naveteca para
+calibrar `turret-slots.json`. Si el recorte quita más margen por un lado
+que por otro (nada raro, casi ningún sprite tiene padding simétrico),
+el centro geométrico se mueve, y una torreta calculada sobre la imagen
+original habría aparecido desplazada sobre la nave ya recortada. Se
+modificó la función para que DEVUELVA el rectángulo real recortado
+(`{minX, minY, w, h}`, antes se descartaba) y se guarda por nave en
+`spriteTrimOffsets` — `getTurretMounts()` lo resta antes de centrar. El
+NPC (`ship-${NPC_SHIP_ID}`) nunca se recorta hoy, así que no necesita
+esta corrección (offset 0,0 implícito).
+
+**Piezas del sistema (`main.js`):**
+- `getTurretMounts(shipId)` — posiciones de slot en píxeles nativos ya
+  centrados, cacheadas por clase de nave (no por instancia: todas las
+  naves de la misma clase comparten montaje).
+- `createTurretSprites(shipId)` — un sprite por slot, con `setOrigin`
+  puesto en el pivote calibrado (no el centro geométrico del sprite),
+  para que la rotación salga del punto de anclaje real y no del medio de
+  la imagen del cañón.
+- `updateTurretSprites(entry, deltaMs, targetX, targetY)` — cada frame:
+  recalcula la posición rotando el offset local (calculado sin rotación,
+  "nave mirando arriba") por la rotación REAL actual del casco, igual
+  cálculo que el offset de las estelas de motor (8.4.14) pero por
+  torreta en vez de una vez detrás de la nave. La rotación PROPIA de la
+  torreta persigue el objetivo con velocidad de giro limitada
+  (`TURRET_TURN_SPEED_RAD_PER_MS`, 140°/s) — instantáneo se veía como un
+  salto, no como una torreta girando de verdad. Sin objetivo, se alinea
+  con el casco.
+- **Independientes del sprite del casco, no hijos suyos**: el casco rota
+  aplicando `sprite.rotation` directamente, no `container.rotation` (ver
+  8.4.14) — así que, igual que las estelas de motor, las torretas
+  necesitan su posición recalculada a mano cada frame en vez de heredar
+  la rotación del padre gratis.
+
+**Quién apunta a qué**: la nave PROPIA apunta a su objetivo activo
+bloqueado (el mismo del HUD de combate, 8.4.14) — se resuelve su
+posición vía `npcEntities`/`playerEntities` cada frame. El resto de
+naves (jugadores remotos, NPCs) no tienen forma de saber a quién le
+dispara cada uno desde el cliente sin que el servidor lo retransmita, así
+que sus torretas se quedan alineadas con el casco por ahora.
+
+**Puramente visual, cero efecto en combate.** El servidor sigue
+decidiendo acierto y daño con `ARMA_MEDIUM_CORTA` sin mirar hacia dónde
+apunta el dibujo del cañón — mismo principio que la retícula de bloqueo
+o los VFX de explosión, el disparo es matemática (8.4.2), no algo que
+dependa de dónde esté el sprite.
+
+**Pendiente** (todo lo que hace esto un sistema de verdad, no una
+demo):
+- Fitting real: elegir qué torreta va en cada slot (UI todavía
+  inexistente).
+- Persistencia del loadout — bloqueada en general por no tener Supabase
+  conectado todavía.
+- Que el daño salga de las torretas fijadas de verdad (por familia y
+  tamaño), no de un arma fija por nave — implica diseñar stats por
+  familia/tamaño (8.4.4/8.4.5) que hoy no existen en el servidor.
+- Torreta según tamaño de slot y clase de nave, no la misma para todas.
+- Que las torretas de OTRAS naves también apunten a su objetivo real
+  (requiere que el servidor retransmita a quién le dispara cada uno).
+- No se validó visualmente con Playwright, misma limitación de red del
+  sandbox de sesiones anteriores — el cálculo de offset de recorte y de
+  rotación está razonado pero no visto en pantalla.
+
 ### 8.5 Bootstrap del jugador nuevo
 
 Resuelto en gran parte por la estación hub (ver 4.2): el jugador nuevo
